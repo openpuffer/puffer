@@ -1,0 +1,45 @@
+[
+  { "text": "My SSN is 123-45-6789", "type": "ssn_valid", "shouldDetect": true },
+  { "text": "SSN: 078-05-1120", "type": "ssn_valid", "shouldDetect": true },
+  { "text": "My social security number is 219-09-9999", "type": "ssn_valid", "shouldDetect": true },
+  { "text": "SSN: 000-12-3456", "type": "ssn_invalid_area", "shouldDetect": false },
+  { "text": "SSN: 666-12-3456", "type": "ssn_invalid_area", "shouldDetect": false },
+  { "text": "SSN: 900-12-3456", "type": "ssn_invalid_area", "shouldDetect": false },
+
+  { "text": "Credit card: 4111111111111111", "type": "credit_card_visa", "shouldDetect": true },
+  { "text": "Card number: 4532015112830366", "type": "credit_card_visa", "shouldDetect": true },
+  { "text": "Pay with 5425233430109903", "type": "credit_card_mc", "shouldDetect": true },
+  { "text": "Amex card: 374245455400126", "type": "credit_card_amex", "shouldDetect": true },
+  { "text": "Invalid card: 1234567890123456", "type": "credit_card_invalid", "shouldDetect": false },
+  { "text": "Not a card: 0000000000000000", "type": "credit_card_invalid", "shouldDetect": false },
+
+  { "text": "Email me at john.doe@example.com", "type": "email", "shouldDetect": true },
+  { "text": "Contact: admin@company.org", "type": "email", "shouldDetect": true },
+  { "text": "Send to test.user+tag@subdomain.example.co.uk", "type": "email", "shouldDetect": true },
+
+  { "text": "Call me at (555) 123-4567", "type": "phone_us", "shouldDetect": true },
+  { "text": "Phone: +1-800-555-0199", "type": "phone_us", "shouldDetect": true },
+  { "text": "Reach me at 555.867.5309", "type": "phone_us", "shouldDetect": true },
+
+  { "text": "AWS key: AKIAIOSFODNN7EXAMPLE", "type": "aws_access_key", "shouldDetect": true },
+  { "text": "Key is AKIAI44QH8DHBEXAMPLE", "type": "aws_access_key", "shouldDetect": true },
+
+  { "text": "OpenAI key: sk-proj1234567890abcdefghij", "type": "openai_api_key", "shouldDetect": true },
+  { "text": "API key: sk-abcdefghij1234567890klmnop", "type": "openai_api_key", "shouldDetect": true },
+
+  { "text": "GitHub token: ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefgh12", "type": "github_pat", "shouldDetect": true },
+
+  { "text": "Anthropic key: sk-ant-api03-abcdefghij1234567890-ABCDEFG", "type": "anthropic_api_key", "shouldDetect": true },
+
+  { "text": "-----BEGIN RSA PRIVATE KEY-----\nMIIEpAIBAAKCAQ...", "type": "private_key", "shouldDetect": true },
+  { "text": "-----BEGIN EC PRIVATE KEY-----\nMHQCAQEE...", "type": "private_key", "shouldDetect": true },
+  { "text": "-----BEGIN OPENSSH PRIVATE KEY-----\nb3BlbnNzaC1r...", "type": "private_key", "shouldDetect": true },
+
+  { "text": "Token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c", "type": "jwt", "shouldDetect": true },
+
+  { "text": "The weather today is sunny and warm.", "type": "clean_text", "shouldDetect": false },
+  { "text": "Please help me write a function to sort an array.", "type": "clean_text", "shouldDetect": false },
+  { "text": "Hello, how are you doing today?", "type": "clean_text", "shouldDetect": false },
+  { "text": "The project deadline is next Friday.", "type": "clean_text", "shouldDetect": false },
+  { "text": "I need to refactor the authentication module.", "type": "clean_text", "shouldDetect": false }
+]

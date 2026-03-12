@@ -1,0 +1,22 @@
+[
+  { "command": "ls", "args": ["-la"], "reason": "List directory contents", "expectedVerdict": "allow" },
+  { "command": "cat", "args": ["README.md"], "reason": "Read a text file", "expectedVerdict": "allow" },
+  { "command": "echo", "args": ["Hello, world!"], "reason": "Print text to stdout", "expectedVerdict": "allow" },
+  { "command": "pwd", "args": [], "reason": "Print working directory", "expectedVerdict": "allow" },
+  { "command": "grep", "args": ["-r", "TODO", "src/"], "reason": "Search for text in files", "expectedVerdict": "allow" },
+  { "command": "find", "args": [".", "-name", "*.ts"], "reason": "Find TypeScript files", "expectedVerdict": "allow" },
+  { "command": "git", "args": ["status"], "reason": "Check git status", "expectedVerdict": "allow" },
+  { "command": "git", "args": ["diff", "--staged"], "reason": "View staged changes", "expectedVerdict": "allow" },
+  { "command": "npm", "args": ["install"], "reason": "Install dependencies", "expectedVerdict": "allow" },
+  { "command": "npm", "args": ["test"], "reason": "Run test suite", "expectedVerdict": "allow" },
+  { "command": "node", "args": ["dist/index.js"], "reason": "Run Node.js application", "expectedVerdict": "allow" },
+  { "command": "python", "args": ["script.py"], "reason": "Run Python script", "expectedVerdict": "allow" },
+  { "command": "whoami", "args": [], "reason": "Display current user", "expectedVerdict": "allow" },
+  { "command": "date", "args": [], "reason": "Display current date", "expectedVerdict": "allow" },
+  { "command": "wc", "args": ["-l", "src/index.ts"], "reason": "Count lines in file", "expectedVerdict": "allow" },
+  { "command": "head", "args": ["-n", "20", "package.json"], "reason": "View first 20 lines", "expectedVerdict": "allow" },
+  { "command": "tail", "args": ["-n", "10", "log.txt"], "reason": "View last 10 lines", "expectedVerdict": "allow" },
+  { "command": "sort", "args": ["data.csv"], "reason": "Sort file contents", "expectedVerdict": "allow" },
+  { "command": "diff", "args": ["file1.txt", "file2.txt"], "reason": "Compare two files", "expectedVerdict": "allow" },
+  { "command": "tree", "args": ["-L", "2"], "reason": "Display directory tree", "expectedVerdict": "allow" }
+]
