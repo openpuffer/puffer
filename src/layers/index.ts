@@ -72,13 +72,13 @@ export class DefensePipeline {
 export function createDefaultPipeline(config: PufferConfig): DefensePipeline {
   const pipeline = new DefensePipeline();
 
-  pipeline.registerLayer('pii_scanner', piiScanner, config.layers.pii);
-  pipeline.registerLayer('injection_detector', injectionDetector, config.layers.injection);
-  pipeline.registerLayer('command_analyzer', commandAnalyzer, config.layers.commands);
-  pipeline.registerLayer('network_egress', networkEgressGuard, config.layers.network);
-  pipeline.registerLayer('filesystem_sentinel', filesystemSentinel, config.layers.filesystem);
-  pipeline.registerLayer('behavior_analyzer', behaviorAnalyzer, config.layers.behavior);
-  pipeline.registerLayer('mcp_detector', mcpPoisoningDetector, config.layers.mcp);
+  pipeline.registerLayer('pii_scanner', piiScanner as LayerFunction, config.layers.pii);
+  pipeline.registerLayer('injection_detector', injectionDetector as LayerFunction, config.layers.injection);
+  pipeline.registerLayer('command_analyzer', commandAnalyzer as LayerFunction, config.layers.commands);
+  pipeline.registerLayer('network_egress', networkEgressGuard as LayerFunction, config.layers.network);
+  pipeline.registerLayer('filesystem_sentinel', filesystemSentinel as LayerFunction, config.layers.filesystem);
+  pipeline.registerLayer('behavior_analyzer', behaviorAnalyzer as LayerFunction, config.layers.behavior);
+  pipeline.registerLayer('mcp_detector', mcpPoisoningDetector as LayerFunction, config.layers.mcp);
 
   return pipeline;
 }

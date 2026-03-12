@@ -1,14 +1,13 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import YAML from 'yaml';
 import { PufferConfig } from '../types.js';
 import { CONFIG_PATH, PUFFER_DIR } from './constants.js';
 import { logger } from './logger.js';
 
-const DEFAULT_CONFIG_PATH = path.resolve(
-  import.meta.dirname ?? path.dirname(new URL(import.meta.url).pathname),
-  '../../config/default-policy.yaml'
-);
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const DEFAULT_CONFIG_PATH = path.resolve(__dirname, '../../config/default-policy.yaml');
 
 function camelCaseKeys(obj: unknown): unknown {
   if (Array.isArray(obj)) return obj.map(camelCaseKeys);

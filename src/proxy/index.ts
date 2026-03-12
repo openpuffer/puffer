@@ -1,4 +1,5 @@
 import http, { IncomingMessage, ServerResponse } from 'node:http';
+import { Readable } from 'node:stream';
 import httpProxy from 'http-proxy';
 import { v4 as uuidv4 } from 'uuid';
 import { PufferConfig, PufferEvent } from '../types.js';
@@ -150,8 +151,7 @@ export function createProxyServer(options: ProxyOptions): ProxyServer {
   };
 }
 
-function createReadableStream(buffer: Buffer): import('stream').Readable {
-  const { Readable } = require('stream');
+function createReadableStream(buffer: Buffer): Readable {
   const stream = new Readable();
   stream.push(buffer);
   stream.push(null);
