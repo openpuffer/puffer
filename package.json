@@ -1,0 +1,55 @@
+{
+  "name": "puffer-agent-firewall",
+  "version": "0.1.0",
+  "description": "The autonomous immune system for AI agents",
+  "bin": {
+    "puffer": "./dist/cli/index.js"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "start": "node dist/index.js",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "tsc --noEmit"
+  },
+  "keywords": [
+    "ai",
+    "security",
+    "firewall",
+    "agent",
+    "llm",
+    "openai",
+    "anthropic",
+    "ollama",
+    "prompt-injection",
+    "pii"
+  ],
+  "license": "Apache-2.0",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "chalk": "^5.3.0",
+    "commander": "^12.1.0",
+    "cors": "^2.8.5",
+    "express": "^4.21.0",
+    "http-proxy": "^1.18.1",
+    "minimatch": "^10.0.1",
+    "uuid": "^10.0.0",
+    "ws": "^8.18.0",
+    "yaml": "^2.5.0"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/express": "^4.17.21",
+    "@types/http-proxy": "^1.17.15",
+    "@types/node": "^22.5.0",
+    "@types/uuid": "^10.0.0",
+    "@types/ws": "^8.5.12",
+    "typescript": "^5.5.0",
+    "vitest": "^2.0.0"
+  }
+}
