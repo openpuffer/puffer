@@ -278,7 +278,7 @@ export function createDashboardServer(deps: DashboardDependencies, preferredPort
       source: {
         type: 'hook',
         agent: agentName,
-        provider: 'claude-code',
+        provider: agentName,
       },
       action: toolNameToAction(toolName, toolInput),
       payload: toolInput,
@@ -335,13 +335,96 @@ export function createDashboardServer(deps: DashboardDependencies, preferredPort
       recordEvent(evaluated);
 
       const isBlocked = evaluated.decision === 'BLOCK' && deps.config.mode === 'enforce';
-      res.status(isBlocked ? 403 : 200).json({
+      const blockReason = isBlocked
+        ? evaluated.layers.find((l) => l.verdict === 'block')?.details ?? 'Blocked by Puffer'
+        : undefined;
+
+      // Return in Claude Code hook format: hookSpecificOutput with permissionDecision
+      res.status(200).json({
+        hookSpecificOutput: {
+          hookEventName: 'PreToolUse',
+          permissionDecision: isBlocked ? 'deny' : 'allow',
+          permissionDecisionReason: isBlocked
+            ? `Puffer BLOCKED: ${blockReason}`
+            : `Puffer: ${evaluated.decision}`,
+        },
         decision: evaluated.decision,
         event_id: evaluated.id,
       });
     } catch (err) {
       logger.error(`Hook claude-code error: ${(err as Error).message}`);
-      res.status(500).json({ error: (err as Error).message });
+      // Return allow on error so we don't block the user's workflow
+      res.status(200).json({
+        hookSpecificOutput: {
+          hookEventName: 'PreToolUse',
+          permissionDecision: 'allow',
+          permissionDecisionReason: `Puffer error: ${(err as Error).message}`,
+        },
+      });
+    }
+  });
+
+  /**
+   * POST /hooks/claude-code-response
+   * Receives Claude Code PostToolUse hook data — the response path (provider → computer).
+   */
+  app.post('/hooks/claude-code-response', async (req, res) => {
+    try {
+      const { tool_name, tool_input, tool_result, session_id } = req.body as {
+        tool_name: string;
+        tool_input: Record<string, unknown>;
+        tool_result?: unknown;
+        session_id?: string;
+      };
+
+      if (!tool_name) {
+        res.status(200).json({});
+        return;
+      }
+
+      // Build a response event — action type = llm_response
+      const event: PufferEvent = {
+        id: uuidv4(),
+        timestamp: new Date().toISOString(),
+        source: {
+          type: 'hook',
+          agent: 'claude-code',
+          provider: 'anthropic',
+        },
+        action: {
+          type: 'llm_response',
+          status: 200,
+          body: tool_result ?? null,
+        },
+        payload: { tool_name, tool_input, tool_result },
+        metadata: {
+          sessionId: session_id || 'unknown',
+          sequenceNumber: 0,
+        },
+        layers: [],
+        decision: 'ALLOW',
+      };
+
+      // Log, broadcast, track (no pipeline evaluation for responses)
+      deps.auditLogger.log(event);
+      broadcastToAll(JSON.stringify({
+        type: 'event',
+        data: {
+          id: event.id,
+          timestamp: event.timestamp,
+          source: event.source,
+          action: { type: 'llm_response' },
+          decision: 'ALLOW',
+          layers: [],
+        },
+      }));
+      broadcastToAll(buildStatsMessage());
+      recordEvent(event);
+
+      res.status(200).json({});
+    } catch (err) {
+      logger.error(`Hook claude-code-response error: ${(err as Error).message}`);
+      res.status(200).json({});
     }
   });
 
@@ -395,13 +478,30 @@ export function createDashboardServer(deps: DashboardDependencies, preferredPort
       recordEvent(evaluated);
 
       const isBlocked = evaluated.decision === 'BLOCK' && deps.config.mode === 'enforce';
-      res.status(isBlocked ? 403 : 200).json({
+      const blockReason = isBlocked
+        ? evaluated.layers.find((l) => l.verdict === 'block')?.details ?? 'Blocked by Puffer'
+        : undefined;
+
+      res.status(200).json({
+        hookSpecificOutput: {
+          hookEventName: 'PreToolUse',
+          permissionDecision: isBlocked ? 'deny' : 'allow',
+          permissionDecisionReason: isBlocked
+            ? `Puffer BLOCKED: ${blockReason}`
+            : `Puffer: ${evaluated.decision}`,
+        },
         decision: evaluated.decision,
         event_id: evaluated.id,
       });
     } catch (err) {
       logger.error(`Hook generic error: ${(err as Error).message}`);
-      res.status(500).json({ error: (err as Error).message });
+      res.status(200).json({
+        hookSpecificOutput: {
+          hookEventName: 'PreToolUse',
+          permissionDecision: 'allow',
+          permissionDecisionReason: `Puffer error: ${(err as Error).message}`,
+        },
+      });
     }
   });
 
