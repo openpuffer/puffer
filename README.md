@@ -14,13 +14,13 @@
 
 ```bash
 # Install globally
-npm install -g puffer-agent-firewall
+npm install -g openpuffer
 
 # Initialize (scans your system, creates config, starts daemon)
 puffer init
 
 # Or run directly with npx
-npx puffer-agent-firewall init
+npx openpuffer init
 ```
 
 ## What It Does

@@ -1,5 +1,5 @@
 {
-  "name": "puffer-agent-firewall",
+  "name": "openpuffer",
   "version": "0.1.0",
   "description": "The autonomous immune system for AI agents",
   "bin": {
