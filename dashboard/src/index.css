@@ -4,25 +4,25 @@
 
 @layer base {
   :root {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-    --card: 222.2 84% 6.9%;
-    --card-foreground: 210 40% 98%;
-    --popover: 222.2 84% 6.9%;
-    --popover-foreground: 210 40% 98%;
-    --primary: 187 72% 43%;
-    --primary-foreground: 222.2 84% 4.9%;
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 187 72% 43%;
+    --background: 225 20% 3%;
+    --foreground: 0 0% 95%;
+    --card: 225 15% 5%;
+    --card-foreground: 0 0% 95%;
+    --popover: 225 15% 5%;
+    --popover-foreground: 0 0% 95%;
+    --primary: 0 0% 90%;
+    --primary-foreground: 225 20% 3%;
+    --secondary: 220 10% 12%;
+    --secondary-foreground: 0 0% 90%;
+    --muted: 220 10% 12%;
+    --muted-foreground: 220 5% 50%;
+    --accent: 220 10% 12%;
+    --accent-foreground: 0 0% 90%;
+    --destructive: 0 70% 55%;
+    --destructive-foreground: 0 0% 95%;
+    --border: 220 10% 12%;
+    --input: 220 10% 12%;
+    --ring: 0 0% 60%;
     --radius: 0.5rem;
   }
 }
@@ -33,5 +33,40 @@
   }
   body {
     @apply bg-background text-foreground;
+    font-family: 'Inter', 'SF Pro Display', -apple-system, 'Helvetica Neue', sans-serif;
+    overflow: hidden;
+    -webkit-font-smoothing: antialiased;
   }
+}
+
+/* HUD Panel — frosted glass, monochrome */
+@layer components {
+  .hud-panel {
+    @apply rounded-md border border-white/[0.05] px-4 py-3;
+    background: rgba(6, 8, 13, 0.65);
+    backdrop-filter: blur(24px) saturate(1.1);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.02);
+  }
+
+  .drawer-panel {
+    @apply border-l border-white/[0.04];
+    background: rgba(6, 8, 13, 0.92);
+    backdrop-filter: blur(32px);
+    box-shadow: -16px 0 48px rgba(0, 0, 0, 0.6);
+  }
+}
+
+/* Scrollbar */
+.scrollbar-thin::-webkit-scrollbar {
+  width: 3px;
+}
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 999px;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.12);
 }
