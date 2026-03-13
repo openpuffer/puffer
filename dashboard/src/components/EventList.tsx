@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useApi } from '../hooks/useApi';
+import type { LiveEvent } from '../App';
 
 interface PufferEvent {
   id: string;
@@ -17,6 +18,10 @@ interface EventsResponse {
   total: number;
 }
 
+interface EventListProps {
+  liveEvents: LiveEvent[];
+}
+
 const decisionColors: Record<string, string> = {
   ALLOW: 'bg-puffer-green/20 text-puffer-green border-puffer-green/30',
   BLOCK: 'bg-puffer-red/20 text-puffer-red border-puffer-red/30',
@@ -24,15 +29,31 @@ const decisionColors: Record<string, string> = {
   ESCALATE: 'bg-puffer-purple/20 text-puffer-purple border-puffer-purple/30',
 };
 
-const EventList: React.FC = () => {
+const EventList: React.FC<EventListProps> = ({ liveEvents }) => {
   const [offset, setOffset] = useState(0);
   const limit = 20;
-  const { data, loading, error } = useApi<EventsResponse>(
+  const { data, loading, error, refetch } = useApi<EventsResponse>(
     `/api/events?limit=${limit}&offset=${offset}`
   );
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const prevLiveCountRef = useRef(0);
+  const hasNewLive = liveEvents.length > prevLiveCountRef.current;
 
-  if (loading) {
+  // Track previous live event count (mark as "seen" after render)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      prevLiveCountRef.current = liveEvents.length;
+    }, 2000);
+    return () => clearTimeout(timer);
+  }, [liveEvents.length]);
+
+  // Auto-refresh API events every 10 seconds
+  useEffect(() => {
+    const interval = setInterval(refetch, 10000);
+    return () => clearInterval(interval);
+  }, [refetch]);
+
+  if (loading && !data) {
     return (
       <div className="flex items-center justify-center py-12">
         <div className="text-slate-400">Loading events...</div>
@@ -54,9 +75,17 @@ const EventList: React.FC = () => {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold text-slate-200">
-          Events ({total})
-        </h3>
+        <div className="flex items-center gap-3">
+          <h3 className="text-lg font-semibold text-slate-200">
+            Events ({total + liveEvents.length})
+          </h3>
+          {liveEvents.length > 0 && (
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-puffer-green/10 px-2.5 py-0.5 text-xs font-semibold text-puffer-green">
+              <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-puffer-green" />
+              Live
+            </span>
+          )}
+        </div>
         <div className="flex gap-2">
           <button
             onClick={() => setOffset(Math.max(0, offset - limit))}
@@ -90,6 +119,37 @@ const EventList: React.FC = () => {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-700/50">
+            {liveEvents.map((event, idx) => (
+              <tr
+                key={`live-${event.id}`}
+                className={`transition-colors hover:bg-slate-800/50 ${
+                  idx < (liveEvents.length - prevLiveCountRef.current) && hasNewLive
+                    ? 'animate-pulse bg-puffer-green/5'
+                    : ''
+                }`}
+              >
+                <td className="whitespace-nowrap px-4 py-3 font-mono text-xs text-slate-300">
+                  {new Date(event.timestamp).toLocaleString()}
+                </td>
+                <td className="px-4 py-3 text-slate-200">{event.source.agent}</td>
+                <td className="px-4 py-3 text-slate-300">{event.source.provider}</td>
+                <td className="px-4 py-3 text-slate-300">
+                  {event.action.type}
+                </td>
+                <td className="px-4 py-3">
+                  <span
+                    className={`inline-block rounded-full border px-2.5 py-0.5 text-xs font-semibold ${
+                      decisionColors[event.decision] ?? 'text-slate-400'
+                    }`}
+                  >
+                    {event.decision}
+                  </span>
+                </td>
+                <td className="px-4 py-3 text-slate-400">
+                  {event.layers?.map((l) => l.name).join(', ') ?? '-'}
+                </td>
+              </tr>
+            ))}
             {events.map((event) => (
               <React.Fragment key={event.id}>
                 <tr
@@ -132,7 +192,7 @@ const EventList: React.FC = () => {
                 )}
               </React.Fragment>
             ))}
-            {events.length === 0 && (
+            {events.length === 0 && liveEvents.length === 0 && (
               <tr>
                 <td
                   colSpan={6}

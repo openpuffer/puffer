@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import Overview from './components/Overview';
 import EventList from './components/EventList';
 import AgentList from './components/AgentList';
@@ -19,38 +19,85 @@ const tabs: { id: Tab; label: string }[] = [
 interface Stats {
   totalEvents: number;
   blocked: number;
+  blockedEvents: number;
   allowed: number;
+  allowedEvents: number;
+  auditEvents: number;
+  escalatedEvents: number;
   activeAgents: number;
+  totalCost: number;
+  eventsPerMinute: number;
   mode: string;
 }
+
+export interface LiveEvent {
+  id: string;
+  timestamp: string;
+  source: { agent: string; provider: string };
+  action: { type: string };
+  decision: 'ALLOW' | 'BLOCK' | 'AUDIT' | 'ESCALATE';
+  layers: { layer: string; name: string; verdict: string }[];
+}
+
+export interface AgentInfo {
+  id: string;
+  name: string;
+  type: string;
+  detectedVia: string;
+  pid: number | null;
+  port: number | null;
+  status: string;
+  firstSeen: string;
+  lastSeen: string;
+}
+
+const MAX_LIVE_EVENTS = 200;
 
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<Tab>('overview');
   const [stats, setStats] = useState<Stats>({
     totalEvents: 0,
     blocked: 0,
+    blockedEvents: 0,
     allowed: 0,
+    allowedEvents: 0,
+    auditEvents: 0,
+    escalatedEvents: 0,
     activeAgents: 0,
+    totalCost: 0,
+    eventsPerMinute: 0,
     mode: 'audit',
   });
+  const [liveEvents, setLiveEvents] = useState<LiveEvent[]>([]);
+  const [agents, setAgents] = useState<AgentInfo[]>([]);
 
   const handleWsMessage = useCallback((data: unknown) => {
     const msg = data as Record<string, unknown>;
     if (msg.type === 'stats') {
       setStats((prev) => ({ ...prev, ...(msg.payload as Partial<Stats>) }));
+    } else if (msg.type === 'event') {
+      const event = msg.data as LiveEvent;
+      setLiveEvents((prev) => [event, ...prev].slice(0, MAX_LIVE_EVENTS));
+    } else if (msg.type === 'agents') {
+      setAgents(msg.data as AgentInfo[]);
     }
   }, []);
 
   const { connected } = useWebSocket(handleWsMessage);
 
-  // Fetch initial stats
-  React.useEffect(() => {
-    fetch('/api/stats')
-      .then((res) => res.json())
-      .then((data) => setStats((prev) => ({ ...prev, ...data })))
-      .catch(() => {
-        // API may not be available yet
-      });
+  // Fetch stats on mount and auto-refresh every 5 seconds
+  useEffect(() => {
+    const fetchStats = () => {
+      fetch('/api/stats')
+        .then((res) => res.json())
+        .then((data) => setStats((prev) => ({ ...prev, ...data })))
+        .catch(() => {
+          // API may not be available yet
+        });
+    };
+    fetchStats();
+    const interval = setInterval(fetchStats, 5000);
+    return () => clearInterval(interval);
   }, []);
 
   return (
@@ -123,14 +170,17 @@ const App: React.FC = () => {
         {activeTab === 'overview' && (
           <Overview
             totalEvents={stats.totalEvents}
-            blocked={stats.blocked}
-            allowed={stats.allowed}
+            blocked={stats.blocked || stats.blockedEvents}
+            allowed={stats.allowed || stats.allowedEvents}
             activeAgents={stats.activeAgents}
+            liveEvents={liveEvents}
+            eventsPerMinute={stats.eventsPerMinute}
+            totalCost={stats.totalCost}
           />
         )}
-        {activeTab === 'events' && <EventList />}
-        {activeTab === 'agents' && <AgentList />}
-        {activeTab === 'alerts' && <AlertList />}
+        {activeTab === 'events' && <EventList liveEvents={liveEvents} />}
+        {activeTab === 'agents' && <AgentList agents={agents} />}
+        {activeTab === 'alerts' && <AlertList liveEvents={liveEvents} />}
         {activeTab === 'config' && <ConfigEditor />}
       </main>
     </div>

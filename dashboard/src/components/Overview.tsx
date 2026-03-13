@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   AreaChart,
   Area,
@@ -8,23 +8,46 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from 'recharts';
+import type { LiveEvent } from '../App';
 
 interface OverviewProps {
   totalEvents: number;
   blocked: number;
   allowed: number;
   activeAgents: number;
+  liveEvents: LiveEvent[];
+  eventsPerMinute: number;
+  totalCost: number;
 }
 
-const mockChartData = [
-  { time: '00:00', events: 12, blocked: 2, allowed: 10 },
-  { time: '04:00', events: 8, blocked: 1, allowed: 7 },
-  { time: '08:00', events: 34, blocked: 5, allowed: 29 },
-  { time: '12:00', events: 52, blocked: 8, allowed: 44 },
-  { time: '16:00', events: 41, blocked: 6, allowed: 35 },
-  { time: '20:00', events: 27, blocked: 3, allowed: 24 },
-  { time: '24:00', events: 18, blocked: 2, allowed: 16 },
-];
+function buildChartData(liveEvents: LiveEvent[]) {
+  const now = Date.now();
+  const oneHourAgo = now - 60 * 60 * 1000;
+  const bucketSize = 5 * 60 * 1000; // 5 minutes
+  const bucketCount = 12;
+
+  // Initialize empty buckets
+  const buckets: { time: string; events: number; blocked: number }[] = [];
+  for (let i = 0; i < bucketCount; i++) {
+    const bucketStart = oneHourAgo + i * bucketSize;
+    const d = new Date(bucketStart);
+    const label = `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
+    buckets.push({ time: label, events: 0, blocked: 0 });
+  }
+
+  // Fill buckets from live events
+  for (const event of liveEvents) {
+    const ts = new Date(event.timestamp).getTime();
+    if (ts < oneHourAgo || ts > now) continue;
+    const idx = Math.min(Math.floor((ts - oneHourAgo) / bucketSize), bucketCount - 1);
+    buckets[idx].events++;
+    if (event.decision === 'BLOCK') {
+      buckets[idx].blocked++;
+    }
+  }
+
+  return buckets;
+}
 
 const StatCard: React.FC<{
   label: string;
@@ -47,10 +70,15 @@ const Overview: React.FC<OverviewProps> = ({
   blocked,
   allowed,
   activeAgents,
+  liveEvents,
+  eventsPerMinute,
+  totalCost,
 }) => {
+  const chartData = useMemo(() => buildChartData(liveEvents), [liveEvents]);
+
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
         <StatCard
           label="Total Events"
           value={totalEvents}
@@ -75,6 +103,18 @@ const Overview: React.FC<OverviewProps> = ({
           color="text-puffer-purple"
           borderColor="border-puffer-purple/20"
         />
+        <StatCard
+          label="Events/min"
+          value={eventsPerMinute}
+          color="text-cyan-400"
+          borderColor="border-cyan-400/20"
+        />
+        <StatCard
+          label="Est. Cost"
+          value={totalCost}
+          color="text-amber-400"
+          borderColor="border-amber-400/20"
+        />
       </div>
 
       <div className="rounded-lg border border-slate-700 bg-slate-800/50 p-6">
@@ -82,7 +122,7 @@ const Overview: React.FC<OverviewProps> = ({
           Events Over Time
         </h3>
         <ResponsiveContainer width="100%" height={300}>
-          <AreaChart data={mockChartData}>
+          <AreaChart data={chartData}>
             <defs>
               <linearGradient id="colorEvents" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="5%" stopColor="#06b6d4" stopOpacity={0.3} />

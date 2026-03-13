@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useApi } from '../hooks/useApi';
+import type { AgentInfo } from '../App';
 
 interface Agent {
   id: string;
@@ -13,6 +14,10 @@ interface Agent {
 
 interface AgentsResponse {
   agents: Agent[];
+}
+
+interface AgentListProps {
+  agents: AgentInfo[];
 }
 
 const statusStyles: Record<string, { badge: string; dot: string }> = {
@@ -30,10 +35,16 @@ const statusStyles: Record<string, { badge: string; dot: string }> = {
   },
 };
 
-const AgentList: React.FC = () => {
-  const { data, loading, error } = useApi<AgentsResponse>('/api/agents');
+const AgentList: React.FC<AgentListProps> = ({ agents: wsAgents }) => {
+  const { data, loading, error, refetch } = useApi<AgentsResponse>('/api/agents');
 
-  if (loading) {
+  // Auto-refresh API every 15 seconds
+  useEffect(() => {
+    const interval = setInterval(refetch, 15000);
+    return () => clearInterval(interval);
+  }, [refetch]);
+
+  if (loading && !data && wsAgents.length === 0) {
     return (
       <div className="flex items-center justify-center py-12">
         <div className="text-slate-400">Loading agents...</div>
@@ -41,7 +52,7 @@ const AgentList: React.FC = () => {
     );
   }
 
-  if (error) {
+  if (error && wsAgents.length === 0) {
     return (
       <div className="rounded-lg border border-puffer-red/20 bg-puffer-red/5 p-6">
         <p className="text-puffer-red">Failed to load agents: {error}</p>
@@ -49,7 +60,18 @@ const AgentList: React.FC = () => {
     );
   }
 
-  const agents = data?.agents ?? [];
+  // Use WebSocket agents if available, otherwise fall back to API
+  const agents: Agent[] = wsAgents.length > 0
+    ? wsAgents.map((a) => ({
+        id: a.id,
+        name: a.name,
+        pid: a.pid ?? undefined,
+        detectedVia: a.detectedVia,
+        status: (a.status as Agent['status']) || 'unprotected',
+        provider: a.type,
+        port: a.port ?? undefined,
+      }))
+    : data?.agents ?? [];
 
   if (agents.length === 0) {
     return (

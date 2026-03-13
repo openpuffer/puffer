@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { useApi } from '../hooks/useApi';
+import type { LiveEvent } from '../App';
 
 interface Alert {
   id: string;
@@ -14,10 +15,36 @@ interface AlertsResponse {
   alerts: Alert[];
 }
 
-const AlertList: React.FC = () => {
-  const { data, loading, error } = useApi<AlertsResponse>('/api/alerts');
+interface AlertListProps {
+  liveEvents: LiveEvent[];
+}
 
-  if (loading) {
+const AlertList: React.FC<AlertListProps> = ({ liveEvents }) => {
+  const { data, loading, error, refetch } = useApi<AlertsResponse>('/api/alerts');
+
+  // Auto-refresh API every 10 seconds
+  useEffect(() => {
+    const interval = setInterval(refetch, 10000);
+    return () => clearInterval(interval);
+  }, [refetch]);
+
+  // Derive live alerts from live events (BLOCK and ESCALATE only)
+  const liveAlerts = useMemo(
+    () =>
+      liveEvents
+        .filter((e) => e.decision === 'BLOCK' || e.decision === 'ESCALATE')
+        .map((e) => ({
+          id: `live-${e.id}`,
+          timestamp: e.timestamp,
+          agent: e.source.agent,
+          layer: e.layers.map((l) => l.name).join(', ') || 'Unknown',
+          reason: `${e.decision} on ${e.action.type} via ${e.source.provider}`,
+          type: (e.decision === 'BLOCK' ? 'block' : 'escalation') as 'block' | 'escalation',
+        })),
+    [liveEvents]
+  );
+
+  if (loading && !data && liveAlerts.length === 0) {
     return (
       <div className="flex items-center justify-center py-12">
         <div className="text-slate-400">Loading alerts...</div>
@@ -25,7 +52,7 @@ const AlertList: React.FC = () => {
     );
   }
 
-  if (error) {
+  if (error && liveAlerts.length === 0) {
     return (
       <div className="rounded-lg border border-puffer-red/20 bg-puffer-red/5 p-6">
         <p className="text-puffer-red">Failed to load alerts: {error}</p>
@@ -33,7 +60,8 @@ const AlertList: React.FC = () => {
     );
   }
 
-  const alerts = data?.alerts ?? [];
+  const apiAlerts = data?.alerts ?? [];
+  const alerts = [...liveAlerts, ...apiAlerts];
 
   if (alerts.length === 0) {
     return (

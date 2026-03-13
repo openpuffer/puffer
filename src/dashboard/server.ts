@@ -239,6 +239,46 @@ export function createDashboardServer(deps: DashboardDependencies, preferredPort
     ws.on('error', () => clients.delete(ws));
   });
 
+  function buildStatsMessage(): string {
+    const stats = deps.auditLogger.getStats();
+    const agents = deps.discovery.getAgents();
+    return JSON.stringify({
+      type: 'stats',
+      payload: {
+        totalEvents: stats.total,
+        blockedEvents: stats.blocked,
+        allowedEvents: stats.allowed,
+        auditEvents: stats.audit,
+        escalatedEvents: stats.escalated,
+        activeAgents: agents.length,
+        totalCost: totalCostAccumulator,
+        eventsPerMinute: getEventsPerMinute(),
+      },
+    });
+  }
+
+  function broadcastToAll(message: string): void {
+    for (const client of clients) {
+      if (client.readyState === WebSocket.OPEN) {
+        client.send(message);
+      }
+    }
+  }
+
+  // Periodic stats broadcast every 2 seconds
+  const statsInterval = setInterval(() => {
+    broadcastToAll(buildStatsMessage());
+  }, 2000);
+
+  // Periodic agents broadcast every 10 seconds
+  const agentsInterval = setInterval(() => {
+    const agents = deps.discovery.getAgents();
+    broadcastToAll(JSON.stringify({
+      type: 'agents',
+      payload: { agents },
+    }));
+  }, 10000);
+
   let resolvedPort = preferredPort;
 
   return {
@@ -262,6 +302,8 @@ export function createDashboardServer(deps: DashboardDependencies, preferredPort
     },
 
     stop(): Promise<void> {
+      clearInterval(statsInterval);
+      clearInterval(agentsInterval);
       return new Promise((resolve) => {
         for (const client of clients) {
           client.close();
@@ -290,11 +332,10 @@ export function createDashboardServer(deps: DashboardDependencies, preferredPort
         },
       });
 
-      for (const client of clients) {
-        if (client.readyState === WebSocket.OPEN) {
-          client.send(message);
-        }
-      }
+      broadcastToAll(message);
+
+      // Immediately send updated stats after each event
+      broadcastToAll(buildStatsMessage());
     },
 
     getPort(): number {
