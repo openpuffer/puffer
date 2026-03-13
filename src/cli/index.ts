@@ -58,6 +58,29 @@ program
     }
   });
 
+// Inline: dashboard
+program
+  .command('dashboard')
+  .description('Open the Puffer dashboard in your browser')
+  .option('-p, --port <port>', 'Dashboard port', '8788')
+  .action(async (opts) => {
+    const config = loadConfig();
+    const port = parseInt(opts.port) || config.dashboard.port;
+    const url = `http://127.0.0.1:${port}`;
+
+    logger.info(`Opening dashboard at ${url}`);
+
+    // Try to open in default browser
+    const { exec } = await import('node:child_process');
+    const platform = process.platform;
+    const cmd = platform === 'darwin' ? 'open' : platform === 'win32' ? 'start' : 'xdg-open';
+    exec(`${cmd} ${url}`, (err) => {
+      if (err) {
+        logger.info(`Open manually: ${url}`);
+      }
+    });
+  });
+
 // Inline: inflate
 program
   .command('inflate')

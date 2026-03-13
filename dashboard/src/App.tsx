@@ -3,15 +3,17 @@ import Overview from './components/Overview';
 import EventList from './components/EventList';
 import AgentList from './components/AgentList';
 import AlertList from './components/AlertList';
+import ConfigEditor from './components/ConfigEditor';
 import { useWebSocket } from './hooks/useWebSocket';
 
-type Tab = 'overview' | 'events' | 'agents' | 'alerts';
+type Tab = 'overview' | 'events' | 'agents' | 'alerts' | 'config';
 
 const tabs: { id: Tab; label: string }[] = [
   { id: 'overview', label: 'Overview' },
   { id: 'events', label: 'Events' },
   { id: 'agents', label: 'Agents' },
   { id: 'alerts', label: 'Alerts' },
+  { id: 'config', label: 'Config' },
 ];
 
 interface Stats {
@@ -129,6 +131,7 @@ const App: React.FC = () => {
         {activeTab === 'events' && <EventList />}
         {activeTab === 'agents' && <AgentList />}
         {activeTab === 'alerts' && <AlertList />}
+        {activeTab === 'config' && <ConfigEditor />}
       </main>
     </div>
   );
