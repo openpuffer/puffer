@@ -79,7 +79,8 @@ const App: React.FC = () => {
       const event = msg.data as LiveEvent;
       setLiveEvents((prev) => [event, ...prev].slice(0, MAX_LIVE_EVENTS));
     } else if (msg.type === 'agents') {
-      setAgents(msg.data as AgentInfo[]);
+      const payload = msg.payload as Record<string, unknown>;
+      setAgents((payload.agents ?? msg.data) as AgentInfo[]);
     }
   }, []);
 

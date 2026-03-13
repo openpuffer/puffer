@@ -135,7 +135,7 @@ export function createDashboardServer(deps: DashboardDependencies, preferredPort
   app.get('/api/stats', (_req, res) => {
     const stats = deps.auditLogger.getStats();
     const agents = deps.discovery.getAgents();
-    const response: DashboardStats = {
+    const response = {
       totalEvents: stats.total,
       blockedEvents: stats.blocked,
       allowedEvents: stats.allowed,
@@ -144,6 +144,7 @@ export function createDashboardServer(deps: DashboardDependencies, preferredPort
       activeAgents: agents.length,
       totalCost: totalCostAccumulator,
       eventsPerMinute: getEventsPerMinute(),
+      mode: deps.config.mode,
     };
     res.json(response);
   });
@@ -253,6 +254,7 @@ export function createDashboardServer(deps: DashboardDependencies, preferredPort
         activeAgents: agents.length,
         totalCost: totalCostAccumulator,
         eventsPerMinute: getEventsPerMinute(),
+        mode: deps.config.mode,
       },
     });
   }
