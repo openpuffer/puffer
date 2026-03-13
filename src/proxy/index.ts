@@ -65,6 +65,9 @@ export function createProxyServer(options: ProxyOptions): ProxyServer {
   if (!providerTargets.has('openai-compatible')) providerTargets.set('openai-compatible', 'https://api.openai.com');
   if (!providerTargets.has('mistral')) providerTargets.set('mistral', 'https://api.mistral.ai');
   if (!providerTargets.has('cohere')) providerTargets.set('cohere', 'https://api.cohere.ai');
+  if (!providerTargets.has('github-copilot')) providerTargets.set('github-copilot', 'https://copilot-proxy.githubusercontent.com');
+  if (!providerTargets.has('cursor')) providerTargets.set('cursor', 'https://api2.cursor.sh');
+  if (!providerTargets.has('codeium')) providerTargets.set('codeium', 'https://server.codeium.com');
 
   const deps: ProxyDependencies = {
     evaluatePipeline,

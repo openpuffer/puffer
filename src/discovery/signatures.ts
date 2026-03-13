@@ -38,4 +38,14 @@ export const NETWORK_SIGNATURES = [
   { domain: 'openrouter.ai', provider: 'openrouter' },
   { domain: 'api.mistral.ai', provider: 'mistral' },
   { domain: 'api.cohere.ai', provider: 'cohere' },
+  // GitHub Copilot domains
+  { domain: 'copilot-proxy.githubusercontent.com', provider: 'github-copilot' },
+  { domain: 'api.githubcopilot.com', provider: 'github-copilot' },
+  { domain: 'copilot-telemetry.githubusercontent.com', provider: 'github-copilot' },
+  // Codeium / Windsurf
+  { domain: 'server.codeium.com', provider: 'codeium' },
+  { domain: 'api.codeium.com', provider: 'codeium' },
+  // Cursor
+  { domain: 'api2.cursor.sh', provider: 'cursor' },
+  { domain: 'api.cursor.sh', provider: 'cursor' },
 ];

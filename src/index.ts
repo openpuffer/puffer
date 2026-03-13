@@ -1,5 +1,6 @@
 import fs from 'node:fs';
-import { PufferConfig } from './types.js';
+import { v4 as uuidv4 } from 'uuid';
+import { PufferConfig, PufferEvent, Decision } from './types.js';
 import { loadConfig, ensurePufferDir } from './utils/config.js';
 import { PID_FILE_PATH } from './utils/constants.js';
 import { logger } from './utils/logger.js';
@@ -97,6 +98,37 @@ export async function startDaemon(configOverride?: PufferConfig): Promise<Puffer
     );
     await dashboard.start();
   }
+
+  // Generate passive events when discovery finds active network connections
+  discovery.onDiscoveryUpdate((result) => {
+    for (const agent of result.agents) {
+      if (agent.detectedVia !== 'network') continue;
+
+      const event: PufferEvent = {
+        id: uuidv4(),
+        timestamp: new Date().toISOString(),
+        source: {
+          type: 'proxy',
+          agent: agent.name,
+          provider: agent.provider ?? agent.name,
+          pid: agent.pid,
+        },
+        action: {
+          type: 'llm_request',
+          method: 'NETWORK',
+          endpoint: `${agent.provider ?? agent.name}:443`,
+          body: { pid: agent.pid, command: agent.command },
+        },
+        payload: { detectedVia: 'network', provider: agent.provider },
+        metadata: { sessionId: 'network-monitor', sequenceNumber: 0 },
+        layers: [],
+        decision: 'ALLOW' as Decision,
+      };
+
+      auditLogger.log(event);
+      if (dashboard) dashboard.broadcast(event);
+    }
+  });
 
   // Write PID file
   fs.writeFileSync(PID_FILE_PATH, String(process.pid));
