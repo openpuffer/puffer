@@ -49,6 +49,9 @@ export async function startDaemon(configOverride?: PufferConfig): Promise<Puffer
   hookManager.registerHook(new OpenClawHook());
   hookManager.registerHook(new GenericHook());
 
+  // Install hooks into agent configurations
+  await hookManager.installAll();
+
   hookManager.setEventCallback(async (event) => {
     const evaluated = await pipeline.evaluate(event);
     evaluated.decision = makeDecision(evaluated, { mode: config.mode });
@@ -77,7 +80,11 @@ export async function startDaemon(configOverride?: PufferConfig): Promise<Puffer
   let dashboard: DashboardServer | null = null;
   if (config.dashboard.enabled) {
     dashboard = createDashboardServer(
-      { auditLogger, discovery, config },
+      { auditLogger, discovery, config, evaluatePipeline: async (event) => {
+        const evaluated = await pipeline.evaluate(event);
+        evaluated.decision = makeDecision(evaluated, { mode: config.mode });
+        return evaluated;
+      }},
       config.dashboard.port
     );
     await dashboard.start();
@@ -89,6 +96,7 @@ export async function startDaemon(configOverride?: PufferConfig): Promise<Puffer
   // Handle graceful shutdown
   const shutdown = async () => {
     logger.info('Shutting down...');
+    await hookManager.uninstallAll();
     discovery.stop();
     if (dashboard) await dashboard.stop();
     await proxy.stop();

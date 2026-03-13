@@ -3,7 +3,7 @@ import path from 'node:path';
 import os from 'node:os';
 import { HookHandler } from './index.js';
 import { logger } from '../utils/logger.js';
-import { DEFAULT_PROXY_PORT } from '../utils/constants.js';
+import { DEFAULT_DASHBOARD_PORT } from '../utils/constants.js';
 
 const CLAUDE_SETTINGS_PATH = path.join(os.homedir(), '.claude', 'settings.json');
 
@@ -40,7 +40,7 @@ export class ClaudeCodeHook implements HookHandler {
       if (!existing) {
         preToolUse.push({
           type: 'command',
-          command: `curl -s -X POST http://127.0.0.1:${DEFAULT_PROXY_PORT}/hooks/claude-code -H "Content-Type: application/json" -d @-`,
+          command: `curl -s -X POST http://127.0.0.1:${DEFAULT_DASHBOARD_PORT}/hooks/claude-code -H "Content-Type: application/json" -d @-`,
           description: 'Puffer security check',
         });
         hooks.PreToolUse = preToolUse;

@@ -5,9 +5,11 @@ import net from 'node:net';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { WebSocketServer, WebSocket } from 'ws';
+import { v4 as uuidv4 } from 'uuid';
 import { PufferEvent, PufferConfig, DashboardStats, AuditLogEntry } from '../types.js';
 import { AuditLogger } from '../audit/logger.js';
 import { DiscoveryEngine } from '../discovery/index.js';
+import { makeDecision } from '../engine/decision.js';
 import { logger } from '../utils/logger.js';
 import { saveConfig } from '../utils/config.js';
 
@@ -30,6 +32,7 @@ export interface DashboardDependencies {
   auditLogger: AuditLogger;
   discovery: DiscoveryEngine;
   config: PufferConfig;
+  evaluatePipeline: (event: PufferEvent) => Promise<PufferEvent>;
 }
 
 export interface DashboardServer {
@@ -205,6 +208,200 @@ export function createDashboardServer(deps: DashboardDependencies, preferredPort
       res.json({ success: true, config: deps.config });
     } catch (err) {
       res.status(400).json({ error: (err as Error).message });
+    }
+  });
+
+  // === Hook endpoints for AI agent tool call interception ===
+
+  /**
+   * Map a tool name from Claude Code (or similar agent) to a PufferEvent action.
+   */
+  function toolNameToAction(toolName: string, toolInput: Record<string, unknown>): PufferEvent['action'] {
+    switch (toolName) {
+      case 'Bash':
+      case 'bash':
+        return {
+          type: 'command_execute',
+          command: String(toolInput.command ?? ''),
+          args: [],
+        };
+      case 'Read':
+      case 'read':
+        return {
+          type: 'file_read',
+          path: String(toolInput.file_path ?? ''),
+        };
+      case 'Write':
+      case 'write':
+      case 'Edit':
+      case 'edit':
+        return {
+          type: 'file_write',
+          path: String(toolInput.file_path ?? ''),
+        };
+      case 'WebFetch':
+      case 'WebSearch':
+        return {
+          type: 'network_request',
+          url: String(toolInput.url ?? ''),
+          method: 'GET',
+        };
+      case 'Agent':
+        return {
+          type: 'mcp_tool_call',
+          server: 'claude-code-agent',
+          tool: 'subagent',
+          params: toolInput,
+        };
+      default:
+        return {
+          type: 'llm_request',
+          method: 'TOOL',
+          endpoint: toolName,
+          body: toolInput,
+        };
+    }
+  }
+
+  /**
+   * Build a PufferEvent from hook data.
+   */
+  function buildHookEvent(
+    toolName: string,
+    toolInput: Record<string, unknown>,
+    sessionId: string,
+    agentName: string,
+  ): PufferEvent {
+    return {
+      id: uuidv4(),
+      timestamp: new Date().toISOString(),
+      source: {
+        type: 'hook',
+        agent: agentName,
+        provider: 'claude-code',
+      },
+      action: toolNameToAction(toolName, toolInput),
+      payload: toolInput,
+      metadata: {
+        sessionId: sessionId || 'unknown',
+        sequenceNumber: 0,
+      },
+      layers: [],
+      decision: null,
+    };
+  }
+
+  /**
+   * POST /hooks/claude-code
+   * Receives Claude Code PreToolUse hook data (JSON via stdin / curl POST -d @-).
+   */
+  app.post('/hooks/claude-code', async (req, res) => {
+    try {
+      const { tool_name, tool_input, session_id } = req.body as {
+        tool_name: string;
+        tool_input: Record<string, unknown>;
+        session_id?: string;
+      };
+
+      if (!tool_name) {
+        res.status(400).json({ error: 'Missing tool_name' });
+        return;
+      }
+
+      const event = buildHookEvent(tool_name, tool_input ?? {}, session_id ?? '', 'claude-code');
+
+      // Run through the evaluation pipeline
+      const evaluated = await deps.evaluatePipeline(event);
+      evaluated.decision = makeDecision(evaluated, { mode: deps.config.mode });
+
+      // Log, broadcast, and track
+      deps.auditLogger.log(evaluated);
+      broadcastToAll(JSON.stringify({
+        type: 'event',
+        data: {
+          id: evaluated.id,
+          timestamp: evaluated.timestamp,
+          source: evaluated.source,
+          action: { type: evaluated.action.type },
+          decision: evaluated.decision,
+          layers: evaluated.layers.map((l) => ({
+            layer: l.layer,
+            name: l.name,
+            verdict: l.verdict,
+          })),
+        },
+      }));
+      broadcastToAll(buildStatsMessage());
+      recordEvent(evaluated);
+
+      const isBlocked = evaluated.decision === 'BLOCK' && deps.config.mode === 'enforce';
+      res.status(isBlocked ? 403 : 200).json({
+        decision: evaluated.decision,
+        event_id: evaluated.id,
+      });
+    } catch (err) {
+      logger.error(`Hook claude-code error: ${(err as Error).message}`);
+      res.status(500).json({ error: (err as Error).message });
+    }
+  });
+
+  /**
+   * POST /hooks/generic
+   * Accepts any agent's tool call data: { tool_name, tool_input, session_id, agent_name }.
+   */
+  app.post('/hooks/generic', async (req, res) => {
+    try {
+      const { tool_name, tool_input, session_id, agent_name } = req.body as {
+        tool_name: string;
+        tool_input: Record<string, unknown>;
+        session_id?: string;
+        agent_name?: string;
+      };
+
+      if (!tool_name) {
+        res.status(400).json({ error: 'Missing tool_name' });
+        return;
+      }
+
+      const event = buildHookEvent(
+        tool_name,
+        tool_input ?? {},
+        session_id ?? '',
+        agent_name ?? 'unknown-agent',
+      );
+
+      // Run through the evaluation pipeline
+      const evaluated = await deps.evaluatePipeline(event);
+      evaluated.decision = makeDecision(evaluated, { mode: deps.config.mode });
+
+      // Log, broadcast, and track
+      deps.auditLogger.log(evaluated);
+      broadcastToAll(JSON.stringify({
+        type: 'event',
+        data: {
+          id: evaluated.id,
+          timestamp: evaluated.timestamp,
+          source: evaluated.source,
+          action: { type: evaluated.action.type },
+          decision: evaluated.decision,
+          layers: evaluated.layers.map((l) => ({
+            layer: l.layer,
+            name: l.name,
+            verdict: l.verdict,
+          })),
+        },
+      }));
+      broadcastToAll(buildStatsMessage());
+      recordEvent(evaluated);
+
+      const isBlocked = evaluated.decision === 'BLOCK' && deps.config.mode === 'enforce';
+      res.status(isBlocked ? 403 : 200).json({
+        decision: evaluated.decision,
+        event_id: evaluated.id,
+      });
+    } catch (err) {
+      logger.error(`Hook generic error: ${(err as Error).message}`);
+      res.status(500).json({ error: (err as Error).message });
     }
   });
 
