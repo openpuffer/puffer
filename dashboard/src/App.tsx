@@ -6,8 +6,9 @@ import HUDOverlay from './components/HUDOverlay';
 import EventList from './components/EventList';
 import AgentList from './components/AgentList';
 import ConfigEditor from './components/ConfigEditor';
+import AgentDetailPanel from './components/AgentDetailPanel';
 import { useWebSocket } from './hooks/useWebSocket';
-import { useGraphData } from './hooks/useGraphData';
+import { useGraphData, type GraphNode } from './hooks/useGraphData';
 
 interface Stats {
   totalEvents: number;
@@ -19,6 +20,7 @@ interface Stats {
   escalatedEvents: number;
   activeAgents: number;
   totalCost: number;
+  totalTokens: number;
   eventsPerMinute: number;
   mode: string;
 }
@@ -27,9 +29,17 @@ export interface LiveEvent {
   id: string;
   timestamp: string;
   source: { agent: string; provider: string };
-  action: { type: string };
+  action: { type: string; server?: string; tool?: string; description?: string; subagentType?: string };
   decision: 'ALLOW' | 'BLOCK' | 'AUDIT' | 'ESCALATE';
   layers: { layer: string; name: string; verdict: string }[];
+  metadata?: {
+    inputTokens?: number;
+    outputTokens?: number;
+    totalTokens?: number;
+    costEstimate?: number;
+    model?: string;
+    rateLimits?: { limitTokens?: number; limitRequests?: number; remainingTokens?: number; remainingRequests?: number };
+  };
 }
 
 export interface AgentInfo {
@@ -50,12 +60,14 @@ const PANEL_COMPONENTS: Record<string, React.FC<any>> = {
   events: EventList,
   agents: AgentList,
   config: ConfigEditor,
+  'agent-detail': AgentDetailPanel,
 };
 
 const PANEL_TITLES: Record<string, string> = {
   events: 'EVENT LOG',
   agents: 'AGENTS',
   config: 'CONFIGURATION',
+  'agent-detail': 'AGENT DETAIL',
 };
 
 const App: React.FC = () => {
@@ -69,12 +81,14 @@ const App: React.FC = () => {
     escalatedEvents: 0,
     activeAgents: 0,
     totalCost: 0,
+    totalTokens: 0,
     eventsPerMinute: 0,
     mode: 'audit',
   });
   const [liveEvents, setLiveEvents] = useState<LiveEvent[]>([]);
   const [agents, setAgents] = useState<AgentInfo[]>([]);
   const [activePanel, setActivePanel] = useState<string | null>(null);
+  const [selectedNode, setSelectedNode] = useState<GraphNode | null>(null);
 
   const handleWsMessage = useCallback((data: unknown) => {
     const msg = data as Record<string, unknown>;
@@ -113,6 +127,12 @@ const App: React.FC = () => {
 
   const handleClosePanel = useCallback(() => {
     setActivePanel(null);
+    setSelectedNode(null);
+  }, []);
+
+  const handleNodeClick = useCallback((node: GraphNode) => {
+    setSelectedNode(node);
+    setActivePanel('agent-detail');
   }, []);
 
   // Props for drawer panels
@@ -120,12 +140,13 @@ const App: React.FC = () => {
     events: { liveEvents },
     agents: { agents },
     config: {},
+    'agent-detail': { node: selectedNode, agents, liveEvents },
   };
 
   return (
     <div className="relative h-screen w-screen overflow-hidden bg-[#06080d]">
       {/* 3D Force Graph Background */}
-      <NetworkGraph3D graphData={graphData} />
+      <NetworkGraph3D graphData={graphData} onNodeClick={handleNodeClick} />
 
       {/* HUD Overlay */}
       <HUDOverlay

@@ -8,6 +8,7 @@ import {
   Users,
   Gauge,
   DollarSign,
+  Zap,
   Wifi,
   WifiOff,
   AlertTriangle,
@@ -29,6 +30,7 @@ interface HUDOverlayProps {
     escalatedEvents: number;
     activeAgents: number;
     totalCost: number;
+    totalTokens: number;
     eventsPerMinute: number;
     mode: string;
   };
@@ -85,6 +87,7 @@ const HUDOverlay: React.FC<HUDOverlayProps> = ({
           <StatItem icon={ShieldCheck} label="Allowed" value={stats.allowed || stats.allowedEvents} />
           <StatItem icon={Users} label="Agents" value={stats.activeAgents} />
           <StatItem icon={Gauge} label="Evt/min" value={stats.eventsPerMinute} />
+          <StatItem icon={Zap} label="Tokens" value={stats.totalTokens} />
           <StatItem icon={DollarSign} label="Cost" value={stats.totalCost} prefix="$" decimals={2} />
         </div>
       </motion.div>
