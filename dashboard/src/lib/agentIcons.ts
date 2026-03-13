@@ -13,7 +13,7 @@ type DrawFn = (ctx: CanvasRenderingContext2D, s: number) => void;
 // Claude — sparkle/asterisk
 const drawClaude: DrawFn = (ctx, s) => {
   const cx = s / 2, cy = s / 2, r = s * 0.35;
-  ctx.strokeStyle = '#fff';
+  ctx.strokeStyle = '#fef3c7';
   ctx.lineWidth = s * 0.04;
   ctx.lineCap = 'round';
   // 6 rays
@@ -26,7 +26,7 @@ const drawClaude: DrawFn = (ctx, s) => {
     ctx.stroke();
   }
   // center dot
-  ctx.fillStyle = '#fff';
+  ctx.fillStyle = '#fef3c7';
   ctx.beginPath();
   ctx.arc(cx, cy, s * 0.05, 0, Math.PI * 2);
   ctx.fill();
@@ -35,7 +35,7 @@ const drawClaude: DrawFn = (ctx, s) => {
 // GitHub Copilot — glasses/visor
 const drawCopilot: DrawFn = (ctx, s) => {
   const cx = s / 2, cy = s / 2;
-  ctx.strokeStyle = '#fff';
+  ctx.strokeStyle = '#fef3c7';
   ctx.lineWidth = s * 0.035;
   ctx.lineCap = 'round';
   // visor shape
@@ -51,7 +51,7 @@ const drawCopilot: DrawFn = (ctx, s) => {
   ctx.lineTo(cx + s * 0.02, cy);
   ctx.stroke();
   // pupils
-  ctx.fillStyle = '#fff';
+  ctx.fillStyle = '#fef3c7';
   ctx.beginPath();
   ctx.arc(cx - s * 0.13, cy, s * 0.04, 0, Math.PI * 2);
   ctx.fill();
@@ -63,7 +63,7 @@ const drawCopilot: DrawFn = (ctx, s) => {
 // Cursor — cursor arrow
 const drawCursor: DrawFn = (ctx, s) => {
   const cx = s / 2, cy = s / 2;
-  ctx.fillStyle = '#fff';
+  ctx.fillStyle = '#fef3c7';
   ctx.beginPath();
   ctx.moveTo(cx - s * 0.15, cy - s * 0.25);
   ctx.lineTo(cx + s * 0.2, cy + s * 0.05);
@@ -78,7 +78,7 @@ const drawCursor: DrawFn = (ctx, s) => {
 
 // Aider — terminal >_
 const drawAider: DrawFn = (ctx, s) => {
-  ctx.strokeStyle = '#fff';
+  ctx.strokeStyle = '#fef3c7';
   ctx.lineWidth = s * 0.04;
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
@@ -99,7 +99,7 @@ const drawAider: DrawFn = (ctx, s) => {
 // OpenAI — hexagon with inner lines
 const drawOpenAI: DrawFn = (ctx, s) => {
   const cx = s / 2, cy = s / 2, r = s * 0.3;
-  ctx.strokeStyle = '#fff';
+  ctx.strokeStyle = '#fef3c7';
   ctx.lineWidth = s * 0.03;
   ctx.lineJoin = 'round';
   // hexagon
@@ -125,7 +125,7 @@ const drawOpenAI: DrawFn = (ctx, s) => {
 
 // Anthropic — bold "A"
 const drawAnthropic: DrawFn = (ctx, s) => {
-  ctx.fillStyle = '#fff';
+  ctx.fillStyle = '#fef3c7';
   ctx.font = `bold ${s * 0.45}px "Inter", "Helvetica", sans-serif`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
@@ -135,7 +135,7 @@ const drawAnthropic: DrawFn = (ctx, s) => {
 // Ollama — circle with "O" and ears
 const drawOllama: DrawFn = (ctx, s) => {
   const cx = s / 2, cy = s / 2;
-  ctx.strokeStyle = '#fff';
+  ctx.strokeStyle = '#fef3c7';
   ctx.lineWidth = s * 0.035;
   // head circle
   ctx.beginPath();
@@ -149,7 +149,7 @@ const drawOllama: DrawFn = (ctx, s) => {
   ctx.ellipse(cx + s * 0.18, cy - s * 0.13, s * 0.06, s * 0.09, 0.3, 0, Math.PI * 2);
   ctx.stroke();
   // eyes
-  ctx.fillStyle = '#fff';
+  ctx.fillStyle = '#fef3c7';
   ctx.beginPath();
   ctx.arc(cx - s * 0.07, cy, s * 0.025, 0, Math.PI * 2);
   ctx.fill();
@@ -161,7 +161,7 @@ const drawOllama: DrawFn = (ctx, s) => {
 // DeepSeek — magnifying glass
 const drawDeepSeek: DrawFn = (ctx, s) => {
   const cx = s / 2 - s * 0.04, cy = s / 2 - s * 0.04;
-  ctx.strokeStyle = '#fff';
+  ctx.strokeStyle = '#fef3c7';
   ctx.lineWidth = s * 0.035;
   ctx.beginPath();
   ctx.arc(cx, cy, s * 0.18, 0, Math.PI * 2);
@@ -178,7 +178,7 @@ const drawDeepSeek: DrawFn = (ctx, s) => {
 // Puffer — shield with check
 const drawPuffer: DrawFn = (ctx, s) => {
   const cx = s / 2, cy = s / 2;
-  ctx.strokeStyle = '#fff';
+  ctx.strokeStyle = '#fef3c7';
   ctx.lineWidth = s * 0.03;
   ctx.lineJoin = 'round';
   ctx.lineCap = 'round';
@@ -202,10 +202,64 @@ const drawPuffer: DrawFn = (ctx, s) => {
   ctx.stroke();
 };
 
+// Sub-agent — nested circles (agent spawning agent)
+const drawSubagent: DrawFn = (ctx, s) => {
+  const cx = s / 2, cy = s / 2;
+  ctx.strokeStyle = '#fef3c7';
+  ctx.lineWidth = s * 0.03;
+  // Outer circle
+  ctx.beginPath();
+  ctx.arc(cx, cy, s * 0.28, 0, Math.PI * 2);
+  ctx.stroke();
+  // Inner circle
+  ctx.beginPath();
+  ctx.arc(cx, cy, s * 0.15, 0, Math.PI * 2);
+  ctx.stroke();
+  // Arrow from inner to outer (spawn)
+  ctx.lineWidth = s * 0.035;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(cx + s * 0.15, cy);
+  ctx.lineTo(cx + s * 0.28, cy);
+  ctx.stroke();
+  // Arrowhead
+  ctx.beginPath();
+  ctx.moveTo(cx + s * 0.24, cy - s * 0.04);
+  ctx.lineTo(cx + s * 0.28, cy);
+  ctx.lineTo(cx + s * 0.24, cy + s * 0.04);
+  ctx.stroke();
+};
+
+// MCP — plug/connector icon
+const drawMCP: DrawFn = (ctx, s) => {
+  const cx = s / 2, cy = s / 2;
+  ctx.strokeStyle = '#fef3c7';
+  ctx.lineWidth = s * 0.035;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  // Plug body (rectangle)
+  const w = s * 0.22, h = s * 0.3;
+  ctx.strokeRect(cx - w / 2, cy - h / 2, w, h);
+  // Prongs (two lines going up from top)
+  ctx.beginPath();
+  ctx.moveTo(cx - s * 0.06, cy - h / 2);
+  ctx.lineTo(cx - s * 0.06, cy - h / 2 - s * 0.12);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(cx + s * 0.06, cy - h / 2);
+  ctx.lineTo(cx + s * 0.06, cy - h / 2 - s * 0.12);
+  ctx.stroke();
+  // Cable (line going down from bottom)
+  ctx.beginPath();
+  ctx.moveTo(cx, cy + h / 2);
+  ctx.lineTo(cx, cy + h / 2 + s * 0.12);
+  ctx.stroke();
+};
+
 // Generic — crosshair
 const drawGeneric: DrawFn = (ctx, s) => {
   const cx = s / 2, cy = s / 2;
-  ctx.strokeStyle = '#fff';
+  ctx.strokeStyle = '#fef3c7';
   ctx.lineWidth = s * 0.025;
   ctx.lineCap = 'round';
   // circle
@@ -237,6 +291,8 @@ const ICON_DB: IconEntry[] = [
   { draw: drawAnthropic, keywords: ['anthropic'] },
   { draw: drawOllama, keywords: ['ollama', 'llama'] },
   { draw: drawDeepSeek, keywords: ['deepseek'] },
+  { draw: drawSubagent, keywords: ['subagent', 'claude-code-agent'] },
+  { draw: drawMCP, keywords: ['mcp'] },
 ];
 
 function findDraw(name: string): DrawFn {

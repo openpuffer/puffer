@@ -70,8 +70,8 @@ const HUDOverlay: React.FC<HUDOverlayProps> = ({
         className="pointer-events-auto absolute left-5 top-5 hud-panel w-64"
       >
         <div className="flex items-center gap-2 mb-3 border-b border-white/[0.04] pb-2">
-          <ShieldCheck className="h-4 w-4 text-white/70" />
-          <span className="text-[11px] font-medium text-white/80 tracking-[0.2em] uppercase">
+          <ShieldCheck className="h-4 w-4 text-amber-400/80" />
+          <span className="text-[11px] font-medium text-amber-400/90 tracking-[0.2em] uppercase">
             Puffer
           </span>
           <span className="ml-auto text-[9px] text-white/30 uppercase tracking-[0.15em]">
@@ -107,8 +107,8 @@ const HUDOverlay: React.FC<HUDOverlayProps> = ({
           </span>
           {connected && (
             <span className="relative flex h-1.5 w-1.5">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-white opacity-40" />
-              <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-white/70" />
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-400 opacity-40" />
+              <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-amber-400/70" />
             </span>
           )}
         </div>
