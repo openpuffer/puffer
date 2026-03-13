@@ -107,7 +107,7 @@ export function createProxyServer(options: ProxyOptions): ProxyServer {
           } catch {
             responseBody = responseData;
           }
-          onResponse(proxyRes.statusCode ?? 500, responseBody);
+          onResponse(proxyRes.statusCode ?? 500, responseBody, proxyRes.headers);
         });
       });
     },
