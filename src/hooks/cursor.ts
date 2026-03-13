@@ -8,6 +8,11 @@ import { DEFAULT_PROXY_PORT } from '../utils/constants.js';
 
 const PROXY_BASE = `http://127.0.0.1:${DEFAULT_PROXY_PORT}`;
 
+function parseLenientJSON(raw: string): Record<string, unknown> {
+  const cleaned = raw.replace(/,\s*([\]}])/g, '$1');
+  return JSON.parse(cleaned);
+}
+
 // Cursor settings keys for custom API endpoints
 const CURSOR_SETTINGS: Record<string, string> = {
   'openai.apiBase': `${PROXY_BASE}/v1`,
@@ -62,7 +67,7 @@ export class CursorHook implements HookHandler {
         const raw = fs.readFileSync(settingsPath, 'utf-8');
         let settings: Record<string, unknown>;
         try {
-          settings = JSON.parse(raw);
+          settings = parseLenientJSON(raw);
         } catch {
           logger.warn(`Cursor hook: failed to parse ${settingsPath}, skipping`);
           continue;
@@ -99,7 +104,7 @@ export class CursorHook implements HookHandler {
         const raw = fs.readFileSync(settingsPath, 'utf-8');
         let settings: Record<string, unknown>;
         try {
-          settings = JSON.parse(raw);
+          settings = parseLenientJSON(raw);
         } catch {
           continue;
         }

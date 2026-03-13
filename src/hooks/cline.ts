@@ -8,6 +8,16 @@ import { DEFAULT_PROXY_PORT } from '../utils/constants.js';
 
 const PROXY_BASE = `http://127.0.0.1:${DEFAULT_PROXY_PORT}`;
 
+/**
+ * Parse JSON that may contain trailing commas (VS Code JSONC format).
+ * Strips trailing commas before } and ] then parses.
+ */
+function parseLenientJSON(raw: string): Record<string, unknown> {
+  // Remove trailing commas before closing braces/brackets
+  const cleaned = raw.replace(/,\s*([\]}])/g, '$1');
+  return JSON.parse(cleaned);
+}
+
 // Cline stores settings in VS Code's settings.json
 // These are the known setting keys for Cline/Roo-Cline API base URLs
 const CLINE_SETTINGS: Record<string, string> = {
@@ -63,7 +73,7 @@ export class ClineHook implements HookHandler {
         const raw = fs.readFileSync(settingsPath, 'utf-8');
         let settings: Record<string, unknown>;
         try {
-          settings = JSON.parse(raw);
+          settings = parseLenientJSON(raw);
         } catch {
           logger.warn(`Cline hook: failed to parse ${settingsPath}, skipping`);
           continue;
@@ -100,7 +110,7 @@ export class ClineHook implements HookHandler {
         const raw = fs.readFileSync(settingsPath, 'utf-8');
         let settings: Record<string, unknown>;
         try {
-          settings = JSON.parse(raw);
+          settings = parseLenientJSON(raw);
         } catch {
           continue;
         }
