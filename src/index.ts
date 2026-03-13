@@ -8,6 +8,7 @@ import { createDefaultPipeline, DefensePipeline } from './layers/index.js';
 import { DiscoveryEngine } from './discovery/index.js';
 import { AuditLogger } from './audit/logger.js';
 import { makeDecision } from './engine/decision.js';
+import { createDashboardServer, DashboardServer } from './dashboard/server.js';
 import { HookManager } from './hooks/index.js';
 import { ClaudeCodeHook } from './hooks/claude-code.js';
 import { OpenClawHook } from './hooks/openclaw.js';
@@ -15,6 +16,7 @@ import { GenericHook } from './hooks/generic.js';
 
 export interface PufferDaemon {
   proxy: ProxyServer;
+  dashboard: DashboardServer | null;
   pipeline: DefensePipeline;
   discovery: DiscoveryEngine;
   auditLogger: AuditLogger;
@@ -62,11 +64,24 @@ export async function startDaemon(configOverride?: PufferConfig): Promise<Puffer
       evaluated.decision = makeDecision(evaluated, { mode: config.mode });
       return evaluated;
     },
-    logEvent: (event) => auditLogger.log(event),
+    logEvent: (event) => {
+      auditLogger.log(event);
+      if (dashboard) dashboard.broadcast(event);
+    },
   });
 
   // Start proxy
   await proxy.start();
+
+  // Start dashboard if enabled
+  let dashboard: DashboardServer | null = null;
+  if (config.dashboard.enabled) {
+    dashboard = createDashboardServer(
+      { auditLogger, discovery, config },
+      config.dashboard.port
+    );
+    await dashboard.start();
+  }
 
   // Write PID file
   fs.writeFileSync(PID_FILE_PATH, String(process.pid));
@@ -75,6 +90,7 @@ export async function startDaemon(configOverride?: PufferConfig): Promise<Puffer
   const shutdown = async () => {
     logger.info('Shutting down...');
     discovery.stop();
+    if (dashboard) await dashboard.stop();
     await proxy.stop();
     await auditLogger.flush();
 
@@ -102,6 +118,7 @@ export async function startDaemon(configOverride?: PufferConfig): Promise<Puffer
 
   return {
     proxy,
+    dashboard,
     pipeline,
     discovery,
     auditLogger,
