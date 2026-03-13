@@ -11,6 +11,10 @@ import { makeDecision } from './engine/decision.js';
 import { createDashboardServer, DashboardServer } from './dashboard/server.js';
 import { HookManager } from './hooks/index.js';
 import { ClaudeCodeHook } from './hooks/claude-code.js';
+import { AiderHook } from './hooks/aider.js';
+import { ContinueDevHook } from './hooks/continue-dev.js';
+import { ClineHook } from './hooks/cline.js';
+import { CursorHook } from './hooks/cursor.js';
 import { OpenClawHook } from './hooks/openclaw.js';
 import { GenericHook } from './hooks/generic.js';
 
@@ -46,6 +50,10 @@ export async function startDaemon(configOverride?: PufferConfig): Promise<Puffer
   // Initialize hook manager
   const hookManager = new HookManager();
   hookManager.registerHook(new ClaudeCodeHook());
+  hookManager.registerHook(new AiderHook());
+  hookManager.registerHook(new ContinueDevHook());
+  hookManager.registerHook(new ClineHook());
+  hookManager.registerHook(new CursorHook());
   hookManager.registerHook(new OpenClawHook());
   hookManager.registerHook(new GenericHook());
 
