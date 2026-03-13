@@ -115,6 +115,28 @@ export function createDashboardServer(deps: DashboardDependencies, preferredPort
   // === Event rate & cost tracking ===
   const eventTimestamps: number[] = [];
   let totalCostAccumulator = 0;
+  let totalTokensAccumulator = 0;
+
+  // Per-agent usage tracking
+  interface AgentUsage {
+    totalTokens: number;
+    inputTokens: number;
+    outputTokens: number;
+    totalCost: number;
+    requests: number;
+    models: Record<string, number>; // model → request count
+    rateLimits?: { limitTokens?: number; limitRequests?: number };
+  }
+  const agentUsageMap = new Map<string, AgentUsage>();
+
+  function getOrCreateAgentUsage(agentName: string): AgentUsage {
+    let usage = agentUsageMap.get(agentName);
+    if (!usage) {
+      usage = { totalTokens: 0, inputTokens: 0, outputTokens: 0, totalCost: 0, requests: 0, models: {} };
+      agentUsageMap.set(agentName, usage);
+    }
+    return usage;
+  }
 
   function recordEvent(event?: PufferEvent): void {
     eventTimestamps.push(Date.now());
@@ -125,6 +147,25 @@ export function createDashboardServer(deps: DashboardDependencies, preferredPort
     }
     if (event?.metadata.costEstimate) {
       totalCostAccumulator += event.metadata.costEstimate;
+    }
+    if (event?.metadata.totalTokens) {
+      totalTokensAccumulator += event.metadata.totalTokens;
+    }
+
+    // Accumulate per-agent usage
+    if (event?.source?.agent) {
+      const usage = getOrCreateAgentUsage(event.source.agent);
+      usage.requests++;
+      if (event.metadata.inputTokens) usage.inputTokens += event.metadata.inputTokens;
+      if (event.metadata.outputTokens) usage.outputTokens += event.metadata.outputTokens;
+      if (event.metadata.totalTokens) usage.totalTokens += event.metadata.totalTokens;
+      if (event.metadata.costEstimate) usage.totalCost += event.metadata.costEstimate;
+      if (event.metadata.model) {
+        usage.models[event.metadata.model] = (usage.models[event.metadata.model] ?? 0) + 1;
+      }
+      if (event.metadata.rateLimits) {
+        usage.rateLimits = event.metadata.rateLimits;
+      }
     }
   }
 
@@ -146,10 +187,19 @@ export function createDashboardServer(deps: DashboardDependencies, preferredPort
       escalatedEvents: stats.escalated,
       activeAgents: agents.length,
       totalCost: totalCostAccumulator,
+      totalTokens: totalTokensAccumulator,
       eventsPerMinute: getEventsPerMinute(),
       mode: deps.config.mode,
     };
     res.json(response);
+  });
+
+  app.get('/api/agent-usage', (_req, res) => {
+    const result: Record<string, AgentUsage> = {};
+    for (const [name, usage] of agentUsageMap) {
+      result[name] = usage;
+    }
+    res.json(result);
   });
 
   app.get('/api/events', (req, res) => {
@@ -251,9 +301,26 @@ export function createDashboardServer(deps: DashboardDependencies, preferredPort
           type: 'mcp_tool_call',
           server: 'claude-code-agent',
           tool: 'subagent',
-          params: toolInput,
+          params: {
+            subagent_type: String(toolInput.subagent_type ?? toolInput.subagentType ?? 'general-purpose'),
+            description: String(toolInput.description ?? ''),
+            ...toolInput,
+          },
         };
       default:
+        // Detect MCP tool calls: tool names like "mcp__serverName__toolName"
+        if (toolName.startsWith('mcp__') || toolName.startsWith('mcp_')) {
+          const separator = toolName.startsWith('mcp__') ? '__' : '_';
+          const parts = toolName.split(separator);
+          const mcpServer = parts[1] || 'unknown';
+          const mcpTool = parts.slice(2).join(separator) || 'unknown';
+          return {
+            type: 'mcp_tool_call',
+            server: mcpServer,
+            tool: mcpTool,
+            params: toolInput,
+          };
+        }
         return {
           type: 'llm_request',
           method: 'TOOL',
@@ -322,7 +389,7 @@ export function createDashboardServer(deps: DashboardDependencies, preferredPort
           id: evaluated.id,
           timestamp: evaluated.timestamp,
           source: evaluated.source,
-          action: { type: evaluated.action.type },
+          action: actionForBroadcast(evaluated.action),
           decision: evaluated.decision,
           layers: evaluated.layers.map((l) => ({
             layer: l.layer,
@@ -413,7 +480,7 @@ export function createDashboardServer(deps: DashboardDependencies, preferredPort
           id: event.id,
           timestamp: event.timestamp,
           source: event.source,
-          action: { type: 'llm_response' },
+          action: { type: 'llm_response' } as Record<string, unknown>,
           decision: 'ALLOW',
           layers: [],
         },
@@ -465,7 +532,7 @@ export function createDashboardServer(deps: DashboardDependencies, preferredPort
           id: evaluated.id,
           timestamp: evaluated.timestamp,
           source: evaluated.source,
-          action: { type: evaluated.action.type },
+          action: actionForBroadcast(evaluated.action),
           decision: evaluated.decision,
           layers: evaluated.layers.map((l) => ({
             layer: l.layer,
@@ -504,6 +571,35 @@ export function createDashboardServer(deps: DashboardDependencies, preferredPort
       });
     }
   });
+
+  /**
+   * Extract broadcast-safe metadata (tokens, cost, model, rate limits).
+   */
+  function metadataForBroadcast(meta: PufferEvent['metadata']): Record<string, unknown> | undefined {
+    const data: Record<string, unknown> = {};
+    if (meta.inputTokens) data.inputTokens = meta.inputTokens;
+    if (meta.outputTokens) data.outputTokens = meta.outputTokens;
+    if (meta.totalTokens) data.totalTokens = meta.totalTokens;
+    if (meta.costEstimate) data.costEstimate = meta.costEstimate;
+    if (meta.model) data.model = meta.model;
+    if (meta.rateLimits) data.rateLimits = meta.rateLimits;
+    return Object.keys(data).length > 0 ? data : undefined;
+  }
+
+  /**
+   * Extract broadcast-safe action data, including MCP fields when present.
+   */
+  function actionForBroadcast(action: PufferEvent['action']): Record<string, unknown> {
+    const data: Record<string, unknown> = { type: action.type };
+    if ('server' in action) data.server = (action as any).server;
+    if ('tool' in action) data.tool = (action as any).tool;
+    if ('params' in action && typeof (action as any).params === 'object') {
+      const params = (action as any).params as Record<string, unknown>;
+      if (params?.description) data.description = params.description;
+      if (params?.subagent_type) data.subagentType = params.subagent_type;
+    }
+    return data;
+  }
 
   // Fallback: serve index.html for SPA routing
   app.get('*', (_req, res) => {
@@ -550,6 +646,7 @@ export function createDashboardServer(deps: DashboardDependencies, preferredPort
         escalatedEvents: stats.escalated,
         activeAgents: agents.length,
         totalCost: totalCostAccumulator,
+        totalTokens: totalTokensAccumulator,
         eventsPerMinute: getEventsPerMinute(),
         mode: deps.config.mode,
       },
@@ -621,13 +718,14 @@ export function createDashboardServer(deps: DashboardDependencies, preferredPort
           id: event.id,
           timestamp: event.timestamp,
           source: event.source,
-          action: { type: event.action.type },
+          action: actionForBroadcast(event.action),
           decision: event.decision,
           layers: event.layers.map((l) => ({
             layer: l.layer,
             name: l.name,
             verdict: l.verdict,
           })),
+          metadata: metadataForBroadcast(event.metadata),
         },
       });
 
