@@ -1,6 +1,18 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useApi } from '../hooks/useApi';
 import type { LiveEvent } from '../App';
+import { cn } from '@/lib/utils';
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+} from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 
 interface PufferEvent {
   id: string;
@@ -22,11 +34,11 @@ interface EventListProps {
   liveEvents: LiveEvent[];
 }
 
-const decisionColors: Record<string, string> = {
-  ALLOW: 'bg-puffer-green/20 text-puffer-green border-puffer-green/30',
-  BLOCK: 'bg-puffer-red/20 text-puffer-red border-puffer-red/30',
-  AUDIT: 'bg-puffer-yellow/20 text-puffer-yellow border-puffer-yellow/30',
-  ESCALATE: 'bg-puffer-purple/20 text-puffer-purple border-puffer-purple/30',
+const decisionVariant: Record<string, 'default' | 'destructive' | 'secondary' | 'outline'> = {
+  ALLOW: 'default',
+  BLOCK: 'destructive',
+  AUDIT: 'secondary',
+  ESCALATE: 'outline',
 };
 
 const EventList: React.FC<EventListProps> = ({ liveEvents }) => {
@@ -56,15 +68,15 @@ const EventList: React.FC<EventListProps> = ({ liveEvents }) => {
   if (loading && !data) {
     return (
       <div className="flex items-center justify-center py-12">
-        <div className="text-slate-400">Loading events...</div>
+        <div className="text-muted-foreground">Loading events...</div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="rounded-lg border border-puffer-red/20 bg-puffer-red/5 p-6">
-        <p className="text-puffer-red">Failed to load events: {error}</p>
+      <div className="rounded-lg border border-destructive/20 bg-destructive/5 p-6">
+        <p className="text-destructive">Failed to load events: {error}</p>
       </div>
     );
   }
@@ -73,139 +85,129 @@ const EventList: React.FC<EventListProps> = ({ liveEvents }) => {
   const total = data?.total ?? 0;
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
         <div className="flex items-center gap-3">
-          <h3 className="text-lg font-semibold text-slate-200">
+          <CardTitle className="text-lg">
             Events ({total + liveEvents.length})
-          </h3>
+          </CardTitle>
           {liveEvents.length > 0 && (
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-puffer-green/10 px-2.5 py-0.5 text-xs font-semibold text-puffer-green">
+            <Badge variant="outline" className="gap-1.5 border-puffer-green/30 bg-puffer-green/10 text-puffer-green">
               <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-puffer-green" />
               Live
-            </span>
+            </Badge>
           )}
         </div>
         <div className="flex gap-2">
-          <button
+          <Button
+            variant="outline"
+            size="sm"
             onClick={() => setOffset(Math.max(0, offset - limit))}
             disabled={offset === 0}
-            className="rounded-md border border-slate-600 px-3 py-1 text-sm text-slate-300 hover:bg-slate-700 disabled:opacity-40"
           >
             Previous
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
             onClick={() => setOffset(offset + limit)}
             disabled={offset + limit >= total}
-            className="rounded-md border border-slate-600 px-3 py-1 text-sm text-slate-300 hover:bg-slate-700 disabled:opacity-40"
           >
             Next
-          </button>
+          </Button>
         </div>
-      </div>
-
-      <div className="overflow-x-auto rounded-lg border border-slate-700">
-        <table className="w-full text-left text-sm">
-          <thead className="border-b border-slate-700 bg-slate-800/80">
-            <tr>
-              <th className="px-4 py-3 font-medium text-slate-400">Time</th>
-              <th className="px-4 py-3 font-medium text-slate-400">Agent</th>
-              <th className="px-4 py-3 font-medium text-slate-400">Provider</th>
-              <th className="px-4 py-3 font-medium text-slate-400">
-                Action Type
-              </th>
-              <th className="px-4 py-3 font-medium text-slate-400">Decision</th>
-              <th className="px-4 py-3 font-medium text-slate-400">Layers</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-700/50">
+      </CardHeader>
+      <CardContent>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Time</TableHead>
+              <TableHead>Agent</TableHead>
+              <TableHead>Provider</TableHead>
+              <TableHead>Action Type</TableHead>
+              <TableHead>Decision</TableHead>
+              <TableHead>Layers</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {liveEvents.map((event, idx) => (
-              <tr
+              <TableRow
                 key={`live-${event.id}`}
-                className={`transition-colors hover:bg-slate-800/50 ${
+                className={cn(
                   idx < (liveEvents.length - prevLiveCountRef.current) && hasNewLive
-                    ? 'animate-pulse bg-puffer-green/5'
-                    : ''
-                }`}
+                    && 'animate-pulse bg-puffer-green/5'
+                )}
               >
-                <td className="whitespace-nowrap px-4 py-3 font-mono text-xs text-slate-300">
+                <TableCell className="whitespace-nowrap font-mono text-xs text-muted-foreground">
                   {new Date(event.timestamp).toLocaleString()}
-                </td>
-                <td className="px-4 py-3 text-slate-200">{event.source.agent}</td>
-                <td className="px-4 py-3 text-slate-300">{event.source.provider}</td>
-                <td className="px-4 py-3 text-slate-300">
+                </TableCell>
+                <TableCell>{event.source.agent}</TableCell>
+                <TableCell className="text-muted-foreground">{event.source.provider}</TableCell>
+                <TableCell className="text-muted-foreground">
                   {event.action.type}
-                </td>
-                <td className="px-4 py-3">
-                  <span
-                    className={`inline-block rounded-full border px-2.5 py-0.5 text-xs font-semibold ${
-                      decisionColors[event.decision] ?? 'text-slate-400'
-                    }`}
-                  >
+                </TableCell>
+                <TableCell>
+                  <Badge variant={decisionVariant[event.decision] ?? 'outline'}>
                     {event.decision}
-                  </span>
-                </td>
-                <td className="px-4 py-3 text-slate-400">
+                  </Badge>
+                </TableCell>
+                <TableCell className="text-muted-foreground">
                   {event.layers?.map((l) => l.name).join(', ') ?? '-'}
-                </td>
-              </tr>
+                </TableCell>
+              </TableRow>
             ))}
             {events.map((event) => (
               <React.Fragment key={event.id}>
-                <tr
+                <TableRow
                   onClick={() =>
                     setExpandedId(
                       expandedId === event.id ? null : event.id
                     )
                   }
-                  className="cursor-pointer transition-colors hover:bg-slate-800/50"
+                  className="cursor-pointer"
                 >
-                  <td className="whitespace-nowrap px-4 py-3 font-mono text-xs text-slate-300">
+                  <TableCell className="whitespace-nowrap font-mono text-xs text-muted-foreground">
                     {new Date(event.timestamp).toLocaleString()}
-                  </td>
-                  <td className="px-4 py-3 text-slate-200">{event.agent}</td>
-                  <td className="px-4 py-3 text-slate-300">{event.provider}</td>
-                  <td className="px-4 py-3 text-slate-300">
+                  </TableCell>
+                  <TableCell>{event.agent}</TableCell>
+                  <TableCell className="text-muted-foreground">{event.provider}</TableCell>
+                  <TableCell className="text-muted-foreground">
                     {event.actionType}
-                  </td>
-                  <td className="px-4 py-3">
-                    <span
-                      className={`inline-block rounded-full border px-2.5 py-0.5 text-xs font-semibold ${
-                        decisionColors[event.decision] ?? 'text-slate-400'
-                      }`}
-                    >
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant={decisionVariant[event.decision] ?? 'outline'}>
                       {event.decision}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-slate-400">
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">
                     {event.layers?.join(', ') ?? '-'}
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
                 {expandedId === event.id && (
-                  <tr>
-                    <td colSpan={6} className="bg-slate-800/30 px-4 py-4">
-                      <pre className="overflow-x-auto rounded-md bg-slate-900 p-3 text-xs text-slate-300">
+                  <TableRow>
+                    <TableCell colSpan={6} className="bg-muted/30">
+                      <pre className="overflow-x-auto rounded-md bg-background p-3 text-xs text-muted-foreground">
                         {JSON.stringify(event.details ?? event, null, 2)}
                       </pre>
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 )}
               </React.Fragment>
             ))}
             {events.length === 0 && liveEvents.length === 0 && (
-              <tr>
-                <td
+              <TableRow>
+                <TableCell
                   colSpan={6}
-                  className="px-4 py-8 text-center text-slate-500"
+                  className="py-8 text-center text-muted-foreground"
                 >
                   No events recorded yet.
-                </td>
-              </tr>
+                </TableCell>
+              </TableRow>
             )}
-          </tbody>
-        </table>
-      </div>
-    </div>
+          </TableBody>
+        </Table>
+      </CardContent>
+    </Card>
   );
 };
 

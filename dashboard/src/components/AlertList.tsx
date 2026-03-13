@@ -1,6 +1,11 @@
 import React, { useEffect, useMemo } from 'react';
 import { useApi } from '../hooks/useApi';
 import type { LiveEvent } from '../App';
+import { cn } from '@/lib/utils';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
+import { ShieldAlert, AlertTriangle } from 'lucide-react';
 
 interface Alert {
   id: string;
@@ -47,15 +52,15 @@ const AlertList: React.FC<AlertListProps> = ({ liveEvents }) => {
   if (loading && !data && liveAlerts.length === 0) {
     return (
       <div className="flex items-center justify-center py-12">
-        <div className="text-slate-400">Loading alerts...</div>
+        <div className="text-muted-foreground">Loading alerts...</div>
       </div>
     );
   }
 
   if (error && liveAlerts.length === 0) {
     return (
-      <div className="rounded-lg border border-puffer-red/20 bg-puffer-red/5 p-6">
-        <p className="text-puffer-red">Failed to load alerts: {error}</p>
+      <div className="rounded-lg border border-destructive/20 bg-destructive/5 p-6">
+        <p className="text-destructive">Failed to load alerts: {error}</p>
       </div>
     );
   }
@@ -65,60 +70,76 @@ const AlertList: React.FC<AlertListProps> = ({ liveEvents }) => {
 
   if (alerts.length === 0) {
     return (
-      <div className="rounded-lg border border-slate-700 bg-slate-800/50 p-8 text-center">
-        <p className="text-slate-400">No alerts yet. All clear.</p>
-      </div>
+      <Card>
+        <CardContent className="py-8 text-center">
+          <p className="text-muted-foreground">No alerts yet. All clear.</p>
+        </CardContent>
+      </Card>
     );
   }
 
   return (
-    <div className="space-y-4">
-      <h3 className="text-lg font-semibold text-slate-200">
-        Recent Alerts ({alerts.length})
-      </h3>
-      <div className="space-y-3">
-        {alerts.map((alert) => {
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-lg">
+          Recent Alerts ({alerts.length})
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-0">
+        {alerts.map((alert, idx) => {
           const isBlock = alert.type === 'block';
-          const accentBorder = isBlock
-            ? 'border-l-puffer-red'
-            : 'border-l-puffer-purple';
-          const accentText = isBlock ? 'text-puffer-red' : 'text-puffer-purple';
-          const typeBadgeBg = isBlock
-            ? 'bg-puffer-red/20 text-puffer-red'
-            : 'bg-puffer-purple/20 text-puffer-purple';
 
           return (
-            <div
-              key={alert.id}
-              className={`rounded-lg border border-slate-700 border-l-4 ${accentBorder} bg-slate-800/50 p-4`}
-            >
-              <div className="mb-2 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <span
-                    className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${typeBadgeBg}`}
-                  >
-                    {isBlock ? 'BLOCKED' : 'ESCALATED'}
-                  </span>
-                  <span className="font-medium text-slate-200">
-                    {alert.agent}
-                  </span>
+            <React.Fragment key={alert.id}>
+              {idx > 0 && <Separator className="my-3" />}
+              <div
+                className={cn(
+                  'flex items-start gap-3 rounded-lg border-l-4 p-3',
+                  isBlock
+                    ? 'border-l-destructive'
+                    : 'border-l-puffer-purple'
+                )}
+              >
+                <div className="mt-0.5">
+                  {isBlock ? (
+                    <ShieldAlert className="h-5 w-5 text-destructive" />
+                  ) : (
+                    <AlertTriangle className="h-5 w-5 text-puffer-purple" />
+                  )}
                 </div>
-                <time className="font-mono text-xs text-slate-500">
-                  {new Date(alert.timestamp).toLocaleString()}
-                </time>
+                <div className="flex-1 space-y-1">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Badge variant={isBlock ? 'destructive' : 'secondary'}>
+                        {isBlock ? 'BLOCKED' : 'ESCALATED'}
+                      </Badge>
+                      <span className="font-medium">
+                        {alert.agent}
+                      </span>
+                    </div>
+                    <time className="font-mono text-xs text-muted-foreground">
+                      {new Date(alert.timestamp).toLocaleString()}
+                    </time>
+                  </div>
+                  <p className="text-sm text-muted-foreground">{alert.reason}</p>
+                  <p className="text-xs text-muted-foreground">
+                    Layer:{' '}
+                    <span
+                      className={cn(
+                        'font-medium',
+                        isBlock ? 'text-destructive' : 'text-puffer-purple'
+                      )}
+                    >
+                      {alert.layer}
+                    </span>
+                  </p>
+                </div>
               </div>
-              <p className="text-sm text-slate-300">{alert.reason}</p>
-              <p className="mt-1 text-xs text-slate-500">
-                Layer:{' '}
-                <span className={`font-medium ${accentText}`}>
-                  {alert.layer}
-                </span>
-              </p>
-            </div>
+            </React.Fragment>
           );
         })}
-      </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 };
 
