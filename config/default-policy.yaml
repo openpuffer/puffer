@@ -2,7 +2,7 @@
 # The autonomous immune system for AI agents
 
 version: "0.1.0"
-mode: enforce  # monitor | enforce | paranoid | interactive
+mode: monitor  # monitor | enforce | paranoid | interactive
 
 auto_discovery:
   enabled: true

@@ -12,6 +12,8 @@ export const AGENT_SIGNATURES = [
   { pattern: /python.*autogen/i, name: 'python-autogen', type: 'process' },
   { pattern: /python.*openai/i, name: 'python-openai', type: 'process' },
   { pattern: /python.*anthropic/i, name: 'python-anthropic', type: 'process' },
+  { pattern: /windsurf/i, name: 'windsurf', type: 'process' },
+  { pattern: /codeium/i, name: 'codeium', type: 'process' },
 ];
 
 // Port signatures — probed via HTTP GET to detect local LLM servers and agents

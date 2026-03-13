@@ -217,6 +217,8 @@ export function detectProvider(url: string, headers: Record<string, string | str
       if (originalHost.includes('groq')) return 'groq';
       if (originalHost.includes('together')) return 'together';
       if (originalHost.includes('openrouter')) return 'openrouter';
+      if (originalHost.includes('mistral')) return 'mistral';
+      if (originalHost.includes('cohere')) return 'cohere';
     }
     return 'openai-compatible';
   }

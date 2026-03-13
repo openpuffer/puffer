@@ -85,7 +85,7 @@ export function ensurePufferDir(): void {
 function getBuiltinDefaults(): PufferConfig {
   return {
     version: '0.1.0',
-    mode: 'enforce',
+    mode: 'monitor',
     providers: [],
     autoDiscovery: {
       enabled: true,

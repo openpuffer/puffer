@@ -63,6 +63,8 @@ export function createProxyServer(options: ProxyOptions): ProxyServer {
   if (!providerTargets.has('together')) providerTargets.set('together', 'https://api.together.xyz');
   if (!providerTargets.has('openrouter')) providerTargets.set('openrouter', 'https://openrouter.ai');
   if (!providerTargets.has('openai-compatible')) providerTargets.set('openai-compatible', 'https://api.openai.com');
+  if (!providerTargets.has('mistral')) providerTargets.set('mistral', 'https://api.mistral.ai');
+  if (!providerTargets.has('cohere')) providerTargets.set('cohere', 'https://api.cohere.ai');
 
   const deps: ProxyDependencies = {
     evaluatePipeline,
