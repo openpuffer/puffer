@@ -10,6 +10,14 @@ function estimateCostForModel(model: string, tokens: number): number {
   return (tokens / 1_000_000) * entry.input;
 }
 
+/**
+ * Compute accurate cost using real input + output token counts and per-million pricing.
+ */
+export function estimateCostWithOutput(model: string, inputTokens: number, outputTokens: number): number {
+  const entry = COST_TABLE[model] ?? COST_TABLE['default_cloud'];
+  return (inputTokens / 1_000_000) * entry.input + (outputTokens / 1_000_000) * entry.output;
+}
+
 function safeBody(body: unknown): Record<string, unknown> {
   if (body && typeof body === 'object') return body as Record<string, unknown>;
   return {};
