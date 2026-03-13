@@ -29,11 +29,23 @@ export type EventAction =
   | { type: 'mcp_tool_call'; server: string; tool: string; params: unknown }
   | { type: 'mcp_tool_result'; server: string; tool: string; result: unknown };
 
+export interface RateLimitInfo {
+  limitTokens?: number;
+  limitRequests?: number;
+  remainingTokens?: number;
+  remainingRequests?: number;
+}
+
 export interface EventMetadata {
   sessionId: string;
   sequenceNumber: number;
   tokenEstimate?: number;
   costEstimate?: number;
+  inputTokens?: number;
+  outputTokens?: number;
+  totalTokens?: number;
+  model?: string;
+  rateLimits?: RateLimitInfo;
 }
 
 // === LAYER TYPES ===
