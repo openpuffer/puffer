@@ -48,6 +48,13 @@ export interface EventMetadata {
   totalTokens?: number;
   model?: string;
   rateLimits?: RateLimitInfo;
+  /** Captured when agent is "unknown" — raw headers and request info for debugging */
+  debugInfo?: {
+    userAgent?: string;
+    headers?: Record<string, string>;
+    method?: string;
+    endpoint?: string;
+  };
 }
 
 // === LAYER TYPES ===
@@ -171,6 +178,13 @@ export interface PufferConfig {
   alerts: {
     webhook?: string;
     desktop: boolean;
+  };
+  cloud?: {
+    enabled: boolean;
+    url: string;
+    apiKey: string;
+    batchSize?: number;
+    flushIntervalMs?: number;
   };
 }
 

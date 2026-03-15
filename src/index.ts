@@ -23,6 +23,7 @@ import { VSCodeExtensionHook } from './hooks/vscode-extension.js';
 import { AlertDispatcher } from './alerts/dispatcher.js';
 import { WebhookChannel } from './alerts/channels/webhook.js';
 import { DesktopChannel } from './alerts/channels/desktop.js';
+import { CloudReporter } from './cloud/reporter.js';
 
 export interface PufferDaemon {
   proxy: ProxyServer;
@@ -128,6 +129,12 @@ export async function startDaemon(configOverride?: PufferConfig): Promise<Puffer
     alertDispatcher.addChannel(new DesktopChannel());
   }
 
+  // Initialize cloud reporter (optional)
+  const cloudReporter = config.cloud?.enabled
+    ? new CloudReporter(config.cloud)
+    : null;
+  cloudReporter?.start();
+
   // Initialize defense pipeline
   const pipeline = createDefaultPipeline(config);
 
@@ -164,6 +171,7 @@ export async function startDaemon(configOverride?: PufferConfig): Promise<Puffer
       auditLogger.log(event);
       if (dashboard) dashboard.broadcast(event);
       alertDispatcher.dispatch(event).catch(() => {});
+      cloudReporter?.enqueue(event);
     },
     getDiscoveredAgentNames: () => discovery.getAgents().map((a) => a.name),
   });
