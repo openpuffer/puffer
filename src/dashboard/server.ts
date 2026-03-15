@@ -850,6 +850,63 @@ export function createDashboardServer(deps: DashboardDependencies, preferredPort
   });
 
   /**
+   * POST /hooks/browser
+   * Receives text from the Puffer browser extension for full 7-layer scan.
+   * Returns enriched results including per-layer findings.
+   */
+  app.post('/hooks/browser', async (req, res) => {
+    try {
+      const { text, site, session_id } = req.body as {
+        text: string;
+        site?: string;
+        session_id?: string;
+      };
+
+      if (!text) {
+        res.status(400).json({ error: 'Missing text' });
+        return;
+      }
+
+      const event = buildHookEvent(
+        'browser_input',
+        { text, site: site ?? 'unknown' },
+        session_id ?? `ext-${Date.now()}`,
+        'puffer-extension',
+      );
+
+      const evaluated = await deps.evaluatePipeline(event);
+      evaluated.decision = makeDecision(evaluated, { mode: deps.config.mode });
+
+      deps.auditLogger.log(evaluated);
+      broadcastToAll(JSON.stringify({
+        type: 'event',
+        data: {
+          id: evaluated.id,
+          timestamp: evaluated.timestamp,
+          source: evaluated.source,
+          action: actionForBroadcast(evaluated.action),
+          decision: evaluated.decision,
+          layers: evaluated.layers.map((l) => ({ layer: l.layer, name: l.name, verdict: l.verdict })),
+        },
+      }));
+      broadcastToAll(buildStatsMessage());
+      recordEvent(evaluated);
+
+      res.status(200).json({
+        allow: evaluated.decision !== 'BLOCK' || deps.config.mode !== 'enforce',
+        decision: evaluated.decision,
+        event_id: evaluated.id,
+        findings: evaluated.layers
+          .flatMap(l => l.findings.map(f => ({ layer: l.name, type: f.type, severity: f.severity, value: f.value })))
+          .slice(0, 10),
+      });
+    } catch (err) {
+      logger.error(`Hook browser error: ${(err as Error).message}`);
+      res.status(200).json({ allow: true, decision: 'ALLOW', findings: [] });
+    }
+  });
+
+  /**
    * Extract broadcast-safe metadata (tokens, cost, model, rate limits).
    */
   function metadataForBroadcast(meta: PufferEvent['metadata']): Record<string, unknown> | undefined {
