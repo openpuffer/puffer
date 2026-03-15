@@ -27,7 +27,9 @@ export type EventAction =
   | { type: 'file_write'; path: string; content?: string }
   | { type: 'network_request'; url: string; method: string; body?: unknown }
   | { type: 'mcp_tool_call'; server: string; tool: string; params: unknown }
-  | { type: 'mcp_tool_result'; server: string; tool: string; result: unknown };
+  | { type: 'mcp_tool_result'; server: string; tool: string; result: unknown }
+  | { type: 'notification'; category: string; message: string }
+  | { type: 'agent_activity_summary'; agent: string; summary: string; connections: number };
 
 export interface RateLimitInfo {
   limitTokens?: number;
@@ -94,6 +96,8 @@ export interface DiscoveredAgent {
   detectedVia: 'process' | 'port' | 'network';
   provider?: string;
   port?: number;
+  ppid?: number;
+  hostProgram?: string;
   protectionStatus: 'protected' | 'unprotected' | 'partial';
 }
 
@@ -241,6 +245,11 @@ export interface MCPConfig {
   authorizedServers: { url: string; allowedTools: string[] }[];
   blockUnauthorized: boolean;
   scanToolResults: boolean;
+}
+
+export interface OllamaConfig {
+  blockedModels: string[];
+  allowedModels: string[];
 }
 
 // === AUDIT LOG ENTRY ===

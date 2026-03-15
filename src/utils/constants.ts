@@ -19,6 +19,9 @@ export const PID_FILE_PATH = path.join(PUFFER_DIR, 'puffer.pid');
 // Discovery scan interval (30 seconds)
 export const DEFAULT_SCAN_INTERVAL_MS = 30_000;
 
+// Maximum request body size for proxy (50 MB)
+export const MAX_REQUEST_BODY_BYTES = 50 * 1024 * 1024;
+
 // Cost table (USD per 1M tokens, input/output)
 export const COST_TABLE: Record<string, { input: number; output: number }> = {
   'gpt-4o': { input: 2.50, output: 10.00 },
