@@ -1,6 +1,10 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
 import { DiscoveryEngine } from '../discovery/index.js';
+import { loadConfig } from '../utils/config.js';
+import { AuditLogger } from '../audit/logger.js';
+import { calculateScore } from '../score/calculator.js';
+import { formatScore } from '../score/display.js';
 
 export function registerScanCommand(program: Command): void {
   program
@@ -60,6 +64,12 @@ export function registerScanCommand(program: Command): void {
       if (unprotectedCount > 0) {
         console.log(chalk.red(`  ${unprotectedCount} unprotected agent(s) — run 'puffer init' to protect them.`));
       }
-      console.log('');
+
+      // Calculate and display Puffer Score
+      const config = loadConfig();
+      const auditLogger = new AuditLogger(config.audit?.logPath);
+      const stats = auditLogger.getStats();
+      const score = calculateScore(config, result, stats);
+      console.log(formatScore(score));
     });
 }
