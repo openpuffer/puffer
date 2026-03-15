@@ -13,6 +13,13 @@ interface SessionState {
 
 const sessions = new Map<string, SessionState>();
 
+// Sensitivity multipliers: low = more lenient, high = more strict
+const SENSITIVITY_MULTIPLIER: Record<string, number> = {
+  low: 2.0,
+  medium: 1.0,
+  high: 0.5,
+};
+
 export function resetSessions(): void {
   sessions.clear();
 }
@@ -59,6 +66,7 @@ export async function behaviorAnalyzer(
 
   const sessionId = event.metadata.sessionId;
   const state = getOrCreateSession(sessionId);
+  const mult = SENSITIVITY_MULTIPLIER[config.sensitivity] ?? 1.0;
 
   state.eventCount++;
   if (event.metadata.tokenEstimate) {
@@ -70,29 +78,31 @@ export async function behaviorAnalyzer(
 
   const findings: Finding[] = [];
 
-  // Cost limit check
-  if (state.totalCost > config.maxCostPerSessionUsd) {
+  // Cost limit check (adjusted by sensitivity multiplier)
+  const effectiveSessionLimit = config.maxCostPerSessionUsd * mult;
+  if (state.totalCost > effectiveSessionLimit) {
     findings.push({
       type: 'cost_limit_exceeded',
       severity: 'critical',
       location: sessionId,
       value: `$${state.totalCost.toFixed(4)}`,
-      suggestion: `Session cost $${state.totalCost.toFixed(4)} exceeds limit of $${config.maxCostPerSessionUsd}`,
+      suggestion: `Session cost $${state.totalCost.toFixed(4)} exceeds limit of $${effectiveSessionLimit.toFixed(2)} (sensitivity: ${config.sensitivity})`,
     });
   }
 
-  // Hourly rate check
+  // Hourly rate check (adjusted by sensitivity multiplier)
+  const effectiveHourlyLimit = config.maxCostPerHourUsd * mult;
   const elapsedMs = Date.now() - state.startTime;
   const elapsedHours = elapsedMs / (1000 * 60 * 60);
   if (elapsedHours > 0) {
     const hourlyRate = state.totalCost / elapsedHours;
-    if (hourlyRate > config.maxCostPerHourUsd && state.totalCost > 0) {
+    if (hourlyRate > effectiveHourlyLimit && state.totalCost > 0) {
       findings.push({
         type: 'hourly_rate_exceeded',
         severity: 'high',
         location: sessionId,
         value: `$${hourlyRate.toFixed(4)}/hr`,
-        suggestion: `Hourly cost rate $${hourlyRate.toFixed(4)} exceeds limit of $${config.maxCostPerHourUsd}/hr`,
+        suggestion: `Hourly cost rate $${hourlyRate.toFixed(4)} exceeds limit of $${effectiveHourlyLimit.toFixed(2)}/hr (sensitivity: ${config.sensitivity})`,
       });
     }
   }
@@ -134,7 +144,8 @@ export async function behaviorAnalyzer(
     state.blockedCount = 0;
   }
 
-  if (state.blockedCount >= 3) {
+  const consecutiveBlockThreshold = Math.ceil(3 * mult);
+  if (state.blockedCount >= consecutiveBlockThreshold) {
     findings.push({
       type: 'consecutive_blocks',
       severity: 'high',
