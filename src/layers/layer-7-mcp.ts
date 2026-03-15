@@ -1,16 +1,15 @@
 import { PufferEvent, LayerResult, Finding, MCPConfig } from '../types.js';
 import { allowResult } from './helpers.js';
+import { HEURISTICS } from './layer-2-injection.js';
 
-const INJECTION_PATTERNS: RegExp[] = [
-  /(?:you are now|act as|pretend to be|forget (?:your|all|previous)|ignore (?:previous|above|all)|disregard (?:your|all|previous)|override (?:your|all)|new instructions?:)/gi,
-  /(?:\[INST\]|\[\/INST\]|<\|system\|>|<\|user\|>|<\|assistant\|>|###\s*(?:system|instruction|human|assistant)|<\/?(?:system|instruction)>)/gi,
-  /(?:send (?:all|this|the) (?:data|info|content|text|conversation|history) to|forward (?:everything|all|this) to|(?:curl|wget|fetch|post)\s+https?:\/\/)/gi,
-  /(?:(?:call|invoke|use|execute|run)\s+(?:the\s+)?(?:tool|function|bash|shell|terminal|command)|execute\s+(?:system|shell)\s+command)/gi,
-];
+// Reuse injection heuristics from Layer 2 for MCP tool result scanning
+const MCP_INJECTION_PATTERNS: RegExp[] = HEURISTICS
+  .filter((h) => ['role_switching', 'system_delimiters', 'data_exfil_instruction', 'tool_abuse'].includes(h.name))
+  .map((h) => h.pattern);
 
 function scanForInjection(text: string): string[] {
   const matches: string[] = [];
-  for (const pattern of INJECTION_PATTERNS) {
+  for (const pattern of MCP_INJECTION_PATTERNS) {
     const regex = new RegExp(pattern.source, pattern.flags);
     let match: RegExpExecArray | null;
     while ((match = regex.exec(text)) !== null) {
