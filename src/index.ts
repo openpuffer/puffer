@@ -18,6 +18,7 @@ import { ClineHook } from './hooks/cline.js';
 import { CursorHook } from './hooks/cursor.js';
 import { OpenClawHook } from './hooks/openclaw.js';
 import { GenericHook } from './hooks/generic.js';
+import { VSCodeExtensionHook } from './hooks/vscode-extension.js';
 
 export interface PufferDaemon {
   proxy: ProxyServer;
@@ -48,27 +49,22 @@ export async function startDaemon(configOverride?: PufferConfig): Promise<Puffer
     discovery.start(config.autoDiscovery.scanIntervalMs);
   }
 
-  // Initialize hook manager
-  const hookManager = new HookManager();
-  hookManager.registerHook(new ClaudeCodeHook());
-  hookManager.registerHook(new AiderHook());
-  hookManager.registerHook(new ContinueDevHook());
-  hookManager.registerHook(new ClineHook());
-  hookManager.registerHook(new CursorHook());
-  hookManager.registerHook(new OpenClawHook());
-  hookManager.registerHook(new GenericHook());
+  // Start dashboard first so we know the resolved port for hooks
+  let dashboard: DashboardServer | null = null;
+  if (config.dashboard.enabled) {
+    dashboard = createDashboardServer(
+      { auditLogger, discovery, config, evaluatePipeline: async (event) => {
+        const evaluated = await pipeline.evaluate(event);
+        evaluated.decision = makeDecision(evaluated, { mode: config.mode });
+        return evaluated;
+      }},
+      config.dashboard.port
+    );
+    await dashboard.start();
+  }
 
-  // Install hooks into agent configurations
-  await hookManager.installAll();
-
-  hookManager.setEventCallback(async (event) => {
-    const evaluated = await pipeline.evaluate(event);
-    evaluated.decision = makeDecision(evaluated, { mode: config.mode });
-    auditLogger.log(evaluated);
-    return evaluated;
-  });
-
-  // Create proxy server
+  // Create and start proxy BEFORE installing hooks, so the proxy port is
+  // listening before ANTHROPIC_BASE_URL is set in agent configurations.
   const proxy = createProxyServer({
     config,
     evaluatePipeline: async (event) => {
@@ -82,22 +78,33 @@ export async function startDaemon(configOverride?: PufferConfig): Promise<Puffer
     },
   });
 
-  // Start proxy
   await proxy.start();
 
-  // Start dashboard if enabled
-  let dashboard: DashboardServer | null = null;
-  if (config.dashboard.enabled) {
-    dashboard = createDashboardServer(
-      { auditLogger, discovery, config, evaluatePipeline: async (event) => {
-        const evaluated = await pipeline.evaluate(event);
-        evaluated.decision = makeDecision(evaluated, { mode: config.mode });
-        return evaluated;
-      }},
-      config.dashboard.port
-    );
-    await dashboard.start();
-  }
+  // Initialize hook manager (uses resolved dashboard port + proxy port)
+  const resolvedDashboardPort = dashboard?.getPort() ?? config.dashboard.port;
+  const proxyPort = config.providers[0]?.proxyPort ?? 8787;
+  const hookManager = new HookManager();
+  hookManager.registerHook(new ClaudeCodeHook(resolvedDashboardPort, proxyPort));
+  hookManager.registerHook(new AiderHook());
+  hookManager.registerHook(new ContinueDevHook());
+  hookManager.registerHook(new ClineHook());
+  hookManager.registerHook(new CursorHook());
+  hookManager.registerHook(new OpenClawHook(resolvedDashboardPort));
+  hookManager.registerHook(new VSCodeExtensionHook(proxyPort));
+  hookManager.registerHook(new GenericHook());
+
+  // Install hooks AFTER proxy is listening
+  await hookManager.installAll();
+
+  // Pass hook manager to discovery for protection status resolution
+  discovery.setHookManager(hookManager);
+
+  hookManager.setEventCallback(async (event) => {
+    const evaluated = await pipeline.evaluate(event);
+    evaluated.decision = makeDecision(evaluated, { mode: config.mode });
+    auditLogger.log(evaluated);
+    return evaluated;
+  });
 
   // Generate passive events when discovery finds active network connections
   discovery.onDiscoveryUpdate((result) => {
@@ -160,6 +167,20 @@ export async function startDaemon(configOverride?: PufferConfig): Promise<Puffer
   process.on('SIGINT', async () => {
     await shutdown();
     process.exit(0);
+  });
+
+  // Crash resilience: clean up hooks even on unexpected errors so
+  // ANTHROPIC_BASE_URL doesn't point to a dead port.
+  process.on('uncaughtException', async (err) => {
+    logger.error(`Uncaught exception: ${err.message}`);
+    try { await hookManager.uninstallAll(); } catch { /* best effort */ }
+    process.exit(1);
+  });
+
+  process.on('unhandledRejection', async (reason) => {
+    logger.error(`Unhandled rejection: ${reason}`);
+    try { await hookManager.uninstallAll(); } catch { /* best effort */ }
+    process.exit(1);
   });
 
   logger.info('Puffer daemon is running');
