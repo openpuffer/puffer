@@ -1,5 +1,6 @@
 import * as os from 'os';
 import * as path from 'path';
+import * as fs from 'fs';
 import { minimatch } from 'minimatch';
 import { PufferEvent, LayerResult, Finding, FilesystemConfig } from '../types.js';
 import { allowResult } from './helpers.js';
@@ -9,6 +10,31 @@ function expandPath(filePath: string): string {
     return filePath.replace('~', os.homedir());
   }
   return filePath;
+}
+
+/**
+ * Detects path traversal attempts including URL-encoded, backslash,
+ * and null byte variants.
+ */
+function detectPathTraversal(rawPath: string): string | null {
+  // Check for null bytes
+  if (rawPath.includes('\0') || rawPath.includes('%00')) return 'null byte injection';
+
+  // Decode URL encoding and check for traversal
+  let decoded = rawPath;
+  try { decoded = decodeURIComponent(rawPath); } catch { /* use raw if malformed */ }
+
+  if (decoded.includes('..')) return 'path traversal (..)';
+
+  // Check double-encoded variants (e.g. %252e%252e)
+  if (rawPath.toLowerCase().includes('%2e%2e') || rawPath.toLowerCase().includes('%2e.') || rawPath.toLowerCase().includes('.%2e')) {
+    return 'encoded path traversal';
+  }
+
+  // Check backslash traversal (Windows-style)
+  if (rawPath.includes('..\\') || rawPath.includes('\\..')) return 'backslash path traversal';
+
+  return null;
 }
 
 export async function filesystemSentinel(
@@ -22,7 +48,15 @@ export async function filesystemSentinel(
   }
 
   const rawPath = event.action.path;
-  const resolvedPath = path.resolve(expandPath(rawPath));
+  let resolvedPath = path.resolve(expandPath(rawPath));
+
+  // Resolve symlinks to catch symlink-based bypasses (e.g., /tmp/link -> ~/.ssh/)
+  try {
+    resolvedPath = fs.realpathSync(resolvedPath);
+  } catch {
+    // Path doesn't exist yet (e.g., new file write) — use the resolved path as-is
+  }
+
   const findings: Finding[] = [];
 
   // Check forbidden paths
@@ -66,14 +100,15 @@ export async function filesystemSentinel(
     }
   }
 
-  // Path traversal detection
-  if (rawPath.includes('..')) {
+  // Path traversal detection (comprehensive)
+  const traversal = detectPathTraversal(rawPath);
+  if (traversal) {
     findings.push({
       type: 'path_traversal',
-      severity: 'high',
+      severity: 'critical',
       location: rawPath,
-      value: '..',
-      suggestion: 'Path contains traversal sequence (..)',
+      value: traversal,
+      suggestion: `Path contains traversal sequence: ${traversal}`,
     });
   }
 
