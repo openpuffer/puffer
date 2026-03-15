@@ -472,7 +472,73 @@ export function createDashboardServer(deps: DashboardDependencies, preferredPort
         decision: 'ALLOW',
       };
 
-      // Log, broadcast, track (no pipeline evaluation for responses)
+      // Run PostToolUse results through defense pipeline (detect PII, injection in results)
+      const evaluated = await deps.evaluatePipeline(event);
+      deps.auditLogger.log(evaluated);
+      broadcastToAll(JSON.stringify({
+        type: 'event',
+        data: {
+          id: evaluated.id,
+          timestamp: evaluated.timestamp,
+          source: evaluated.source,
+          action: { type: 'llm_response' } as Record<string, unknown>,
+          decision: evaluated.decision,
+          layers: evaluated.layers.map((l) => ({
+            layer: l.layer, name: l.name, verdict: l.verdict,
+          })),
+        },
+      }));
+      broadcastToAll(buildStatsMessage());
+      recordEvent(evaluated);
+
+      if (evaluated.decision === 'BLOCK') {
+        logger.blocked(
+          `PostToolUse result blocked: ${evaluated.layers.find((l) => l.verdict === 'block')?.details ?? 'unknown'}`,
+          evaluated.layers.find((l) => l.verdict === 'block')?.name ?? 'unknown',
+          'claude-code',
+        );
+      }
+
+      res.status(200).json({});
+    } catch (err) {
+      logger.error(`Hook claude-code-response error: ${(err as Error).message}`);
+      res.status(200).json({});
+    }
+  });
+
+  /**
+   * POST /hooks/claude-code-notification
+   * Receives Claude Code Notification hook data — session events, model changes, errors.
+   */
+  app.post('/hooks/claude-code-notification', async (req, res) => {
+    try {
+      const body = req.body as Record<string, unknown>;
+      const category = String(body.type ?? body.category ?? 'notification');
+      const message = String(body.message ?? body.notification ?? JSON.stringify(body));
+      const sessionId = String(body.session_id ?? 'unknown');
+
+      const event: PufferEvent = {
+        id: uuidv4(),
+        timestamp: new Date().toISOString(),
+        source: {
+          type: 'hook',
+          agent: 'claude-code',
+          provider: 'anthropic',
+        },
+        action: {
+          type: 'notification',
+          category,
+          message,
+        },
+        payload: body,
+        metadata: {
+          sessionId,
+          sequenceNumber: 0,
+        },
+        layers: [],
+        decision: 'ALLOW',
+      };
+
       deps.auditLogger.log(event);
       broadcastToAll(JSON.stringify({
         type: 'event',
@@ -480,7 +546,7 @@ export function createDashboardServer(deps: DashboardDependencies, preferredPort
           id: event.id,
           timestamp: event.timestamp,
           source: event.source,
-          action: { type: 'llm_response' } as Record<string, unknown>,
+          action: { type: 'notification', category } as Record<string, unknown>,
           decision: 'ALLOW',
           layers: [],
         },
@@ -490,8 +556,203 @@ export function createDashboardServer(deps: DashboardDependencies, preferredPort
 
       res.status(200).json({});
     } catch (err) {
-      logger.error(`Hook claude-code-response error: ${(err as Error).message}`);
+      logger.error(`Hook claude-code-notification error: ${(err as Error).message}`);
       res.status(200).json({});
+    }
+  });
+
+  /**
+   * POST /hooks/openclaw
+   * Receives OpenClaw preAction hook data — action details for pipeline evaluation.
+   */
+  app.post('/hooks/openclaw', async (req, res) => {
+    try {
+      const body = req.body as Record<string, unknown>;
+      const actionType = String(body.action_type ?? body.type ?? 'unknown');
+      const sessionId = String(body.session_id ?? 'unknown');
+
+      // Map OpenClaw action types to PufferEvent actions
+      let action: PufferEvent['action'];
+      switch (actionType) {
+        case 'shell_execute':
+          action = {
+            type: 'command_execute',
+            command: String(body.command ?? ''),
+            args: Array.isArray(body.args) ? body.args.map(String) : [],
+          };
+          break;
+        case 'file_read':
+          action = { type: 'file_read', path: String(body.path ?? '') };
+          break;
+        case 'file_write':
+          action = { type: 'file_write', path: String(body.path ?? ''), content: body.content as string | undefined };
+          break;
+        case 'http_request':
+          action = { type: 'network_request', url: String(body.url ?? ''), method: String(body.method ?? 'GET'), body: body.payload };
+          break;
+        case 'skill_invoke':
+          action = { type: 'mcp_tool_call', server: String(body.server ?? 'openclaw'), tool: String(body.skill ?? body.tool ?? ''), params: body.params ?? {} };
+          break;
+        default:
+          action = { type: 'llm_request', method: 'HOOK', endpoint: actionType, body };
+          break;
+      }
+
+      const event: PufferEvent = {
+        id: uuidv4(),
+        timestamp: new Date().toISOString(),
+        source: { type: 'hook', agent: 'openclaw', provider: 'openclaw' },
+        action,
+        payload: body,
+        metadata: { sessionId, sequenceNumber: 0 },
+        layers: [],
+        decision: null,
+      };
+
+      const evaluated = await deps.evaluatePipeline(event);
+      deps.auditLogger.log(evaluated);
+      broadcastToAll(JSON.stringify({
+        type: 'event',
+        data: {
+          id: evaluated.id,
+          timestamp: evaluated.timestamp,
+          source: evaluated.source,
+          action: { type: actionType } as Record<string, unknown>,
+          decision: evaluated.decision,
+          layers: evaluated.layers.map((l) => ({ layer: l.layer, name: l.name, verdict: l.verdict })),
+        },
+      }));
+      broadcastToAll(buildStatsMessage());
+      recordEvent(evaluated);
+
+      // Return allow/deny in OpenClaw's expected format
+      res.status(200).json({
+        allow: evaluated.decision !== 'BLOCK',
+        reason: evaluated.decision === 'BLOCK'
+          ? `Puffer: ${evaluated.layers.find((l) => l.verdict === 'block')?.details ?? 'Blocked'}`
+          : undefined,
+        decision: evaluated.decision,
+        event_id: evaluated.id,
+      });
+    } catch (err) {
+      logger.error(`Hook openclaw error: ${(err as Error).message}`);
+      res.status(200).json({ allow: true }); // fail-open on hook error
+    }
+  });
+
+  /**
+   * POST /hooks/openclaw-response
+   * Receives OpenClaw postAction hook data — logs results.
+   */
+  app.post('/hooks/openclaw-response', async (req, res) => {
+    try {
+      const body = req.body as Record<string, unknown>;
+      const event: PufferEvent = {
+        id: uuidv4(),
+        timestamp: new Date().toISOString(),
+        source: { type: 'hook', agent: 'openclaw', provider: 'openclaw' },
+        action: { type: 'llm_response', status: 200, body: body.result ?? body },
+        payload: body,
+        metadata: { sessionId: String(body.session_id ?? 'unknown'), sequenceNumber: 0 },
+        layers: [],
+        decision: null,
+      };
+
+      const evaluated = await deps.evaluatePipeline(event);
+      deps.auditLogger.log(evaluated);
+      broadcastToAll(buildStatsMessage());
+      recordEvent(evaluated);
+
+      res.status(200).json({});
+    } catch (err) {
+      logger.error(`Hook openclaw-response error: ${(err as Error).message}`);
+      res.status(200).json({});
+    }
+  });
+
+  /**
+   * POST /hooks/vscode
+   * Receives events from the Puffer VS Code extension (LM calls, chat messages, code insertions).
+   */
+  app.post('/hooks/vscode', async (req, res) => {
+    try {
+      const body = req.body as Record<string, unknown>;
+      const eventType = String(body.event_type ?? 'unknown');
+      const agentName = String(body.agent ?? 'vscode');
+      const sessionId = String(body.session_id ?? 'unknown');
+
+      let action: PufferEvent['action'];
+      switch (eventType) {
+        case 'lm_call':
+          action = {
+            type: 'llm_request',
+            method: 'LM_API',
+            endpoint: String(body.model ?? 'unknown'),
+            body: body.messages ?? body.content,
+          };
+          break;
+        case 'chat_message':
+          action = {
+            type: 'llm_request',
+            method: 'CHAT',
+            endpoint: String(body.participant ?? 'copilot'),
+            body: body.prompt ?? body.message,
+          };
+          break;
+        case 'code_insertion':
+          action = {
+            type: 'file_write',
+            path: String(body.file ?? 'unknown'),
+            content: String(body.content ?? ''),
+          };
+          break;
+        case 'extension_detected':
+          action = {
+            type: 'agent_activity_summary',
+            agent: String(body.extension_id ?? agentName),
+            summary: String(body.summary ?? 'Extension detected'),
+            connections: Number(body.connections ?? 0),
+          };
+          break;
+        default:
+          action = { type: 'llm_request', method: 'VSCODE', endpoint: eventType, body };
+          break;
+      }
+
+      const event: PufferEvent = {
+        id: uuidv4(),
+        timestamp: new Date().toISOString(),
+        source: { type: 'hook', agent: agentName, provider: String(body.provider ?? 'vscode') },
+        action,
+        payload: body,
+        metadata: { sessionId, sequenceNumber: 0 },
+        layers: [],
+        decision: null,
+      };
+
+      const evaluated = await deps.evaluatePipeline(event);
+      deps.auditLogger.log(evaluated);
+      broadcastToAll(JSON.stringify({
+        type: 'event',
+        data: {
+          id: evaluated.id,
+          timestamp: evaluated.timestamp,
+          source: evaluated.source,
+          action: { type: eventType } as Record<string, unknown>,
+          decision: evaluated.decision,
+          layers: evaluated.layers.map((l) => ({ layer: l.layer, name: l.name, verdict: l.verdict })),
+        },
+      }));
+      broadcastToAll(buildStatsMessage());
+      recordEvent(evaluated);
+
+      res.status(200).json({
+        decision: evaluated.decision,
+        event_id: evaluated.id,
+      });
+    } catch (err) {
+      logger.error(`Hook vscode error: ${(err as Error).message}`);
+      res.status(200).json({ decision: 'ALLOW' });
     }
   });
 
@@ -591,12 +852,17 @@ export function createDashboardServer(deps: DashboardDependencies, preferredPort
    */
   function actionForBroadcast(action: PufferEvent['action']): Record<string, unknown> {
     const data: Record<string, unknown> = { type: action.type };
-    if ('server' in action) data.server = (action as any).server;
-    if ('tool' in action) data.tool = (action as any).tool;
-    if ('params' in action && typeof (action as any).params === 'object') {
-      const params = (action as any).params as Record<string, unknown>;
-      if (params?.description) data.description = params.description;
-      if (params?.subagent_type) data.subagentType = params.subagent_type;
+    if (action.type === 'mcp_tool_call') {
+      data.server = action.server;
+      data.tool = action.tool;
+      if (typeof action.params === 'object' && action.params !== null) {
+        const params = action.params as Record<string, unknown>;
+        if (params.description) data.description = params.description;
+        if (params.subagent_type) data.subagentType = params.subagent_type;
+      }
+    } else if (action.type === 'mcp_tool_result') {
+      data.server = action.server;
+      data.tool = action.tool;
     }
     return data;
   }
@@ -617,6 +883,9 @@ export function createDashboardServer(deps: DashboardDependencies, preferredPort
 
   const httpServer = http.createServer(app);
 
+  // Shutdown guard: prevents broadcasts after stop() is called
+  let shuttingDown = false;
+
   // WebSocket for real-time updates (only from localhost)
   const wss = new WebSocketServer({ server: httpServer, path: '/ws' });
   const clients = new Set<WebSocket>();
@@ -630,7 +899,10 @@ export function createDashboardServer(deps: DashboardDependencies, preferredPort
     }
     clients.add(ws);
     ws.on('close', () => clients.delete(ws));
-    ws.on('error', () => clients.delete(ws));
+    ws.on('error', () => {
+      clients.delete(ws);
+      try { ws.close(); } catch { /* already closed */ }
+    });
   });
 
   function buildStatsMessage(): string {
@@ -654,6 +926,7 @@ export function createDashboardServer(deps: DashboardDependencies, preferredPort
   }
 
   function broadcastToAll(message: string): void {
+    if (shuttingDown) return;
     for (const client of clients) {
       if (client.readyState === WebSocket.OPEN) {
         client.send(message);
@@ -698,6 +971,7 @@ export function createDashboardServer(deps: DashboardDependencies, preferredPort
     },
 
     stop(): Promise<void> {
+      shuttingDown = true;
       clearInterval(statsInterval);
       clearInterval(agentsInterval);
       return new Promise((resolve) => {
