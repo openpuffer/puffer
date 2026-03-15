@@ -1,0 +1,78 @@
+id: PUFFER-CMD-001
+name: Cryptocurrency Miner
+description: Detects cryptocurrency mining commands
+author: puffer-team
+severity: critical
+layer: commands
+action: block
+tags: [cryptomining, malware]
+patterns:
+  - "xmrig"
+  - "minerd"
+  - "cpuminer"
+  - "stratum\\+tcp://"
+  - "cryptonight"
+
+---
+
+id: PUFFER-CMD-002
+name: History Tampering
+description: Detects attempts to clear or modify shell history
+author: puffer-team
+severity: high
+layer: commands
+action: block
+tags: [anti-forensics, history]
+patterns:
+  - "history\\s+-c"
+  - "history\\s+-w"
+  - "unset HISTFILE"
+  - "export HISTSIZE=0"
+  - "shred.*\\.bash_history"
+  - "rm.*\\.bash_history"
+
+---
+
+id: PUFFER-CMD-003
+name: Crontab Persistence
+description: Detects attempts to install persistent cron jobs
+author: puffer-team
+severity: high
+layer: commands
+action: escalate
+tags: [persistence, cron]
+patterns:
+  - "crontab\\s+-e"
+  - "echo.*>>.*crontab"
+  - "/etc/cron\\.d/"
+
+---
+
+id: PUFFER-CMD-004
+name: Package Manager Abuse
+description: Detects suspicious package installations
+author: puffer-team
+severity: medium
+layer: commands
+action: audit
+tags: [supply-chain, packages]
+patterns:
+  - "pip install.*--pre"
+  - "npm install.*--ignore-scripts false"
+  - "curl.*\\|.*pip install"
+
+---
+
+id: PUFFER-CMD-005
+name: SSH Tunnel / Port Forward
+description: Detects SSH tunneling and port forwarding
+author: puffer-team
+severity: high
+layer: commands
+action: escalate
+tags: [network, tunneling, exfiltration]
+patterns:
+  - "ssh\\s+.*-L\\s+"
+  - "ssh\\s+.*-R\\s+"
+  - "ssh\\s+.*-D\\s+"
+  - "ssh\\s+.*-N\\s+.*-f"

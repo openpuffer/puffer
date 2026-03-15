@@ -1,0 +1,63 @@
+id: PUFFER-INJ-001
+name: DAN Jailbreak
+description: Detects "Do Anything Now" and similar jailbreak patterns
+author: puffer-team
+severity: high
+layer: injection
+action: block
+tags: [jailbreak, prompt-injection, dan]
+pattern: "(?:do anything now|DAN mode|developer mode|jailbreak mode|ignore (?:all )?(?:safety|content) (?:policies|guidelines|filters))"
+references:
+  - https://github.com/0xk1h0/ChatGPT_DAN
+
+---
+
+id: PUFFER-INJ-002
+name: Grandma Exploit
+description: Detects the "pretend you're my grandma" social engineering pattern
+author: puffer-team
+severity: medium
+layer: injection
+action: audit
+tags: [social-engineering, prompt-injection]
+pattern: "(?:pretend (?:you(?:'re| are) )?(?:my )?(?:grandma|grandmother|grandpa|grandfather).*(?:tell|read|recite|share))"
+
+---
+
+id: PUFFER-INJ-003
+name: Base64 Encoded Instructions
+description: Detects base64-encoded payloads being decoded and executed
+author: puffer-team
+severity: high
+layer: injection
+action: block
+tags: [encoding, obfuscation]
+patterns:
+  - "atob\\s*\\("
+  - "base64\\s*-d"
+  - "Buffer\\.from\\s*\\([^,]+,\\s*['\"]base64['\"]\\)"
+  - "b64decode"
+
+---
+
+id: PUFFER-INJ-004
+name: Token Smuggling via Markdown
+description: Detects injection attempts hidden in markdown formatting
+author: puffer-team
+severity: medium
+layer: injection
+action: audit
+tags: [markdown, obfuscation]
+pattern: "(?:\\[.*\\]\\(data:|!\\[.*\\]\\(javascript:)"
+
+---
+
+id: PUFFER-INJ-005
+name: Recursive Prompt Injection
+description: Detects attempts to make the AI inject prompts into its own context
+author: puffer-team
+severity: high
+layer: injection
+action: block
+tags: [recursive-injection, advanced]
+pattern: "(?:when (?:you|the (?:AI|assistant|model)) (?:see|encounter|find|receive) this|include this (?:text|message|instruction) in (?:your|every|all) (?:response|output|reply))"
