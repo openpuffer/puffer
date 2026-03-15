@@ -1,8 +1,9 @@
 import fs from 'node:fs';
+import http from 'node:http';
 import { v4 as uuidv4 } from 'uuid';
 import { PufferConfig, PufferEvent, Decision } from './types.js';
 import { loadConfig, ensurePufferDir } from './utils/config.js';
-import { PID_FILE_PATH } from './utils/constants.js';
+import { DEFAULT_PROXY_PORT, PID_FILE_PATH } from './utils/constants.js';
 import { logger } from './utils/logger.js';
 import { createProxyServer, ProxyServer } from './proxy/index.js';
 import { createDefaultPipeline, DefensePipeline } from './layers/index.js';
@@ -19,6 +20,9 @@ import { CursorHook } from './hooks/cursor.js';
 import { OpenClawHook } from './hooks/openclaw.js';
 import { GenericHook } from './hooks/generic.js';
 import { VSCodeExtensionHook } from './hooks/vscode-extension.js';
+import { AlertDispatcher } from './alerts/dispatcher.js';
+import { WebhookChannel } from './alerts/channels/webhook.js';
+import { DesktopChannel } from './alerts/channels/desktop.js';
 
 export interface PufferDaemon {
   proxy: ProxyServer;
@@ -30,8 +34,83 @@ export interface PufferDaemon {
   stop(): Promise<void>;
 }
 
+/**
+ * Check if a process with the given PID is alive.
+ */
+function isProcessAlive(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Verify that the proxy health endpoint responds.
+ */
+async function verifyProxyHealth(port: number, retries = 5, delayMs = 300): Promise<boolean> {
+  for (let i = 0; i < retries; i++) {
+    try {
+      const ok = await new Promise<boolean>((resolve) => {
+        const req = http.get(`http://127.0.0.1:${port}/__puffer/health`, (res) => {
+          res.resume(); // drain
+          resolve(res.statusCode === 200);
+        });
+        req.on('error', () => resolve(false));
+        req.setTimeout(1000, () => { req.destroy(); resolve(false); });
+      });
+      if (ok) return true;
+    } catch { /* retry */ }
+    if (i < retries - 1) await new Promise((r) => setTimeout(r, delayMs));
+  }
+  return false;
+}
+
+/**
+ * Force-uninstall all hooks that modify external configuration.
+ * Does NOT check PID file — always runs. Used by stop command after killing.
+ */
+export async function forceCleanupHooks(): Promise<void> {
+  const tempHookManager = new HookManager();
+  const proxyPort = DEFAULT_PROXY_PORT;
+  tempHookManager.registerHook(new ClaudeCodeHook(DEFAULT_PROXY_PORT, proxyPort));
+  tempHookManager.registerHook(new GenericHook());
+  tempHookManager.registerHook(new VSCodeExtensionHook(proxyPort));
+  await tempHookManager.uninstallAll();
+  logger.info('Hooks force-cleaned');
+}
+
+/**
+ * Clean up stale config from a dead Puffer instance.
+ * Call at startup to ensure settings.json and shell profiles are clean.
+ */
+export async function cleanupStaleConfig(): Promise<void> {
+  if (!fs.existsSync(PID_FILE_PATH)) return;
+
+  const pid = parseInt(fs.readFileSync(PID_FILE_PATH, 'utf-8').trim(), 10);
+  if (isNaN(pid)) {
+    fs.unlinkSync(PID_FILE_PATH);
+    return;
+  }
+
+  if (isProcessAlive(pid)) {
+    throw new Error(`Another Puffer instance is already running (PID ${pid}). Use 'puffer stop' first.`);
+  }
+
+  // Dead process — clean up its hooks
+  logger.warn(`Cleaning up stale config from dead Puffer instance (PID ${pid})`);
+  await forceCleanupHooks();
+
+  try { fs.unlinkSync(PID_FILE_PATH); } catch { /* ignore */ }
+  logger.info('Stale config cleaned up successfully');
+}
+
 export async function startDaemon(configOverride?: PufferConfig): Promise<PufferDaemon> {
   ensurePufferDir();
+
+  // Clean up stale config from any dead previous instance
+  await cleanupStaleConfig();
 
   const config = configOverride ?? loadConfig();
 
@@ -39,6 +118,15 @@ export async function startDaemon(configOverride?: PufferConfig): Promise<Puffer
 
   // Initialize audit logger
   const auditLogger = new AuditLogger(config.audit.logPath);
+
+  // Initialize alert dispatcher
+  const alertDispatcher = new AlertDispatcher();
+  if (config.alerts?.webhook) {
+    alertDispatcher.addChannel(new WebhookChannel(config.alerts.webhook));
+  }
+  if (config.alerts?.desktop) {
+    alertDispatcher.addChannel(new DesktopChannel());
+  }
 
   // Initialize defense pipeline
   const pipeline = createDefaultPipeline(config);
@@ -75,14 +163,28 @@ export async function startDaemon(configOverride?: PufferConfig): Promise<Puffer
     logEvent: (event) => {
       auditLogger.log(event);
       if (dashboard) dashboard.broadcast(event);
+      alertDispatcher.dispatch(event).catch(() => {});
     },
+    getDiscoveredAgentNames: () => discovery.getAgents().map((a) => a.name),
   });
 
   await proxy.start();
 
+  // Verify the proxy is actually accepting connections before installing hooks
+  const healthy = await verifyProxyHealth(proxy.port);
+  if (!healthy) {
+    await proxy.stop();
+    throw new Error(`Proxy started but health check failed on port ${proxy.port}. Aborting — hooks NOT installed.`);
+  }
+
+  // Signal readiness to parent process (used in daemon fork mode)
+  if (typeof process.send === 'function') {
+    process.send('ready');
+  }
+
   // Initialize hook manager (uses resolved dashboard port + proxy port)
   const resolvedDashboardPort = dashboard?.getPort() ?? config.dashboard.port;
-  const proxyPort = config.providers[0]?.proxyPort ?? 8787;
+  const proxyPort = config.providers[0]?.proxyPort || DEFAULT_PROXY_PORT;
   const hookManager = new HookManager();
   hookManager.registerHook(new ClaudeCodeHook(resolvedDashboardPort, proxyPort));
   hookManager.registerHook(new AiderHook());
@@ -103,6 +205,7 @@ export async function startDaemon(configOverride?: PufferConfig): Promise<Puffer
     const evaluated = await pipeline.evaluate(event);
     evaluated.decision = makeDecision(evaluated, { mode: config.mode });
     auditLogger.log(evaluated);
+    alertDispatcher.dispatch(evaluated).catch(() => {});
     return evaluated;
   });
 
@@ -158,6 +261,25 @@ export async function startDaemon(configOverride?: PufferConfig): Promise<Puffer
 
     logger.info('Puffer daemon stopped');
   };
+
+  // SIGUSR1 = graceful drain mode: uninstall hooks, switch to passthrough,
+  // and auto-exit after 2 minutes. Existing sessions keep working through
+  // the transparent proxy while new sessions go direct to the API.
+  process.on('SIGUSR1', async () => {
+    logger.info('Entering drain mode — passthrough enabled, auto-exit in 120s');
+    try { await hookManager.uninstallAll(); } catch { /* best effort */ }
+    proxy.setPassthrough(true);
+    // Keep PID file alive so `puffer stop --force` can still find us
+    setTimeout(async () => {
+      logger.info('Drain timeout reached — shutting down');
+      discovery.stop();
+      if (dashboard) await dashboard.stop();
+      await proxy.stop();
+      await auditLogger.flush();
+      try { fs.unlinkSync(PID_FILE_PATH); } catch { /* ignore */ }
+      process.exit(0);
+    }, 120_000);
+  });
 
   process.on('SIGTERM', async () => {
     await shutdown();
