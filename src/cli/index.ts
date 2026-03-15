@@ -207,6 +207,19 @@ program
     }
   });
 
+// Inline: redteam
+program
+  .command('redteam')
+  .description('Run red team attack simulations against your configuration')
+  .action(async () => {
+    const config = loadConfig();
+    const { runRedTeam, formatRedTeamReport } = await import('../redteam/runner.js');
+
+    console.log('\n  Running red team simulations...\n');
+    const result = await runRedTeam(config);
+    console.log(formatRedTeamReport(result));
+  });
+
 // Inline: dashboard
 program
   .command('dashboard')
