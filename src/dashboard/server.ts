@@ -145,21 +145,25 @@ export function createDashboardServer(deps: DashboardDependencies, preferredPort
     while (eventTimestamps.length > 0 && eventTimestamps[0] < fiveMinAgo) {
       eventTimestamps.shift();
     }
-    if (event?.metadata.costEstimate) {
+    // Only accumulate cost and tokens from llm_response events to avoid
+    // double-counting: the request estimates input cost, then the response
+    // computes the real cost (input + output) from provider usage data.
+    const isResponse = event?.action?.type === 'llm_response';
+    if (isResponse && event?.metadata.costEstimate) {
       totalCostAccumulator += event.metadata.costEstimate;
     }
-    if (event?.metadata.totalTokens) {
+    if (isResponse && event?.metadata.totalTokens) {
       totalTokensAccumulator += event.metadata.totalTokens;
     }
 
-    // Accumulate per-agent usage
+    // Accumulate per-agent usage (only from responses)
     if (event?.source?.agent) {
       const usage = getOrCreateAgentUsage(event.source.agent);
       usage.requests++;
-      if (event.metadata.inputTokens) usage.inputTokens += event.metadata.inputTokens;
-      if (event.metadata.outputTokens) usage.outputTokens += event.metadata.outputTokens;
-      if (event.metadata.totalTokens) usage.totalTokens += event.metadata.totalTokens;
-      if (event.metadata.costEstimate) usage.totalCost += event.metadata.costEstimate;
+      if (isResponse && event.metadata.inputTokens) usage.inputTokens += event.metadata.inputTokens;
+      if (isResponse && event.metadata.outputTokens) usage.outputTokens += event.metadata.outputTokens;
+      if (isResponse && event.metadata.totalTokens) usage.totalTokens += event.metadata.totalTokens;
+      if (isResponse && event.metadata.costEstimate) usage.totalCost += event.metadata.costEstimate;
       if (event.metadata.model) {
         usage.models[event.metadata.model] = (usage.models[event.metadata.model] ?? 0) + 1;
       }
@@ -228,6 +232,18 @@ export function createDashboardServer(deps: DashboardDependencies, preferredPort
   app.get('/api/agents', (_req, res) => {
     const agents = deps.discovery.getAgents();
     res.json({ agents });
+  });
+
+  app.get('/api/score', async (_req, res) => {
+    try {
+      const { calculateScore } = await import('../score/calculator.js');
+      const result = await deps.discovery.scan();
+      const stats = deps.auditLogger.getStats();
+      const score = calculateScore(deps.config, result, stats);
+      res.json(score);
+    } catch (err) {
+      res.status(500).json({ error: 'Failed to calculate score' });
+    }
   });
 
   app.get('/api/alerts', (_req, res) => {
@@ -844,6 +860,7 @@ export function createDashboardServer(deps: DashboardDependencies, preferredPort
     if (meta.costEstimate) data.costEstimate = meta.costEstimate;
     if (meta.model) data.model = meta.model;
     if (meta.rateLimits) data.rateLimits = meta.rateLimits;
+    if (meta.debugInfo) data.debugInfo = meta.debugInfo;
     return Object.keys(data).length > 0 ? data : undefined;
   }
 
