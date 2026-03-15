@@ -97,12 +97,17 @@ export class AuditLogger {
     const start = Math.max(0, lines.length - offset - limit);
     const end = lines.length - offset;
 
+    let malformedCount = 0;
     for (let i = end - 1; i >= start; i--) {
       try {
         entries.push(JSON.parse(lines[i]));
       } catch {
-        // Skip malformed lines
+        malformedCount++;
       }
+    }
+
+    if (malformedCount > 0) {
+      logger.warn(`Skipped ${malformedCount} malformed audit log entries while reading`);
     }
 
     return entries;
@@ -124,6 +129,7 @@ export class AuditLogger {
     let audit = 0;
     let escalated = 0;
 
+    let malformedCount = 0;
     for (const line of lines) {
       try {
         const entry = JSON.parse(line) as AuditLogEntry;
@@ -134,8 +140,12 @@ export class AuditLogger {
           case 'ESCALATE': escalated++; break;
         }
       } catch {
-        // Skip malformed lines
+        malformedCount++;
       }
+    }
+
+    if (malformedCount > 0) {
+      logger.warn(`Skipped ${malformedCount} malformed audit log entries in stats`);
     }
 
     return { total: lines.length, blocked, allowed, audit, escalated };
