@@ -9,6 +9,7 @@ import ConfigEditor from './components/ConfigEditor';
 import AgentDetailPanel from './components/AgentDetailPanel';
 import { useWebSocket } from './hooks/useWebSocket';
 import { useGraphData, type GraphNode } from './hooks/useGraphData';
+import { useTheme } from './hooks/useTheme';
 
 interface Stats {
   totalEvents: number;
@@ -49,6 +50,7 @@ export interface AgentInfo {
   detectedVia: string;
   pid: number | null;
   port: number | null;
+  hostProgram?: string;
   status: string;
   firstSeen: string;
   lastSeen: string;
@@ -119,7 +121,8 @@ const App: React.FC = () => {
   }, []);
 
   // Build 3D graph data
-  const graphData = useGraphData(liveEvents, agents);
+  const { theme } = useTheme();
+  const graphData = useGraphData(liveEvents, agents, theme);
 
   const handleOpenPanel = useCallback((panel: string) => {
     setActivePanel((prev) => (prev === panel ? null : panel));
@@ -144,7 +147,7 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="relative h-screen w-screen overflow-hidden bg-[#06080d]">
+    <div className="relative h-screen w-screen overflow-hidden bg-slate-50 dark:bg-[#06080d]">
       {/* 3D Force Graph Background */}
       <NetworkGraph3D graphData={graphData} onNodeClick={handleNodeClick} />
 
@@ -155,6 +158,7 @@ const App: React.FC = () => {
         agents={agents}
         connected={connected}
         onOpenPanel={handleOpenPanel}
+        panelOpen={!!activePanel}
       />
 
       {/* Slide-out Drawer Panel */}
@@ -167,7 +171,7 @@ const App: React.FC = () => {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.2 }}
-              className="absolute inset-0 z-20 bg-black/40 backdrop-blur-sm"
+              className="absolute inset-0 z-20 bg-black/20 dark:bg-black/40 backdrop-blur-sm"
               onClick={handleClosePanel}
             />
 
@@ -177,23 +181,23 @@ const App: React.FC = () => {
               animate={{ x: 0 }}
               exit={{ x: '100%' }}
               transition={{ type: 'spring', damping: 25, stiffness: 250 }}
-              className="absolute right-0 top-0 bottom-0 z-30 w-[520px] max-w-[90vw] drawer-panel"
+              className="absolute right-0 top-0 bottom-0 z-30 w-[900px] max-w-[90vw] drawer-panel"
             >
               {/* Panel header */}
               <div className="flex items-center justify-between border-b border-white/[0.06] px-5 py-4">
-                <span className="font-mono text-sm font-bold text-cyan-400 tracking-wider">
+                <span className="font-mono text-sm font-bold text-slate-800 dark:text-cyan-400 tracking-wider">
                   {PANEL_TITLES[activePanel]}
                 </span>
                 <button
                   onClick={handleClosePanel}
-                  className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-white/10 hover:text-white"
+                  className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-black/5 dark:hover:bg-white/10 hover:text-slate-800 dark:hover:text-white"
                 >
                   <X className="h-4 w-4" />
                 </button>
               </div>
 
               {/* Panel content */}
-              <div className="h-[calc(100%-57px)] overflow-y-auto p-5 scrollbar-thin">
+              <div className="h-[calc(100%-57px)] overflow-y-auto overflow-x-hidden p-5 pb-10 scrollbar-thin">
                 {React.createElement(
                   PANEL_COMPONENTS[activePanel],
                   panelProps[activePanel]

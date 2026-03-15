@@ -105,15 +105,15 @@ const ConfigEditor: React.FC = () => {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <span className="text-slate-400">Loading configuration...</span>
+        <span className="text-muted-foreground">Loading configuration...</span>
       </div>
     );
   }
 
   if (error && !config) {
     return (
-      <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-4">
-        <span className="text-red-400">Failed to load config: {error}</span>
+      <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-4">
+        <span className="text-destructive">Failed to load config: {error}</span>
       </div>
     );
   }
@@ -123,17 +123,17 @@ const ConfigEditor: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Save bar */}
-      <div className="flex items-center justify-between">
-        <h2 className="flex items-center gap-2 text-lg font-semibold text-slate-200">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <h2 className="flex items-center gap-2 text-base font-semibold text-foreground">
           <Settings className="h-5 w-5" />
           Configuration
         </h2>
         <div className="flex items-center gap-3">
           {saveStatus === 'success' && (
-            <span className="text-sm text-puffer-green">Saved successfully</span>
+            <span className="text-sm text-green-600 dark:text-green-400">Saved successfully</span>
           )}
           {saveStatus === 'error' && (
-            <span className="text-sm text-puffer-red">{error}</span>
+            <span className="text-sm text-destructive">{error}</span>
           )}
           <Button onClick={handleSave} disabled={saving}>
             <Save className="h-4 w-4" />
@@ -145,9 +145,9 @@ const ConfigEditor: React.FC = () => {
       <Separator />
 
       {/* Operating Mode */}
-      <Card className="border-slate-700/50 bg-slate-800/50">
+      <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-sm uppercase tracking-wider text-slate-400">
+          <CardTitle className="flex items-center gap-2 text-sm uppercase tracking-wider text-muted-foreground">
             <Shield className="h-4 w-4" />
             Operating Mode
           </CardTitle>
@@ -159,7 +159,7 @@ const ConfigEditor: React.FC = () => {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             {MODES.map((mode) => (
               <Button
                 key={mode}
@@ -177,9 +177,9 @@ const ConfigEditor: React.FC = () => {
       <Separator />
 
       {/* Defense Layers */}
-      <Card className="border-slate-700/50 bg-slate-800/50">
+      <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-sm uppercase tracking-wider text-slate-400">
+          <CardTitle className="flex items-center gap-2 text-sm uppercase tracking-wider text-muted-foreground">
             <Layers className="h-4 w-4" />
             Defense Layers
           </CardTitle>
@@ -193,13 +193,13 @@ const ConfigEditor: React.FC = () => {
               return (
                 <div
                   key={key}
-                  className="flex items-center justify-between rounded-lg bg-slate-900/50 px-4 py-3"
+                  className="flex items-center justify-between rounded-lg bg-muted/50 px-4 py-3"
                 >
                   <div className="flex items-center gap-3">
                     <Badge variant="outline" className="font-mono text-xs">
                       L{layerNumber}
                     </Badge>
-                    <span className="text-sm text-slate-200">{name}</span>
+                    <span className="text-sm text-foreground">{name}</span>
                   </div>
                   <Switch
                     checked={layer.enabled}
@@ -215,9 +215,9 @@ const ConfigEditor: React.FC = () => {
       <Separator />
 
       {/* Auto-Discovery */}
-      <Card className="border-slate-700/50 bg-slate-800/50">
+      <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-sm uppercase tracking-wider text-slate-400">
+          <CardTitle className="flex items-center gap-2 text-sm uppercase tracking-wider text-muted-foreground">
             <Radar className="h-4 w-4" />
             Auto-Discovery
           </CardTitle>
@@ -225,7 +225,7 @@ const ConfigEditor: React.FC = () => {
         <CardContent>
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <span className="text-sm text-slate-300">Enabled</span>
+              <span className="text-sm text-foreground/80">Enabled</span>
               <Switch
                 checked={config.autoDiscovery.enabled}
                 onCheckedChange={() =>
@@ -240,14 +240,14 @@ const ConfigEditor: React.FC = () => {
               />
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-sm text-slate-300">Scan Interval</span>
-              <span className="text-sm text-slate-400">
+              <span className="text-sm text-foreground/80">Scan Interval</span>
+              <span className="text-sm text-muted-foreground">
                 {(config.autoDiscovery.scanIntervalMs / 1000).toFixed(0)}s
               </span>
             </div>
             {['processScanner', 'portScanner', 'networkScanner'].map((scanner) => (
               <div key={scanner} className="flex items-center justify-between">
-                <span className="text-sm text-slate-300">
+                <span className="text-sm text-foreground/80">
                   {scanner.replace(/([A-Z])/g, ' $1').replace(/^./, (s) => s.toUpperCase())}
                 </span>
                 <Switch
@@ -271,39 +271,39 @@ const ConfigEditor: React.FC = () => {
       <Separator />
 
       {/* Dashboard & Audit */}
-      <div className="grid grid-cols-2 gap-4">
-        <Card className="border-slate-700/50 bg-slate-800/50">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-sm uppercase tracking-wider text-slate-400">
+            <CardTitle className="flex items-center gap-2 text-sm uppercase tracking-wider text-muted-foreground">
               <BarChart3 className="h-4 w-4" />
               Dashboard
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-2 text-sm text-slate-300">
+            <div className="space-y-2 text-sm">
               <div className="flex justify-between">
-                <span>Port</span>
-                <span className="text-slate-400">{config.dashboard.port}</span>
+                <span className="text-foreground/80">Port</span>
+                <span className="text-muted-foreground">{config.dashboard.port}</span>
               </div>
             </div>
           </CardContent>
         </Card>
-        <Card className="border-slate-700/50 bg-slate-800/50">
+        <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-sm uppercase tracking-wider text-slate-400">
+            <CardTitle className="flex items-center gap-2 text-sm uppercase tracking-wider text-muted-foreground">
               <Shield className="h-4 w-4" />
               Audit
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-2 text-sm text-slate-300">
+            <div className="space-y-2 text-sm">
               <div className="flex justify-between">
-                <span>Retention</span>
-                <span className="text-slate-400">{config.audit.retentionDays} days</span>
+                <span className="text-foreground/80">Retention</span>
+                <span className="text-muted-foreground">{config.audit.retentionDays} days</span>
               </div>
               <div className="flex justify-between">
-                <span>Desktop Alerts</span>
-                <span className="text-slate-400">{config.alerts.desktop ? 'On' : 'Off'}</span>
+                <span className="text-foreground/80">Desktop Alerts</span>
+                <span className="text-muted-foreground">{config.alerts.desktop ? 'On' : 'Off'}</span>
               </div>
             </div>
           </CardContent>

@@ -2,8 +2,35 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ── Light mode (default) ─────────────────────────────── */
 @layer base {
   :root {
+    --background: 210 40% 98%;
+    --foreground: 222 47% 11%;
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+    --primary: 222 47% 11%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 210 40% 96%;
+    --secondary-foreground: 222 47% 11%;
+    --muted: 210 40% 96%;
+    --muted-foreground: 215 16% 47%;
+    --accent: 210 40% 96%;
+    --accent-foreground: 222 47% 11%;
+    --destructive: 0 70% 55%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 214 32% 91%;
+    --input: 214 32% 91%;
+    --ring: 222 47% 11%;
+    --radius: 0.5rem;
+  }
+}
+
+/* ── Dark mode ────────────────────────────────────────── */
+@layer base {
+  .dark {
     --background: 225 20% 3%;
     --foreground: 0 0% 95%;
     --card: 225 15% 5%;
@@ -23,7 +50,6 @@
     --border: 220 10% 12%;
     --input: 220 10% 12%;
     --ring: 0 0% 60%;
-    --radius: 0.5rem;
   }
 }
 
@@ -39,20 +65,33 @@
   }
 }
 
-/* HUD Panel — frosted glass, monochrome */
+/* ── HUD Panel — frosted glass ──────────────────────── */
 @layer components {
+  /* Light mode */
   .hud-panel {
     @apply rounded-md px-4 py-3;
-    border: 1px solid rgba(245, 158, 11, 0.08);
-    background: rgba(6, 8, 13, 0.7);
+    border: 1px solid rgba(0, 0, 0, 0.06);
+    background: rgba(255, 255, 255, 0.85);
     backdrop-filter: blur(24px) saturate(1.1);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+  }
+  .dark .hud-panel {
+    border-color: rgba(245, 158, 11, 0.08);
+    background: rgba(6, 8, 13, 0.7);
     box-shadow: inset 0 1px 0 rgba(251, 191, 36, 0.03);
   }
 
+  /* Light mode */
   .drawer-panel {
-    @apply border-l border-white/[0.04];
-    background: rgba(6, 8, 13, 0.92);
+    @apply border-l;
+    border-color: rgba(0, 0, 0, 0.06);
+    background: rgba(255, 255, 255, 0.95);
     backdrop-filter: blur(32px);
+    box-shadow: -8px 0 24px rgba(0, 0, 0, 0.08);
+  }
+  .dark .drawer-panel {
+    border-color: rgba(255, 255, 255, 0.04);
+    background: rgba(6, 8, 13, 0.92);
     box-shadow: -16px 0 48px rgba(0, 0, 0, 0.6);
   }
 
@@ -60,6 +99,10 @@
     position: absolute;
     inset: 0;
     pointer-events: none;
+    background: none;
+    z-index: 1;
+  }
+  .dark .vignette-overlay {
     background: radial-gradient(
       ellipse at center,
       transparent 30%,
@@ -67,11 +110,93 @@
       rgba(3, 5, 8, 0.65) 80%,
       rgba(3, 5, 8, 0.9) 100%
     );
-    z-index: 1;
   }
 }
 
-/* Scrollbar */
+/* ── 2D CSS labels ──────────────────────────────────── */
+.node-label-2d {
+  position: absolute;
+  transform: translate(-50%, -100%);
+  text-align: center;
+  pointer-events: none;
+  white-space: nowrap;
+  line-height: 1.3;
+}
+
+.node-label-name {
+  font-family: 'Inter', 'SF Pro Display', -apple-system, sans-serif;
+  font-weight: 600;
+  font-size: 11px;
+  color: #1e293b;
+  letter-spacing: 0.08em;
+  text-shadow: 0 0 6px rgba(255, 255, 255, 0.8);
+}
+.dark .node-label-name {
+  color: #fcd34d;
+  text-shadow:
+    0 0 6px rgba(0, 0, 0, 0.95),
+    0 0 12px rgba(0, 0, 0, 0.7),
+    0 1px 3px rgba(0, 0, 0, 0.9);
+}
+
+.node-label-tag {
+  font-family: 'Inter', 'SF Pro Display', -apple-system, sans-serif;
+  font-weight: 500;
+  font-size: 8px;
+  color: #64748b;
+  letter-spacing: 0.12em;
+  text-shadow: 0 0 4px rgba(255, 255, 255, 0.6);
+}
+.dark .node-label-tag {
+  color: #d97706;
+  text-shadow:
+    0 0 6px rgba(0, 0, 0, 0.95),
+    0 0 10px rgba(0, 0, 0, 0.7);
+}
+
+.node-label-host {
+  font-family: 'Inter', 'SF Pro Display', -apple-system, sans-serif;
+  font-weight: 400;
+  font-size: 7px;
+  color: #94a3b8;
+  letter-spacing: 0.1em;
+  text-shadow: 0 0 4px rgba(255, 255, 255, 0.6);
+}
+.dark .node-label-host {
+  color: #94a3b8;
+  text-shadow:
+    0 0 6px rgba(0, 0, 0, 0.95),
+    0 0 10px rgba(0, 0, 0, 0.7);
+}
+
+/* Hide ForceGraph3D's built-in tooltip — covers all library versions */
+.scene-tooltip,
+.graph-tooltip,
+.float-tooltip-kap,
+[class*="scene-tooltip"],
+[class*="graph-tooltip"] {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  width: 0 !important;
+  height: 0 !important;
+  overflow: hidden !important;
+}
+
+/* ── 3D canvas cursor states ─────────────────────────── */
+.graph-canvas-wrapper canvas {
+  cursor: grab;
+}
+.graph-canvas-wrapper canvas:active {
+  cursor: grabbing;
+}
+.graph-canvas-wrapper.dragging-node canvas,
+.graph-canvas-wrapper.dragging-node canvas:active {
+  cursor: move;
+}
+
+/* ── Scrollbar ──────────────────────────────────────── */
 .scrollbar-thin::-webkit-scrollbar {
   width: 3px;
 }
@@ -79,9 +204,15 @@
   background: transparent;
 }
 .scrollbar-thin::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(0, 0, 0, 0.1);
   border-radius: 999px;
 }
 .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.18);
+}
+.dark .scrollbar-thin::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.06);
+}
+.dark .scrollbar-thin::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.12);
 }

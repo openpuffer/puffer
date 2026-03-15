@@ -3,27 +3,56 @@ import ForceGraph3D from 'react-force-graph-3d';
 import * as THREE from 'three';
 import type { GraphData, GraphNode } from '../hooks/useGraphData';
 import { getIconSprite, getPufferIconSprite } from '../lib/agentIcons';
+import { useTheme, type Theme } from '../hooks/useTheme';
 
 interface NetworkGraph3DProps {
   graphData: GraphData;
   onNodeClick?: (node: GraphNode) => void;
 }
 
-// ── Shared glow texture (warm amber soft circle) ────────
-const GLOW_TEX = (() => {
+// ── Theme-dependent color palettes ──────────────────────
+const THEME_COLORS = {
+  dark: {
+    bg: '#030508',
+    fogColor: 0x030508,
+    nodeCoreColor: 0xfef3c7,
+    nodeShellColor: 0xfbbf24,
+    glowColor: 0xf59e0b,
+    iconColor: '#fef3c7',
+    meshLineColor: 0xfbbf24,
+    meshDotColor: 0xf59e0b,
+  },
+  light: {
+    bg: '#f1f5f9',
+    fogColor: 0xf1f5f9,
+    nodeCoreColor: 0x1e293b,
+    nodeShellColor: 0x94a3b8,
+    glowColor: 0x64748b,
+    iconColor: '#334155',
+    meshLineColor: 0xcbd5e1,
+    meshDotColor: 0x94a3b8,
+  },
+};
+
+// ── Shared glow textures ────────────────────────────────
+function makeGlowTexture(r: number, g: number, b: number): THREE.CanvasTexture {
   const c = document.createElement('canvas');
   c.width = 128; c.height = 128;
   const ctx = c.getContext('2d')!;
-  const g = ctx.createRadialGradient(64, 64, 0, 64, 64, 64);
-  g.addColorStop(0, 'rgba(251,191,36,0.95)');
-  g.addColorStop(0.15, 'rgba(251,146,60,0.5)');
-  g.addColorStop(0.4, 'rgba(245,158,11,0.12)');
-  g.addColorStop(0.7, 'rgba(245,158,11,0.03)');
-  g.addColorStop(1, 'rgba(245,158,11,0)');
-  ctx.fillStyle = g;
-  ctx.fillRect(0, 0, 128, 128);
+  const grad = ctx.createRadialGradient(64, 64, 0, 64, 64, 64);
+  grad.addColorStop(0, `rgba(${r},${g},${b},0.95)`);
+  grad.addColorStop(0.15, `rgba(${r},${g},${b},0.5)`);
+  grad.addColorStop(0.4, `rgba(${r},${g},${b},0.12)`);
+  grad.addColorStop(0.7, `rgba(${r},${g},${b},0.03)`);
+  grad.addColorStop(1, `rgba(${r},${g},${b},0)`);
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  ctx.arc(64, 64, 64, 0, Math.PI * 2);
+  ctx.fill();
   return new THREE.CanvasTexture(c);
-})();
+}
+const GLOW_TEX = makeGlowTexture(251, 191, 36);
+const GLOW_TEX_LIGHT = makeGlowTexture(100, 116, 139);
 
 // ── Small dot texture for neural mesh particles ─────────
 const DOT_TEX = (() => {
@@ -36,7 +65,9 @@ const DOT_TEX = (() => {
   g.addColorStop(0.5, 'rgba(251,146,60,0.15)');
   g.addColorStop(1, 'rgba(245,158,11,0)');
   ctx.fillStyle = g;
-  ctx.fillRect(0, 0, 64, 64);
+  ctx.beginPath();
+  ctx.arc(32, 32, 32, 0, Math.PI * 2);
+  ctx.fill();
   return new THREE.CanvasTexture(c);
 })();
 
@@ -51,7 +82,9 @@ const BOKEH_TEX = (() => {
   g.addColorStop(0.6, 'rgba(20,40,80,0.05)');
   g.addColorStop(1, 'rgba(0,0,0,0)');
   ctx.fillStyle = g;
-  ctx.fillRect(0, 0, 64, 64);
+  ctx.beginPath();
+  ctx.arc(32, 32, 32, 0, Math.PI * 2);
+  ctx.fill();
   return new THREE.CanvasTexture(c);
 })();
 
@@ -66,7 +99,9 @@ function makeNebulaTexture(r: number, g: number, b: number): THREE.CanvasTexture
   grad.addColorStop(0.6, `rgba(${r},${g},${b},0.04)`);
   grad.addColorStop(1, `rgba(${r},${g},${b},0)`);
   ctx.fillStyle = grad;
-  ctx.fillRect(0, 0, 256, 256);
+  ctx.beginPath();
+  ctx.arc(128, 128, 128, 0, Math.PI * 2);
+  ctx.fill();
   return new THREE.CanvasTexture(c);
 }
 
@@ -218,17 +253,38 @@ const NetworkGraph3D: React.FC<NetworkGraph3DProps> = ({ graphData, onNodeClick 
   const fgRef = useRef<any>(null);
   const sceneExtrasRef = useRef<THREE.Group[]>([]);
   const meshRef = useRef<THREE.Group | null>(null);
+  const labelsRef = useRef<HTMLDivElement>(null);
+  const labelEls = useRef<Map<string, HTMLDivElement>>(new Map());
   const [dims, setDims] = useState({ w: window.innerWidth, h: window.innerHeight });
+  const { theme } = useTheme();
+  const colors = THEME_COLORS[theme];
+  const prevThemeRef = useRef<Theme>(theme);
 
+  // Configure forces only once on mount — reconfiguring on every data change
+  // causes the simulation to restart and nodes to jump visibly
   useEffect(() => {
-    const fg = fgRef.current;
-    if (!fg) return;
-    try {
-      fg.d3Force('charge')?.strength(-5);
-      fg.d3Force('link')?.distance(ORBIT_RADIUS);
-      fg.d3Force('center')?.strength(2.0);
-    } catch { /* force api not ready */ }
-  }, [graphData]);
+    const t = setTimeout(() => {
+      const fg = fgRef.current;
+      if (!fg) return;
+      try {
+        // Subagent nodes get weaker repulsion so they cluster near parent
+        fg.d3Force('charge')?.strength((node: any) => {
+          return node.type === 'subagent' ? -1 : -3;
+        });
+        // Subagent links are shorter to keep children close to parent agent
+        fg.d3Force('link')?.distance((link: any) => {
+          const srcId = typeof link.source === 'string' ? link.source : link.source?.id ?? '';
+          const tgtId = typeof link.target === 'string' ? link.target : link.target?.id ?? '';
+          if (srcId.startsWith('subagent-') || tgtId.startsWith('subagent-')) {
+            return ORBIT_RADIUS * 0.4;
+          }
+          return ORBIT_RADIUS;
+        });
+        fg.d3Force('center')?.strength(0.3);
+      } catch { /* force api not ready */ }
+    }, 300);
+    return () => clearTimeout(t);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Inject scene extras: starfield, nebulae, neural mesh
   useEffect(() => {
@@ -280,6 +336,40 @@ const NetworkGraph3D: React.FC<NetworkGraph3DProps> = ({ graphData, onNodeClick 
       } catch { /* ignore */ }
     };
   }, []);
+
+  // Toggle scene extras visibility and colors when theme changes
+  useEffect(() => {
+    // Stars and nebulae: visible only in dark mode
+    for (const grp of sceneExtrasRef.current) {
+      grp.visible = theme === 'dark';
+    }
+    // Neural mesh: always visible but change color and blending
+    if (meshRef.current) {
+      meshRef.current.traverse((obj: any) => {
+        if (obj.material) {
+          obj.material.color?.setHex(colors.meshLineColor);
+          obj.material.blending = theme === 'dark'
+            ? THREE.AdditiveBlending
+            : THREE.NormalBlending;
+          obj.material.opacity = theme === 'dark'
+            ? (obj.material.opacity > 0.1 ? 0.45 : obj.material.opacity)
+            : (obj.material.opacity > 0.1 ? 0.15 : 0.03);
+          obj.material.needsUpdate = true;
+        }
+      });
+    }
+    // Update fog
+    const fg = fgRef.current;
+    if (fg) {
+      try {
+        const scene = fg.scene();
+        if (scene.fog) {
+          (scene.fog as THREE.FogExp2).color.setHex(colors.fogColor);
+        }
+      } catch { /* ignore */ }
+    }
+    prevThemeRef.current = theme;
+  }, [theme, colors]);
 
   // Auto-orbit camera
   useEffect(() => {
@@ -379,6 +469,7 @@ const NetworkGraph3D: React.FC<NetworkGraph3DProps> = ({ graphData, onNodeClick 
   // ── Node rendering — small glowing points ────────────────
   const nodeThreeObject = useCallback((node: GraphNode) => {
     const group = new THREE.Group();
+    const isDark = theme === 'dark';
 
     if (node.type === 'puffer') {
       const R = 1.8;
@@ -386,44 +477,51 @@ const NetworkGraph3D: React.FC<NetworkGraph3DProps> = ({ graphData, onNodeClick 
       // Bright core
       group.add(new THREE.Mesh(
         new THREE.SphereGeometry(R * 0.35, 16, 16),
-        new THREE.MeshBasicMaterial({ color: 0xfef3c7, transparent: true, opacity: 0.95 })
+        new THREE.MeshBasicMaterial({ color: colors.nodeCoreColor, transparent: true, opacity: 0.95 })
       ));
 
-      // Warm shell
+      // Shell
       group.add(new THREE.Mesh(
         new THREE.SphereGeometry(R * 0.7, 20, 20),
         new THREE.MeshBasicMaterial({
-          color: 0xfbbf24, transparent: true, opacity: 0.5,
-          blending: THREE.AdditiveBlending,
+          color: colors.nodeShellColor, transparent: true, opacity: isDark ? 0.5 : 0.2,
+          blending: isDark ? THREE.AdditiveBlending : THREE.NormalBlending,
         })
       ));
 
-      // Big warm glow
+      // Glow
+      const glowTex = isDark ? GLOW_TEX : GLOW_TEX_LIGHT;
       const glow = new THREE.Sprite(
         new THREE.SpriteMaterial({
-          map: GLOW_TEX, color: 0xf59e0b,
-          transparent: true, opacity: 0.7, blending: THREE.AdditiveBlending,
+          map: glowTex, color: colors.glowColor,
+          transparent: true,
+          opacity: isDark ? 0.7 : 0.25,
+          blending: isDark ? THREE.AdditiveBlending : THREE.NormalBlending,
+          depthWrite: false,
         })
       );
-      glow.scale.set(R * 10, R * 10, 1);
+      glow.scale.set(R * (isDark ? 10 : 6), R * (isDark ? 10 : 6), 1);
       group.add(glow);
 
-      const icon = getPufferIconSprite(R * 1.2);
+      const icon = getPufferIconSprite(R * 1.2, colors.iconColor);
+      if (!isDark) {
+        (icon.material as THREE.SpriteMaterial).blending = THREE.NormalBlending;
+      }
       group.add(icon);
-
-      const label = makeLabel('YOUR COMPUTER', '#fcd34d', 8);
-      label.position.set(0, R + 2.5, 0);
-      group.add(label);
 
     } else {
       // ─── Small glowing neural point ───
       const r = node.type === 'agent' ? 0.8
-        : node.type === 'subagent' ? 0.6
+        : node.type === 'subagent' ? 0.45
         : node.type === 'mcp' ? 0.55
         : 0.7;
 
-      const nodeCol = new THREE.Color(node.color);
-      const brightCol = nodeCol.clone().lerp(new THREE.Color(0xfef3c7), 0.7);
+      const nodeCol = isDark
+        ? new THREE.Color(node.color)
+        : new THREE.Color(colors.nodeShellColor);
+      const brightCol = isDark
+        ? nodeCol.clone().lerp(new THREE.Color(0xfef3c7), 0.7)
+        : new THREE.Color(colors.nodeCoreColor);
 
       // Tiny bright core
       group.add(new THREE.Mesh(
@@ -431,39 +529,38 @@ const NetworkGraph3D: React.FC<NetworkGraph3DProps> = ({ graphData, onNodeClick 
         new THREE.MeshBasicMaterial({ color: brightCol, transparent: true, opacity: 0.95 })
       ));
 
-      // Soft additive shell
+      // Shell
       group.add(new THREE.Mesh(
         new THREE.SphereGeometry(r, 14, 14),
         new THREE.MeshBasicMaterial({
-          color: nodeCol, transparent: true, opacity: 0.45,
-          blending: THREE.AdditiveBlending,
+          color: nodeCol, transparent: true, opacity: isDark ? 0.45 : 0.2,
+          blending: isDark ? THREE.AdditiveBlending : THREE.NormalBlending,
         })
       ));
 
-      // Warm glow halo
+      // Glow halo
+      const glowTex = isDark ? GLOW_TEX : GLOW_TEX_LIGHT;
       const glow = new THREE.Sprite(
         new THREE.SpriteMaterial({
-          map: GLOW_TEX, color: nodeCol,
-          transparent: true, opacity: 0.5, blending: THREE.AdditiveBlending,
+          map: glowTex, color: isDark ? nodeCol : new THREE.Color(colors.glowColor),
+          transparent: true,
+          opacity: isDark ? 0.5 : 0.15,
+          blending: isDark ? THREE.AdditiveBlending : THREE.NormalBlending,
+          depthWrite: false,
         })
       );
-      glow.scale.set(r * 8, r * 8, 1);
+      glow.scale.set(r * (isDark ? 8 : 5), r * (isDark ? 8 : 5), 1);
       group.add(glow);
 
-      const icon = getIconSprite(node.name, r * 2);
+      const icon = getIconSprite(node.name, r * 2, colors.iconColor);
+      if (!isDark) {
+        (icon.material as THREE.SpriteMaterial).blending = THREE.NormalBlending;
+      }
       group.add(icon);
-
-      const label = makeLabel(node.name.toUpperCase(), '#fcd34d', 6);
-      label.position.set(0, r + 1.8, 0);
-      group.add(label);
-
-      const tag = makeLabel(node.type.toUpperCase(), '#d97706', 3.5);
-      tag.position.set(0, r + 0.6, 0);
-      group.add(tag);
     }
 
     return group;
-  }, []);
+  }, [theme, colors]);
 
   const handleClick = useCallback((node: any) => {
     onNodeClick?.(node as GraphNode);
@@ -477,19 +574,115 @@ const NetworkGraph3D: React.FC<NetworkGraph3DProps> = ({ graphData, onNodeClick 
     }
   }, [onNodeClick]);
 
+  // ── 2D CSS label overlay — projects 3D positions to screen coordinates ──
+  useEffect(() => {
+    let animId: number;
+    const vec = new THREE.Vector3();
+
+    const updateLabels = () => {
+      animId = requestAnimationFrame(updateLabels);
+      const fg = fgRef.current;
+      const container = labelsRef.current;
+      if (!fg || !container) return;
+
+      let camera: THREE.Camera;
+      try { camera = fg.camera(); } catch { return; }
+
+      const nodes = graphData.nodes;
+      const activeIds = new Set<string>();
+
+      for (const node of nodes) {
+        if (node.x == null || node.y == null || node.z == null) continue;
+        activeIds.add(node.id);
+
+        // Project 3D → 2D
+        vec.set(node.x, node.y, node.z);
+        vec.project(camera);
+
+        // Behind camera? Hide
+        if (vec.z > 1) {
+          const el = labelEls.current.get(node.id);
+          if (el) el.style.display = 'none';
+          continue;
+        }
+
+        const x = (vec.x * 0.5 + 0.5) * dims.w;
+        const y = (-vec.y * 0.5 + 0.5) * dims.h;
+
+        let el = labelEls.current.get(node.id);
+        if (!el) {
+          el = document.createElement('div');
+          el.className = 'node-label-2d';
+          container.appendChild(el);
+          labelEls.current.set(node.id, el);
+
+          // Build label content
+          const isPuffer = node.type === 'puffer';
+          const name = document.createElement('div');
+          name.className = 'node-label-name';
+          name.textContent = isPuffer ? 'YOUR COMPUTER' : node.name.toUpperCase();
+          if (isPuffer) name.style.fontSize = '13px';
+          el.appendChild(name);
+
+          if (!isPuffer) {
+            const tag = document.createElement('div');
+            tag.className = 'node-label-tag';
+            tag.textContent = node.type.toUpperCase();
+            el.appendChild(tag);
+          }
+
+          if (node.hostProgram) {
+            const host = document.createElement('div');
+            host.className = 'node-label-host';
+            host.textContent = node.hostProgram.toUpperCase();
+            el.appendChild(host);
+          }
+        }
+
+        el.style.display = '';
+        el.style.left = x + 'px';
+        el.style.top = y + 'px';
+      }
+
+      // Remove labels for nodes that no longer exist
+      for (const [id, el] of labelEls.current) {
+        if (!activeIds.has(id)) {
+          el.remove();
+          labelEls.current.delete(id);
+        }
+      }
+    };
+
+    // Delay start to let ForceGraph3D initialize
+    const t = setTimeout(() => { animId = requestAnimationFrame(updateLabels); }, 500);
+    return () => { clearTimeout(t); cancelAnimationFrame(animId); };
+  }, [graphData, dims]);
+
+  const wrapperRef = useRef<HTMLDivElement>(null);
+
+  const handleNodeDragStart = useCallback(() => {
+    wrapperRef.current?.classList.add('dragging-node');
+  }, []);
+  const handleNodeDragEnd = useCallback(() => {
+    wrapperRef.current?.classList.remove('dragging-node');
+  }, []);
+
   return (
-    <div className="absolute inset-0">
+    <div ref={wrapperRef} className="absolute inset-0 graph-canvas-wrapper">
       <ForceGraph3D
         ref={fgRef}
         width={dims.w}
         height={dims.h}
         graphData={graphData}
-        backgroundColor="#030508"
+        backgroundColor={colors.bg}
         nodeId="id"
         nodeVal="val"
         nodeThreeObject={nodeThreeObject}
         nodeThreeObjectExtend={false}
+        nodeLabel={() => ''}
         onNodeClick={handleClick}
+        onNodeDrag={handleNodeDragStart}
+        onNodeDragEnd={handleNodeDragEnd}
         linkColor="color"
         linkWidth={0.15}
         linkOpacity={0.5}
@@ -501,41 +694,19 @@ const NetworkGraph3D: React.FC<NetworkGraph3DProps> = ({ graphData, onNodeClick 
         linkDirectionalArrowLength={0}
         linkDirectionalArrowRelPos={1}
         linkDirectionalArrowColor="particleColor"
-        d3AlphaDecay={0.05}
-        d3VelocityDecay={0.5}
+        d3AlphaDecay={0.12}
+        d3VelocityDecay={0.35}
         d3AlphaMin={0.005}
-        warmupTicks={200}
-        cooldownTicks={0}
+        warmupTicks={80}
+        cooldownTicks={50}
         showNavInfo={false}
         enableNodeDrag={true}
       />
       <div className="vignette-overlay" />
+      {/* 2D CSS labels — positioned by projecting 3D coordinates to screen */}
+      <div ref={labelsRef} className="absolute inset-0 pointer-events-none overflow-hidden" />
     </div>
   );
 };
-
-// ── Minimal label sprite ───────────────────────────────────
-function makeLabel(text: string, color: string, size: number): THREE.Sprite {
-  const canvas = document.createElement('canvas');
-  const ctx = canvas.getContext('2d')!;
-  canvas.width = 512;
-  canvas.height = 56;
-
-  ctx.font = `500 ${size * 3}px "Inter", "SF Pro Display", -apple-system, sans-serif`;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillStyle = color;
-  ctx.globalAlpha = 0.85;
-  ctx.fillText(text, 256, 28);
-
-  const tex = new THREE.CanvasTexture(canvas);
-  tex.minFilter = THREE.LinearFilter;
-
-  const sprite = new THREE.Sprite(
-    new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false })
-  );
-  sprite.scale.set(14, 1.5, 1);
-  return sprite;
-}
 
 export default NetworkGraph3D;

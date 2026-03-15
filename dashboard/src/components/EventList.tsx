@@ -86,9 +86,9 @@ const EventList: React.FC<EventListProps> = ({ liveEvents }) => {
 
   return (
     <Card>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+      <CardHeader className="flex flex-col gap-3 space-y-0 pb-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
-          <CardTitle className="text-lg">
+          <CardTitle className="text-base">
             Events ({total + liveEvents.length})
           </CardTitle>
           {liveEvents.length > 0 && (
@@ -117,8 +117,8 @@ const EventList: React.FC<EventListProps> = ({ liveEvents }) => {
           </Button>
         </div>
       </CardHeader>
-      <CardContent>
-        <Table>
+      <CardContent className="overflow-x-auto">
+        <Table className="w-full">
           <TableHeader>
             <TableRow>
               <TableHead>Time</TableHead>

@@ -88,7 +88,7 @@ const AgentDetailPanel: React.FC<AgentDetailPanelProps> = ({ node, agents, liveE
   }, [agentEvents]);
 
   if (!node) {
-    return <p className="text-sm text-slate-500">Select a node to view details</p>;
+    return <p className="text-sm text-muted-foreground">Select a node to view details</p>;
   }
 
   const lastSeen =
@@ -108,10 +108,10 @@ const AgentDetailPanel: React.FC<AgentDetailPanelProps> = ({ node, agents, liveE
           }}
         />
         <div>
-          <h3 className="font-mono text-base font-bold text-white tracking-wide">
+          <h3 className="font-mono text-base font-bold text-foreground tracking-wide">
             {node.name.toUpperCase()}
           </h3>
-          <span className="font-mono text-xs text-slate-400">
+          <span className="font-mono text-xs text-muted-foreground">
             {node.type.toUpperCase()}
             {agentInfo ? ` · ${agentInfo.detectedVia}` : ''}
           </span>
@@ -121,18 +121,21 @@ const AgentDetailPanel: React.FC<AgentDetailPanelProps> = ({ node, agents, liveE
       {/* Stats Grid */}
       <div className="grid grid-cols-3 gap-2">
         {[
-          { label: 'Events', value: stats.total, color: '#e5e7eb' },
-          { label: 'Allowed', value: stats.allowed, color: '#4ade80' },
-          { label: 'Blocked', value: stats.blocked, color: '#f87171' },
-        ].map(({ label, value, color }) => (
+          { label: 'Events', value: stats.total, color: 'text-foreground' },
+          { label: 'Allowed', value: stats.allowed, colorHex: '#4ade80' },
+          { label: 'Blocked', value: stats.blocked, colorHex: '#f87171' },
+        ].map(({ label, value, color, colorHex }) => (
           <div
             key={label}
-            className="rounded-lg border border-white/[0.06] bg-white/[0.02] p-3 text-center"
+            className="rounded-lg border border-border bg-muted/30 p-3 text-center"
           >
-            <div className="font-mono text-lg font-bold" style={{ color }}>
+            <div
+              className={`font-mono text-lg font-bold ${color ?? ''}`}
+              style={colorHex ? { color: colorHex } : undefined}
+            >
               {value}
             </div>
-            <div className="font-mono text-[10px] uppercase tracking-wider text-slate-500">
+            <div className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
               {label}
             </div>
           </div>
@@ -141,8 +144,8 @@ const AgentDetailPanel: React.FC<AgentDetailPanelProps> = ({ node, agents, liveE
 
       {/* Token Usage */}
       {tokenStats.totalTokens > 0 && (
-        <div className="space-y-1.5 rounded-lg border border-amber-500/20 bg-amber-500/[0.03] p-3">
-          <h4 className="font-mono text-xs font-bold text-amber-400 tracking-wider mb-2">
+        <div className="space-y-1.5 rounded-lg border border-amber-500/20 bg-amber-500/[0.05] p-3">
+          <h4 className="font-mono text-xs font-bold text-amber-600 dark:text-amber-400 tracking-wider mb-2">
             TOKEN USAGE
           </h4>
           <InfoRow label="Input Tokens" value={tokenStats.inputTokens.toLocaleString()} />
@@ -150,19 +153,19 @@ const AgentDetailPanel: React.FC<AgentDetailPanelProps> = ({ node, agents, liveE
           <InfoRow label="Total Tokens" value={tokenStats.totalTokens.toLocaleString()} />
           <InfoRow label="Cost" value={`$${tokenStats.cost.toFixed(4)}`} />
           {tokenStats.models.size > 0 && (
-            <div className="mt-2 pt-2 border-t border-white/[0.04]">
-              <span className="text-[10px] uppercase tracking-wider text-slate-500">Models</span>
+            <div className="mt-2 pt-2 border-t border-border">
+              <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Models</span>
               {Array.from(tokenStats.models.entries()).map(([model, count]) => (
                 <div key={model} className="flex justify-between text-xs mt-0.5">
-                  <span className="font-mono text-amber-300 truncate max-w-[200px]">{model}</span>
-                  <span className="text-slate-400">{count} req</span>
+                  <span className="font-mono text-amber-700 dark:text-amber-300 truncate max-w-[200px]">{model}</span>
+                  <span className="text-muted-foreground">{count} req</span>
                 </div>
               ))}
             </div>
           )}
           {tokenStats.rateLimits && (
-            <div className="mt-2 pt-2 border-t border-white/[0.04]">
-              <span className="text-[10px] uppercase tracking-wider text-slate-500">Rate Limits (inferred tier)</span>
+            <div className="mt-2 pt-2 border-t border-border">
+              <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Rate Limits (inferred tier)</span>
               {tokenStats.rateLimits.limitTokens && (
                 <InfoRow label="Token Limit" value={tokenStats.rateLimits.limitTokens.toLocaleString()} />
               )}
@@ -179,8 +182,8 @@ const AgentDetailPanel: React.FC<AgentDetailPanelProps> = ({ node, agents, liveE
 
       {/* Agent Info */}
       {agentInfo && (
-        <div className="space-y-1.5 rounded-lg border border-white/[0.06] bg-white/[0.02] p-3">
-          <h4 className="font-mono text-xs font-bold text-cyan-400 tracking-wider mb-2">
+        <div className="space-y-1.5 rounded-lg border border-border bg-muted/30 p-3">
+          <h4 className="font-mono text-xs font-bold text-sky-600 dark:text-cyan-400 tracking-wider mb-2">
             DETAILS
           </h4>
           <InfoRow label="PID" value={agentInfo.pid ? String(agentInfo.pid) : '\u2014'} />
@@ -194,19 +197,19 @@ const AgentDetailPanel: React.FC<AgentDetailPanelProps> = ({ node, agents, liveE
 
       {/* Sub-agents */}
       {subAgents.length > 0 && (
-        <div className="space-y-2 rounded-lg border border-orange-500/20 bg-orange-500/[0.03] p-3">
-          <h4 className="font-mono text-xs font-bold text-orange-400 tracking-wider">
+        <div className="space-y-2 rounded-lg border border-orange-500/20 bg-orange-500/[0.05] p-3">
+          <h4 className="font-mono text-xs font-bold text-orange-600 dark:text-orange-400 tracking-wider">
             SUB-AGENTS ({subAgents.length})
           </h4>
           {subAgents.map((sa, i) => (
             <div key={i} className="flex items-start gap-2 text-xs">
               <span className="mt-0.5 h-1.5 w-1.5 rounded-full bg-orange-400 flex-shrink-0" />
               <div>
-                <span className="font-mono text-orange-300">{sa.type}</span>
+                <span className="font-mono text-orange-700 dark:text-orange-300">{sa.type}</span>
                 {sa.description && (
-                  <p className="text-slate-500 mt-0.5">{sa.description}</p>
+                  <p className="text-muted-foreground mt-0.5">{sa.description}</p>
                 )}
-                <span className="text-slate-600">{formatTime(sa.timestamp)}</span>
+                <span className="text-muted-foreground/60">{formatTime(sa.timestamp)}</span>
               </div>
             </div>
           ))}
@@ -215,17 +218,17 @@ const AgentDetailPanel: React.FC<AgentDetailPanelProps> = ({ node, agents, liveE
 
       {/* MCP Connections */}
       {mcpConnections.length > 0 && (
-        <div className="space-y-2 rounded-lg border border-cyan-500/20 bg-cyan-500/[0.03] p-3">
-          <h4 className="font-mono text-xs font-bold text-cyan-400 tracking-wider">
+        <div className="space-y-2 rounded-lg border border-cyan-500/20 bg-cyan-500/[0.05] p-3">
+          <h4 className="font-mono text-xs font-bold text-sky-600 dark:text-cyan-400 tracking-wider">
             MCP CONNECTIONS ({mcpConnections.length})
           </h4>
           {mcpConnections.map((mc, i) => (
             <div key={i} className="flex items-start gap-2 text-xs">
               <span className="mt-0.5 h-1.5 w-1.5 rounded-full bg-cyan-400 flex-shrink-0" />
               <div>
-                <span className="font-mono text-cyan-300">{mc.server}</span>
-                <span className="text-slate-500"> &rarr; {mc.tool}</span>
-                <span className="text-slate-600 ml-2">
+                <span className="font-mono text-sky-700 dark:text-cyan-300">{mc.server}</span>
+                <span className="text-muted-foreground"> &rarr; {mc.tool}</span>
+                <span className="text-muted-foreground/60 ml-2">
                   {formatTime(mc.timestamp)}
                 </span>
               </div>
@@ -236,22 +239,22 @@ const AgentDetailPanel: React.FC<AgentDetailPanelProps> = ({ node, agents, liveE
 
       {/* Recent Events */}
       <div className="space-y-1.5">
-        <h4 className="font-mono text-xs font-bold text-cyan-400 tracking-wider">
+        <h4 className="font-mono text-xs font-bold text-sky-600 dark:text-cyan-400 tracking-wider">
           RECENT EVENTS ({agentEvents.length})
         </h4>
         {agentEvents.length === 0 && (
-          <p className="text-xs text-slate-500">No events recorded yet</p>
+          <p className="text-xs text-muted-foreground">No events recorded yet</p>
         )}
         {agentEvents.map((event) => (
           <div
             key={event.id}
-            className="flex items-center gap-2 rounded border border-white/[0.04] bg-white/[0.02] px-2.5 py-1.5 text-xs"
+            className="flex items-center gap-2 rounded border border-border bg-muted/20 px-2.5 py-1.5 text-xs"
           >
             <DecisionDot decision={event.decision} />
-            <span className="font-mono text-slate-300 flex-1 truncate">
+            <span className="font-mono text-foreground/70 flex-1 truncate">
               {event.action.type}
             </span>
-            <span className="text-slate-600 text-[10px]">
+            <span className="text-muted-foreground text-[10px]">
               {formatTime(event.timestamp)}
             </span>
           </div>
@@ -263,8 +266,8 @@ const AgentDetailPanel: React.FC<AgentDetailPanelProps> = ({ node, agents, liveE
 
 const InfoRow: React.FC<{ label: string; value: string }> = ({ label, value }) => (
   <div className="flex justify-between text-xs">
-    <span className="text-slate-500">{label}</span>
-    <span className="font-mono text-slate-300">{value}</span>
+    <span className="text-muted-foreground">{label}</span>
+    <span className="font-mono text-foreground/80">{value}</span>
   </div>
 );
 

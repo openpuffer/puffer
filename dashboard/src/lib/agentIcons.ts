@@ -6,14 +6,16 @@ import * as THREE from 'three';
  * white on transparent at the given size, centered.
  */
 
-type DrawFn = (ctx: CanvasRenderingContext2D, s: number) => void;
+const DEFAULT_ICON_COLOR = '#fef3c7';
+
+type DrawFn = (ctx: CanvasRenderingContext2D, s: number, color?: string) => void;
 
 // ── Icon draw functions ───────────────────────────────────
 
 // Claude — sparkle/asterisk
-const drawClaude: DrawFn = (ctx, s) => {
+const drawClaude: DrawFn = (ctx, s, color = DEFAULT_ICON_COLOR) => {
   const cx = s / 2, cy = s / 2, r = s * 0.35;
-  ctx.strokeStyle = '#fef3c7';
+  ctx.strokeStyle = color;
   ctx.lineWidth = s * 0.04;
   ctx.lineCap = 'round';
   // 6 rays
@@ -26,16 +28,16 @@ const drawClaude: DrawFn = (ctx, s) => {
     ctx.stroke();
   }
   // center dot
-  ctx.fillStyle = '#fef3c7';
+  ctx.fillStyle = color;
   ctx.beginPath();
   ctx.arc(cx, cy, s * 0.05, 0, Math.PI * 2);
   ctx.fill();
 };
 
 // GitHub Copilot — glasses/visor
-const drawCopilot: DrawFn = (ctx, s) => {
+const drawCopilot: DrawFn = (ctx, s, color = DEFAULT_ICON_COLOR) => {
   const cx = s / 2, cy = s / 2;
-  ctx.strokeStyle = '#fef3c7';
+  ctx.strokeStyle = color;
   ctx.lineWidth = s * 0.035;
   ctx.lineCap = 'round';
   // visor shape
@@ -51,7 +53,7 @@ const drawCopilot: DrawFn = (ctx, s) => {
   ctx.lineTo(cx + s * 0.02, cy);
   ctx.stroke();
   // pupils
-  ctx.fillStyle = '#fef3c7';
+  ctx.fillStyle = color;
   ctx.beginPath();
   ctx.arc(cx - s * 0.13, cy, s * 0.04, 0, Math.PI * 2);
   ctx.fill();
@@ -61,9 +63,9 @@ const drawCopilot: DrawFn = (ctx, s) => {
 };
 
 // Cursor — cursor arrow
-const drawCursor: DrawFn = (ctx, s) => {
+const drawCursor: DrawFn = (ctx, s, color = DEFAULT_ICON_COLOR) => {
   const cx = s / 2, cy = s / 2;
-  ctx.fillStyle = '#fef3c7';
+  ctx.fillStyle = color;
   ctx.beginPath();
   ctx.moveTo(cx - s * 0.15, cy - s * 0.25);
   ctx.lineTo(cx + s * 0.2, cy + s * 0.05);
@@ -77,8 +79,8 @@ const drawCursor: DrawFn = (ctx, s) => {
 };
 
 // Aider — terminal >_
-const drawAider: DrawFn = (ctx, s) => {
-  ctx.strokeStyle = '#fef3c7';
+const drawAider: DrawFn = (ctx, s, color = DEFAULT_ICON_COLOR) => {
+  ctx.strokeStyle = color;
   ctx.lineWidth = s * 0.04;
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
@@ -97,9 +99,9 @@ const drawAider: DrawFn = (ctx, s) => {
 };
 
 // OpenAI — hexagon with inner lines
-const drawOpenAI: DrawFn = (ctx, s) => {
+const drawOpenAI: DrawFn = (ctx, s, color = DEFAULT_ICON_COLOR) => {
   const cx = s / 2, cy = s / 2, r = s * 0.3;
-  ctx.strokeStyle = '#fef3c7';
+  ctx.strokeStyle = color;
   ctx.lineWidth = s * 0.03;
   ctx.lineJoin = 'round';
   // hexagon
@@ -124,8 +126,8 @@ const drawOpenAI: DrawFn = (ctx, s) => {
 };
 
 // Anthropic — bold "A"
-const drawAnthropic: DrawFn = (ctx, s) => {
-  ctx.fillStyle = '#fef3c7';
+const drawAnthropic: DrawFn = (ctx, s, color = DEFAULT_ICON_COLOR) => {
+  ctx.fillStyle = color;
   ctx.font = `bold ${s * 0.45}px "Inter", "Helvetica", sans-serif`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
@@ -133,9 +135,9 @@ const drawAnthropic: DrawFn = (ctx, s) => {
 };
 
 // Ollama — circle with "O" and ears
-const drawOllama: DrawFn = (ctx, s) => {
+const drawOllama: DrawFn = (ctx, s, color = DEFAULT_ICON_COLOR) => {
   const cx = s / 2, cy = s / 2;
-  ctx.strokeStyle = '#fef3c7';
+  ctx.strokeStyle = color;
   ctx.lineWidth = s * 0.035;
   // head circle
   ctx.beginPath();
@@ -149,7 +151,7 @@ const drawOllama: DrawFn = (ctx, s) => {
   ctx.ellipse(cx + s * 0.18, cy - s * 0.13, s * 0.06, s * 0.09, 0.3, 0, Math.PI * 2);
   ctx.stroke();
   // eyes
-  ctx.fillStyle = '#fef3c7';
+  ctx.fillStyle = color;
   ctx.beginPath();
   ctx.arc(cx - s * 0.07, cy, s * 0.025, 0, Math.PI * 2);
   ctx.fill();
@@ -159,9 +161,9 @@ const drawOllama: DrawFn = (ctx, s) => {
 };
 
 // DeepSeek — magnifying glass
-const drawDeepSeek: DrawFn = (ctx, s) => {
+const drawDeepSeek: DrawFn = (ctx, s, color = DEFAULT_ICON_COLOR) => {
   const cx = s / 2 - s * 0.04, cy = s / 2 - s * 0.04;
-  ctx.strokeStyle = '#fef3c7';
+  ctx.strokeStyle = color;
   ctx.lineWidth = s * 0.035;
   ctx.beginPath();
   ctx.arc(cx, cy, s * 0.18, 0, Math.PI * 2);
@@ -176,9 +178,9 @@ const drawDeepSeek: DrawFn = (ctx, s) => {
 };
 
 // Puffer — shield with check
-const drawPuffer: DrawFn = (ctx, s) => {
+const drawPuffer: DrawFn = (ctx, s, color = DEFAULT_ICON_COLOR) => {
   const cx = s / 2, cy = s / 2;
-  ctx.strokeStyle = '#fef3c7';
+  ctx.strokeStyle = color;
   ctx.lineWidth = s * 0.03;
   ctx.lineJoin = 'round';
   ctx.lineCap = 'round';
@@ -203,9 +205,9 @@ const drawPuffer: DrawFn = (ctx, s) => {
 };
 
 // Sub-agent — nested circles (agent spawning agent)
-const drawSubagent: DrawFn = (ctx, s) => {
+const drawSubagent: DrawFn = (ctx, s, color = DEFAULT_ICON_COLOR) => {
   const cx = s / 2, cy = s / 2;
-  ctx.strokeStyle = '#fef3c7';
+  ctx.strokeStyle = color;
   ctx.lineWidth = s * 0.03;
   // Outer circle
   ctx.beginPath();
@@ -231,9 +233,9 @@ const drawSubagent: DrawFn = (ctx, s) => {
 };
 
 // MCP — plug/connector icon
-const drawMCP: DrawFn = (ctx, s) => {
+const drawMCP: DrawFn = (ctx, s, color = DEFAULT_ICON_COLOR) => {
   const cx = s / 2, cy = s / 2;
-  ctx.strokeStyle = '#fef3c7';
+  ctx.strokeStyle = color;
   ctx.lineWidth = s * 0.035;
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
@@ -257,9 +259,9 @@ const drawMCP: DrawFn = (ctx, s) => {
 };
 
 // Generic — crosshair
-const drawGeneric: DrawFn = (ctx, s) => {
+const drawGeneric: DrawFn = (ctx, s, color = DEFAULT_ICON_COLOR) => {
   const cx = s / 2, cy = s / 2;
-  ctx.strokeStyle = '#fef3c7';
+  ctx.strokeStyle = color;
   ctx.lineWidth = s * 0.025;
   ctx.lineCap = 'round';
   // circle
@@ -307,8 +309,8 @@ function findDraw(name: string): DrawFn {
 
 const texCache = new Map<string, THREE.CanvasTexture>();
 
-function makeIconTexture(name: string, drawFn: DrawFn): THREE.CanvasTexture {
-  const key = name;
+function makeIconTexture(name: string, drawFn: DrawFn, color?: string): THREE.CanvasTexture {
+  const key = `${name}__${color ?? 'default'}`;
   if (texCache.has(key)) return texCache.get(key)!;
 
   const size = 128;
@@ -317,7 +319,7 @@ function makeIconTexture(name: string, drawFn: DrawFn): THREE.CanvasTexture {
   canvas.height = size;
   const ctx = canvas.getContext('2d')!;
 
-  drawFn(ctx, size);
+  drawFn(ctx, size, color);
 
   const tex = new THREE.CanvasTexture(canvas);
   tex.minFilter = THREE.LinearFilter;
@@ -328,20 +330,28 @@ function makeIconTexture(name: string, drawFn: DrawFn): THREE.CanvasTexture {
 
 // ── Public API ────────────────────────────────────────────
 
-export function getIconSprite(name: string, scale: number): THREE.Sprite {
+export function getIconSprite(name: string, scale: number, color?: string): THREE.Sprite {
   const drawFn = findDraw(name);
-  const tex = makeIconTexture(name, drawFn);
+  const tex = makeIconTexture(name, drawFn, color);
   const sprite = new THREE.Sprite(
-    new THREE.SpriteMaterial({ map: tex, transparent: true, opacity: 0.92, depthWrite: false })
+    new THREE.SpriteMaterial({
+      map: tex, transparent: true, opacity: 0.92,
+      depthWrite: false, depthTest: false,
+      blending: THREE.AdditiveBlending,
+    })
   );
   sprite.scale.set(scale, scale, 1);
   return sprite;
 }
 
-export function getPufferIconSprite(scale: number): THREE.Sprite {
-  const tex = makeIconTexture('__puffer__', drawPuffer);
+export function getPufferIconSprite(scale: number, color?: string): THREE.Sprite {
+  const tex = makeIconTexture('__puffer__', drawPuffer, color);
   const sprite = new THREE.Sprite(
-    new THREE.SpriteMaterial({ map: tex, transparent: true, opacity: 0.85, depthWrite: false })
+    new THREE.SpriteMaterial({
+      map: tex, transparent: true, opacity: 0.85,
+      depthWrite: false, depthTest: false,
+      blending: THREE.AdditiveBlending,
+    })
   );
   sprite.scale.set(scale, scale, 1);
   return sprite;

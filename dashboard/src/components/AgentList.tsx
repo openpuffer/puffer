@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { useApi } from '../hooks/useApi';
 import type { AgentInfo } from '../App';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import {
   Tooltip,
@@ -53,15 +53,15 @@ const AgentList: React.FC<AgentListProps> = ({ agents: wsAgents }) => {
   if (loading && !data && wsAgents.length === 0) {
     return (
       <div className="flex items-center justify-center py-12">
-        <div className="text-slate-400">Loading agents...</div>
+        <div className="text-muted-foreground">Loading agents...</div>
       </div>
     );
   }
 
   if (error && wsAgents.length === 0) {
     return (
-      <div className="rounded-lg border border-puffer-red/20 bg-puffer-red/5 p-6">
-        <p className="text-puffer-red">Failed to load agents: {error}</p>
+      <div className="rounded-lg border border-destructive/20 bg-destructive/5 p-6">
+        <p className="text-destructive">Failed to load agents: {error}</p>
       </div>
     );
   }
@@ -81,10 +81,8 @@ const AgentList: React.FC<AgentListProps> = ({ agents: wsAgents }) => {
 
   if (agents.length === 0) {
     return (
-      <Card className="border-slate-700 bg-slate-800/50 text-center">
-        <CardContent className="py-8">
-          <p className="text-slate-400">No agents discovered yet.</p>
-        </CardContent>
+      <Card className="p-8 text-center">
+        <p className="text-muted-foreground">No agents discovered yet.</p>
       </Card>
     );
   }
@@ -92,69 +90,68 @@ const AgentList: React.FC<AgentListProps> = ({ agents: wsAgents }) => {
   return (
     <TooltipProvider>
       <div className="space-y-4">
-        <h3 className="flex items-center gap-2 text-lg font-semibold text-slate-200">
+        <h3 className="flex items-center gap-2 text-lg font-semibold text-foreground">
           <Bot className="h-5 w-5" />
           Discovered Agents ({agents.length})
         </h3>
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           {agents.map((agent) => {
             const variant = statusVariant[agent.status] ?? 'destructive';
             return (
               <Card
                 key={agent.id}
-                className="border-slate-700 bg-slate-800/50"
+                className="p-4"
               >
-                <CardHeader className="pb-2">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <CardTitle className="text-base text-slate-100">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <Bot className="h-4 w-4 shrink-0 text-muted-foreground" />
+                      <span className="truncate text-sm font-semibold text-foreground">
                         {agent.name}
-                      </CardTitle>
-                      {agent.pid != null && (
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <p className="mt-0.5 cursor-default font-mono text-xs text-slate-500">
-                              PID {agent.pid}
-                            </p>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>Process ID: {agent.pid}</p>
-                            {agent.provider && <p>Provider: {agent.provider}</p>}
-                            {agent.port != null && <p>Listening on port {agent.port}</p>}
-                          </TooltipContent>
-                        </Tooltip>
-                      )}
+                      </span>
                     </div>
-                    <Badge variant={variant}>{agent.status}</Badge>
+                    {agent.pid != null && (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <p className="mt-1 cursor-default font-mono text-xs text-muted-foreground">
+                            PID {agent.pid}
+                          </p>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Process ID: {agent.pid}</p>
+                          {agent.provider && <p>Provider: {agent.provider}</p>}
+                          {agent.port != null && <p>Listening on port {agent.port}</p>}
+                        </TooltipContent>
+                      </Tooltip>
+                    )}
                   </div>
-                </CardHeader>
+                  <Badge variant={variant} className="shrink-0 text-xs">{agent.status}</Badge>
+                </div>
 
-                <CardContent>
-                  <dl className="space-y-1 text-sm">
-                    <div className="flex items-center justify-between">
-                      <dt className="flex items-center gap-1.5 text-slate-500">
-                        {detectionIcon(agent.detectedVia)}
-                        Detected via
-                      </dt>
-                      <dd className="text-slate-300">{agent.detectedVia}</dd>
+                <dl className="mt-3 space-y-1 text-xs">
+                  <div className="flex items-center justify-between">
+                    <dt className="flex items-center gap-1.5 text-muted-foreground">
+                      {detectionIcon(agent.detectedVia)}
+                      Detected via
+                    </dt>
+                    <dd className="text-foreground/70">{agent.detectedVia}</dd>
+                  </div>
+                  {agent.provider && (
+                    <div className="flex justify-between">
+                      <dt className="text-muted-foreground">Provider</dt>
+                      <dd className="text-foreground/70">{agent.provider}</dd>
                     </div>
-                    {agent.provider && (
-                      <div className="flex justify-between">
-                        <dt className="text-slate-500">Provider</dt>
-                        <dd className="text-slate-300">{agent.provider}</dd>
-                      </div>
-                    )}
-                    {agent.port != null && (
-                      <div className="flex items-center justify-between">
-                        <dt className="flex items-center gap-1.5 text-slate-500">
-                          <Wifi className="h-3.5 w-3.5" />
-                          Port
-                        </dt>
-                        <dd className="font-mono text-slate-300">{agent.port}</dd>
-                      </div>
-                    )}
-                  </dl>
-                </CardContent>
+                  )}
+                  {agent.port != null && (
+                    <div className="flex items-center justify-between">
+                      <dt className="flex items-center gap-1.5 text-muted-foreground">
+                        <Wifi className="h-3.5 w-3.5" />
+                        Port
+                      </dt>
+                      <dd className="font-mono text-foreground/70">{agent.port}</dd>
+                    </div>
+                  )}
+                </dl>
               </Card>
             );
           })}

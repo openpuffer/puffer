@@ -1,4 +1,4 @@
-import { useMemo, useRef } from 'react';
+import { useMemo, useRef, useState, useEffect } from 'react';
 import type { LiveEvent, AgentInfo } from '../App';
 
 export interface GraphNode {
@@ -10,6 +10,8 @@ export interface GraphNode {
   fx?: number;
   fy?: number;
   fz?: number;
+  hostProgram?: string;
+  parentAgentId?: string;
   // d3-force injects these — preserved across updates
   x?: number;
   y?: number;
@@ -36,19 +38,31 @@ export interface GraphData {
   links: GraphLink[];
 }
 
-// Warm amber neural-network palette
-const DECISION_COLORS: Record<string, string> = {
+// Theme-aware color palettes for graph links
+const DECISION_COLORS_DARK: Record<string, string> = {
   ALLOW: '#fbbf24',
   BLOCK: '#f87171',
   AUDIT: '#fb923c',
   ESCALATE: '#c084fc',
 };
+const DECISION_COLORS_LIGHT: Record<string, string> = {
+  ALLOW: '#94a3b8',
+  BLOCK: '#ef4444',
+  AUDIT: '#f59e0b',
+  ESCALATE: '#8b5cf6',
+};
 
-const DECISION_PARTICLE: Record<string, string> = {
+const DECISION_PARTICLE_DARK: Record<string, string> = {
   ALLOW: '#fcd34d',
   BLOCK: '#f87171',
   AUDIT: '#fb923c',
   ESCALATE: '#c084fc',
+};
+const DECISION_PARTICLE_LIGHT: Record<string, string> = {
+  ALLOW: '#64748b',
+  BLOCK: '#ef4444',
+  AUDIT: '#f59e0b',
+  ESCALATE: '#8b5cf6',
 };
 
 /**
@@ -58,8 +72,24 @@ const DECISION_PARTICLE: Record<string, string> = {
  */
 export function useGraphData(
   liveEvents: LiveEvent[],
-  agents: AgentInfo[]
+  agents: AgentInfo[],
+  theme: 'dark' | 'light' = 'dark'
 ): GraphData {
+  const DECISION_COLORS = theme === 'dark' ? DECISION_COLORS_DARK : DECISION_COLORS_LIGHT;
+  const DECISION_PARTICLE = theme === 'dark' ? DECISION_PARTICLE_DARK : DECISION_PARTICLE_LIGHT;
+  // Throttle: only recalculate graph data at most every 500ms
+  // This prevents jumps when many events arrive rapidly
+  const [throttledEvents, setThrottledEvents] = useState(liveEvents);
+  const throttleRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (throttleRef.current) return; // already scheduled
+    throttleRef.current = setTimeout(() => {
+      setThrottledEvents(liveEvents);
+      throttleRef.current = null;
+    }, 500);
+  }, [liveEvents]);
+
   // Persistent node cache — same object refs across renders
   const nodeCacheRef = useRef<Map<string, GraphNode>>(new Map());
   const prevEventCountRef = useRef(0);
@@ -69,10 +99,19 @@ export function useGraphData(
     const seenIds = new Set<string>();
     const linkList: GraphLink[] = [];
 
-    // Get or create a node, REUSING the existing object to preserve d3 position
+    // Get or create a node, REUSING the existing object to preserve d3 position.
+    // Merges hostProgram and parentAgentId into existing nodes when available.
     const ensureNode = (id: string, defaults: Omit<GraphNode, 'id'>) => {
       if (!cache.has(id)) {
         cache.set(id, { id, ...defaults });
+      } else {
+        const existing = cache.get(id)!;
+        if (defaults.hostProgram && !existing.hostProgram) {
+          existing.hostProgram = defaults.hostProgram;
+        }
+        if (defaults.parentAgentId && !existing.parentAgentId) {
+          existing.parentAgentId = defaults.parentAgentId;
+        }
       }
       seenIds.add(id);
     };
@@ -86,10 +125,11 @@ export function useGraphData(
     for (const agent of agents) {
       ensureNode(`agent-${agent.name}`, {
         name: agent.name, type: 'agent', val: 1, color: '#fb923c',
+        hostProgram: agent.hostProgram,
       });
     }
 
-    for (const event of liveEvents) {
+    for (const event of throttledEvents) {
       const provider = event.source?.provider ?? 'unknown';
       const agent = event.source?.agent ?? 'unknown';
       const agentId = `agent-${agent}`;
@@ -107,42 +147,65 @@ export function useGraphData(
         const action = event.action as Record<string, unknown>;
         const server = String(action.server ?? 'unknown');
         const isSubagent = server === 'claude-code-agent';
-        const nodeId = isSubagent ? `subagent-${server}` : `mcp-${server}`;
+        // Subagents get unique IDs per parent agent; MCP servers are shared
+        const nodeId = isSubagent ? `subagent-${agent}-${server}` : `mcp-${server}`;
         const nodeColor = isSubagent ? '#fb923c' : '#22d3ee';
 
         ensureNode(nodeId, {
           name: isSubagent ? 'Sub-Agent' : server,
           type: isSubagent ? 'subagent' : 'mcp',
           val: 1, color: nodeColor,
+          parentAgentId: isSubagent ? agentId : undefined,
         });
 
-        if (actionType === 'mcp_tool_call') {
-          linkList.push({
-            source: agentId, target: 'puffer',
-            color: nodeColor + '30', curvature: 0.2,
-            eventId: event.id + '-mcp-in', decision,
-            particleCount: 1, particleSpeed: 0.004, particleColor: nodeColor,
-          });
-          linkList.push({
-            source: 'puffer', target: nodeId,
-            color: nodeColor + '25', curvature: 0.2,
-            eventId: event.id + '-mcp-out', decision,
-            particleCount: 1, particleSpeed: 0.003, particleColor: nodeColor,
-          });
+        if (isSubagent) {
+          // Sub-agents link directly to their parent agent (not through puffer)
+          if (actionType === 'mcp_tool_call') {
+            linkList.push({
+              source: agentId, target: nodeId,
+              color: nodeColor + '30', curvature: 0.15,
+              eventId: event.id + '-subagent', decision,
+              particleCount: 1, particleSpeed: 0.004, particleColor: nodeColor,
+            });
+          } else {
+            const lightColor = '#fed7aa';
+            linkList.push({
+              source: nodeId, target: agentId,
+              color: lightColor + '25', curvature: 0.15,
+              eventId: event.id + '-subagent-res', decision,
+              particleCount: 1, particleSpeed: 0.003, particleColor: lightColor,
+            });
+          }
         } else {
-          const lightColor = isSubagent ? '#fed7aa' : '#a5f3fc';
-          linkList.push({
-            source: nodeId, target: 'puffer',
-            color: lightColor + '25', curvature: 0.2,
-            eventId: event.id + '-mcp-res-in', decision,
-            particleCount: 1, particleSpeed: 0.003, particleColor: lightColor,
-          });
-          linkList.push({
-            source: 'puffer', target: agentId,
-            color: lightColor + '20', curvature: 0.2,
-            eventId: event.id + '-mcp-res-out', decision,
-            particleCount: 1, particleSpeed: 0.003, particleColor: lightColor,
-          });
+          // MCP servers still route through puffer hub
+          if (actionType === 'mcp_tool_call') {
+            linkList.push({
+              source: agentId, target: 'puffer',
+              color: nodeColor + '30', curvature: 0.2,
+              eventId: event.id + '-mcp-in', decision,
+              particleCount: 1, particleSpeed: 0.004, particleColor: nodeColor,
+            });
+            linkList.push({
+              source: 'puffer', target: nodeId,
+              color: nodeColor + '25', curvature: 0.2,
+              eventId: event.id + '-mcp-out', decision,
+              particleCount: 1, particleSpeed: 0.003, particleColor: nodeColor,
+            });
+          } else {
+            const lightColor = '#a5f3fc';
+            linkList.push({
+              source: nodeId, target: 'puffer',
+              color: lightColor + '25', curvature: 0.2,
+              eventId: event.id + '-mcp-res-in', decision,
+              particleCount: 1, particleSpeed: 0.003, particleColor: lightColor,
+            });
+            linkList.push({
+              source: 'puffer', target: agentId,
+              color: lightColor + '20', curvature: 0.2,
+              eventId: event.id + '-mcp-res-out', decision,
+              particleCount: 1, particleSpeed: 0.003, particleColor: lightColor,
+            });
+          }
         }
         continue;
       }
@@ -186,8 +249,8 @@ export function useGraphData(
     const trimmedLinks = linkList.slice(0, maxLinks);
 
     // Subtle pulse on newest event only
-    const isNew = liveEvents.length !== prevEventCountRef.current;
-    prevEventCountRef.current = liveEvents.length;
+    const isNew = throttledEvents.length !== prevEventCountRef.current;
+    prevEventCountRef.current = throttledEvents.length;
     if (isNew && trimmedLinks.length > 0) {
       trimmedLinks[0].particleCount = 2;
       trimmedLinks[0].particleSpeed = 0.006;
@@ -204,5 +267,5 @@ export function useGraphData(
       nodes: Array.from(cache.values()),
       links: trimmedLinks,
     };
-  }, [liveEvents, agents]);
+  }, [throttledEvents, agents, theme, DECISION_COLORS, DECISION_PARTICLE]);
 }
