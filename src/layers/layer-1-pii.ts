@@ -64,12 +64,30 @@ export const PII_PATTERNS: PIIPattern[] = [
     },
   },
   {
+    name: 'ssn_us',
+    pattern: /\b(?!000|666|9\d{2})\d{3}\s(?!00)\d{2}\s(?!0000)\d{4}\b/g,
+    severity: 'critical',
+    region: 'us',
+    validate: (match: string) => {
+      const [area] = match.split(/\s+/).map(Number);
+      return area >= 1 && area <= 899 && area !== 666;
+    },
+  },
+  {
     name: 'credit_card',
     pattern:
       /\b(?:4[0-9]{12}(?:[0-9]{3})?|5[1-5][0-9]{14}|3[47][0-9]{13}|6(?:011|5[0-9]{2})[0-9]{12})\b/g,
     severity: 'critical',
     region: 'global',
     validate: (match: string) => luhnCheck(match),
+  },
+  {
+    name: 'credit_card',
+    pattern:
+      /\b(?:4[0-9]{3}[\s-]?[0-9]{4}[\s-]?[0-9]{4}[\s-]?[0-9]{4}|5[1-5][0-9]{2}[\s-]?[0-9]{4}[\s-]?[0-9]{4}[\s-]?[0-9]{4}|3[47][0-9]{2}[\s-]?[0-9]{6}[\s-]?[0-9]{5})\b/g,
+    severity: 'critical',
+    region: 'global',
+    validate: (match: string) => luhnCheck(match.replace(/[\s-]/g, '')),
   },
   {
     name: 'email',
