@@ -32,6 +32,8 @@ const DANGEROUS_PATTERNS: DangerousPattern[] = [
   { pattern: />\s*\/etc\//, reason: 'Direct write to /etc/', severity: 'high' },
   { pattern: /python[3]?\s+-c\s+['"].*(?:import\s+(?:os|subprocess|socket))/, reason: 'Python inline with dangerous imports', severity: 'high' },
   { pattern: /base64\s+(?:-d|--decode)\s*\|/, reason: 'Decoding base64 into pipe', severity: 'medium' },
+  { pattern: /\$\(.*base64\s+(?:-d|--decode)/, reason: 'Base64 decode in subshell expansion', severity: 'critical' },
+  { pattern: /echo\s+[A-Za-z0-9+/=]+\s*\|\s*base64\s+(?:-d|--decode)/, reason: 'Echo piped to base64 decode (possible encoded command)', severity: 'high' },
 ];
 
 const SENSITIVE_PATHS: string[] = [
@@ -50,6 +52,13 @@ const SENSITIVE_PATHS: string[] = [
   '/boot/',
   '/dev/',
 ];
+
+// Rate limiting: tracks command timestamps per session for maxCommandsPerMinute
+const commandTimestamps = new Map<string, number[]>();
+
+export function resetCommandState(): void {
+  commandTimestamps.clear();
+}
 
 function classifyBinary(command: string): BinaryClass {
   const binary = command.split(/\s+/)[0].split('/').pop() || '';
@@ -77,6 +86,33 @@ export async function commandAnalyzer(
 
   const fullCommand = `${event.action.command} ${event.action.args.join(' ')}`.trim();
   const findings: Finding[] = [];
+
+  // Rate limiting: check maxCommandsPerMinute
+  if (config.maxCommandsPerMinute > 0) {
+    const sessionId = event.metadata.sessionId;
+    const now = Date.now();
+    const oneMinuteAgo = now - 60_000;
+
+    let timestamps = commandTimestamps.get(sessionId);
+    if (!timestamps) {
+      timestamps = [];
+      commandTimestamps.set(sessionId, timestamps);
+    }
+    timestamps.push(now);
+    // Prune entries older than 1 minute
+    const pruned = timestamps.filter((t) => t > oneMinuteAgo);
+    commandTimestamps.set(sessionId, pruned);
+
+    if (pruned.length > config.maxCommandsPerMinute) {
+      findings.push({
+        type: 'rate_limit_exceeded',
+        severity: 'high',
+        location: fullCommand,
+        value: `${pruned.length} commands/min (limit: ${config.maxCommandsPerMinute})`,
+        suggestion: 'Command rate exceeds the configured limit per minute',
+      });
+    }
+  }
 
   // Check blocked patterns from config
   for (const pattern of config.blockedPatterns) {
