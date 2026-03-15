@@ -5,22 +5,40 @@ import { HookHandler } from './index.js';
 import { logger } from '../utils/logger.js';
 import { PUFFER_DIR, DEFAULT_PROXY_PORT } from '../utils/constants.js';
 
-const ENV_FILE = path.join(PUFFER_DIR, 'env.sh');
 const PROXY_BASE = `http://127.0.0.1:${DEFAULT_PROXY_PORT}`;
 
 const PUFFER_START_MARKER = '# >>> puffer env >>>';
 const PUFFER_END_MARKER = '# <<< puffer env <<<';
 
-const ENV_CONTENT = `# Puffer AI proxy — auto-generated, do not edit
+// Unix: env.sh with export statements
+const ENV_FILE_UNIX = path.join(PUFFER_DIR, 'env.sh');
+const ENV_CONTENT_UNIX = `# Puffer AI proxy — auto-generated, do not edit
 export OPENAI_BASE_URL="${PROXY_BASE}/v1"
 export OPENAI_API_BASE="${PROXY_BASE}/v1"
 export ANTHROPIC_BASE_URL="${PROXY_BASE}"
 export OLLAMA_HOST="${PROXY_BASE}"
 `;
 
-const RC_BLOCK = `${PUFFER_START_MARKER}
-[ -f "${ENV_FILE}" ] && source "${ENV_FILE}"
+const RC_BLOCK_UNIX = `${PUFFER_START_MARKER}
+[ -f "${ENV_FILE_UNIX}" ] && source "${ENV_FILE_UNIX}"
 ${PUFFER_END_MARKER}`;
+
+// Windows: env.ps1 with PowerShell $env: statements
+const ENV_FILE_WIN = path.join(PUFFER_DIR, 'env.ps1');
+const ENV_CONTENT_WIN = `# Puffer AI proxy — auto-generated, do not edit
+$env:OPENAI_BASE_URL = "${PROXY_BASE}/v1"
+$env:OPENAI_API_BASE = "${PROXY_BASE}/v1"
+$env:ANTHROPIC_BASE_URL = "${PROXY_BASE}"
+$env:OLLAMA_HOST = "${PROXY_BASE}"
+`;
+
+function getPowerShellProfilePaths(): string[] {
+  const home = os.homedir();
+  return [
+    path.join(home, 'Documents', 'PowerShell', 'Microsoft.PowerShell_profile.ps1'),
+    path.join(home, 'Documents', 'WindowsPowerShell', 'Microsoft.PowerShell_profile.ps1'),
+  ];
+}
 
 /**
  * Generic hook for agents without native hook support.
@@ -33,22 +51,30 @@ export class GenericHook implements HookHandler {
 
   async install(): Promise<void> {
     try {
-      // 1. Write env.sh
-      fs.writeFileSync(ENV_FILE, ENV_CONTENT);
-      logger.debug(`Generic hook: wrote ${ENV_FILE}`);
+      if (process.platform === 'win32') {
+        // Windows: write env.ps1 and inject into PowerShell profile
+        fs.writeFileSync(ENV_FILE_WIN, ENV_CONTENT_WIN);
+        logger.debug(`Generic hook: wrote ${ENV_FILE_WIN}`);
 
-      // 2. Inject source block into shell RC files
-      const rcFiles = [
-        path.join(os.homedir(), '.bashrc'),
-        path.join(os.homedir(), '.zshrc'),
-      ];
+        for (const profilePath of getPowerShellProfilePaths()) {
+          this.injectRcBlock(profilePath, `${PUFFER_START_MARKER}\n. "${ENV_FILE_WIN}"\n${PUFFER_END_MARKER}`);
+        }
+      } else {
+        // Unix: write env.sh and inject into shell RC files
+        fs.writeFileSync(ENV_FILE_UNIX, ENV_CONTENT_UNIX);
+        logger.debug(`Generic hook: wrote ${ENV_FILE_UNIX}`);
 
-      for (const rcFile of rcFiles) {
-        this.injectRcBlock(rcFile);
+        const rcFiles = [
+          path.join(os.homedir(), '.bashrc'),
+          path.join(os.homedir(), '.zshrc'),
+        ];
+        for (const rcFile of rcFiles) {
+          this.injectRcBlock(rcFile, RC_BLOCK_UNIX);
+        }
       }
 
       this.installed = true;
-      logger.info('Generic hook installed (env.sh + shell RC injection)');
+      logger.info('Generic hook installed (env + shell profile injection)');
     } catch (err) {
       logger.error(`Failed to install generic hook: ${(err as Error).message}`);
     }
@@ -56,18 +82,18 @@ export class GenericHook implements HookHandler {
 
   async uninstall(): Promise<void> {
     try {
-      // 1. Remove env.sh
-      if (fs.existsSync(ENV_FILE)) {
-        fs.unlinkSync(ENV_FILE);
+      // Remove env files
+      for (const envFile of [ENV_FILE_UNIX, ENV_FILE_WIN]) {
+        if (fs.existsSync(envFile)) fs.unlinkSync(envFile);
       }
 
-      // 2. Remove source block from shell RC files
-      const rcFiles = [
+      // Remove source blocks from all profile files
+      const profileFiles = [
         path.join(os.homedir(), '.bashrc'),
         path.join(os.homedir(), '.zshrc'),
+        ...getPowerShellProfilePaths(),
       ];
-
-      for (const rcFile of rcFiles) {
+      for (const rcFile of profileFiles) {
         this.removeRcBlock(rcFile);
       }
 
@@ -82,15 +108,22 @@ export class GenericHook implements HookHandler {
     return this.installed;
   }
 
-  private injectRcBlock(rcFile: string): void {
-    if (!fs.existsSync(rcFile)) return;
+  private injectRcBlock(rcFile: string, block: string): void {
+    // Create parent directory if needed (for PowerShell profiles)
+    const dir = path.dirname(rcFile);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
 
-    const content = fs.readFileSync(rcFile, 'utf-8');
+    let content = '';
+    if (fs.existsSync(rcFile)) {
+      content = fs.readFileSync(rcFile, 'utf-8');
+    }
 
     // Already injected
     if (content.includes(PUFFER_START_MARKER)) return;
 
-    fs.writeFileSync(rcFile, content + '\n' + RC_BLOCK + '\n');
+    fs.writeFileSync(rcFile, content + '\n' + block + '\n');
     logger.debug(`Generic hook: injected source block into ${rcFile}`);
   }
 

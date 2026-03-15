@@ -3,12 +3,9 @@ import path from 'node:path';
 import os from 'node:os';
 import { HookHandler } from './index.js';
 import { logger } from '../utils/logger.js';
-import { DEFAULT_DASHBOARD_PORT } from '../utils/constants.js';
+import { DEFAULT_DASHBOARD_PORT, DEFAULT_PROXY_PORT } from '../utils/constants.js';
 
 const CLAUDE_SETTINGS_PATH = path.join(os.homedir(), '.claude', 'settings.json');
-
-const PUFFER_PRE_COMMAND = `curl -s -X POST http://127.0.0.1:${DEFAULT_DASHBOARD_PORT}/hooks/claude-code -H "Content-Type: application/json" -d @-`;
-const PUFFER_POST_COMMAND = `curl -s -X POST http://127.0.0.1:${DEFAULT_DASHBOARD_PORT}/hooks/claude-code-response -H "Content-Type: application/json" -d @-`;
 
 /** Match string present in Puffer hook commands */
 const PUFFER_MARKER = `/hooks/claude-code`;
@@ -36,12 +33,33 @@ function isPufferEntry(entry: Record<string, unknown>): boolean {
 
 /**
  * Claude Code hook integration.
- * Registers a PreToolUse hook in ~/.claude/settings.json using the correct
- * nested format: { matcher, hooks: [{ type, command, timeout }] }
+ * Registers PreToolUse, PostToolUse, and Notification hooks in ~/.claude/settings.json
+ * using the nested format: { matcher, hooks: [{ type, command, timeout }] }
+ *
+ * Also configures proxy auto-routing via ANTHROPIC_BASE_URL env in settings.
  */
 export class ClaudeCodeHook implements HookHandler {
   name = 'claude-code';
   private installed = false;
+  private dashboardPort: number;
+  private proxyPort: number;
+
+  constructor(dashboardPort: number = DEFAULT_DASHBOARD_PORT, proxyPort: number = DEFAULT_PROXY_PORT) {
+    this.dashboardPort = dashboardPort;
+    this.proxyPort = proxyPort;
+  }
+
+  private getPreCommand(): string {
+    return `curl -s -X POST http://127.0.0.1:${this.dashboardPort}/hooks/claude-code -H "Content-Type: application/json" -d @-`;
+  }
+
+  private getPostCommand(): string {
+    return `curl -s -X POST http://127.0.0.1:${this.dashboardPort}/hooks/claude-code-response -H "Content-Type: application/json" -d @-`;
+  }
+
+  private getNotificationCommand(): string {
+    return `curl -s -X POST http://127.0.0.1:${this.dashboardPort}/hooks/claude-code-notification -H "Content-Type: application/json" -d @-`;
+  }
 
   async install(): Promise<void> {
     try {
@@ -56,43 +74,44 @@ export class ClaudeCodeHook implements HookHandler {
       }
 
       const hooks = (settings.hooks ?? {}) as Record<string, unknown[]>;
+
+      // --- PreToolUse hook ---
       let preToolUse = (hooks.PreToolUse ?? []) as Record<string, unknown>[];
-
-      // Remove ALL existing Puffer entries (old format, duplicates, etc.)
       preToolUse = preToolUse.filter((entry) => !isPufferEntry(entry));
-
-      // Add Puffer PreToolUse hook
       preToolUse.push({
         matcher: '.*',
-        hooks: [
-          {
-            type: 'command',
-            command: PUFFER_PRE_COMMAND,
-            timeout: 30,
-          },
-        ],
+        hooks: [{ type: 'command', command: this.getPreCommand(), timeout: 30 }],
       });
       hooks.PreToolUse = preToolUse;
 
-      // Add Puffer PostToolUse hook (captures response path)
+      // --- PostToolUse hook ---
       let postToolUse = (hooks.PostToolUse ?? []) as Record<string, unknown>[];
       postToolUse = postToolUse.filter((entry) => !isPufferEntry(entry));
       postToolUse.push({
         matcher: '.*',
-        hooks: [
-          {
-            type: 'command',
-            command: PUFFER_POST_COMMAND,
-            timeout: 30,
-          },
-        ],
+        hooks: [{ type: 'command', command: this.getPostCommand(), timeout: 30 }],
       });
       hooks.PostToolUse = postToolUse;
 
+      // --- Notification hook (session events, model changes, errors) ---
+      let notification = (hooks.Notification ?? []) as Record<string, unknown>[];
+      notification = notification.filter((entry) => !isPufferEntry(entry));
+      notification.push({
+        matcher: '.*',
+        hooks: [{ type: 'command', command: this.getNotificationCommand(), timeout: 10 }],
+      });
+      hooks.Notification = notification;
+
       settings.hooks = hooks;
 
+      // --- Proxy auto-configuration ---
+      // Set env so Claude Code CLI routes API calls through Puffer proxy
+      const env = (settings.env ?? {}) as Record<string, string>;
+      env.ANTHROPIC_BASE_URL = `http://127.0.0.1:${this.proxyPort}`;
+      settings.env = env;
+
       fs.writeFileSync(CLAUDE_SETTINGS_PATH, JSON.stringify(settings, null, 2));
-      logger.info('Claude Code hooks installed (PreToolUse + PostToolUse, matcher: .*)');
+      logger.info('Claude Code hooks installed (PreToolUse + PostToolUse + Notification, proxy auto-config)');
 
       this.installed = true;
     } catch (err) {
@@ -107,21 +126,28 @@ export class ClaudeCodeHook implements HookHandler {
       const settings = JSON.parse(fs.readFileSync(CLAUDE_SETTINGS_PATH, 'utf-8'));
       const hooks = settings.hooks as Record<string, unknown[]> | undefined;
       if (hooks) {
-        if (hooks.PreToolUse) {
-          hooks.PreToolUse = (hooks.PreToolUse as Record<string, unknown>[]).filter(
-            (entry) => !isPufferEntry(entry)
-          );
-        }
-        if (hooks.PostToolUse) {
-          hooks.PostToolUse = (hooks.PostToolUse as Record<string, unknown>[]).filter(
-            (entry) => !isPufferEntry(entry)
-          );
+        for (const hookType of ['PreToolUse', 'PostToolUse', 'Notification']) {
+          if (hooks[hookType]) {
+            hooks[hookType] = (hooks[hookType] as Record<string, unknown>[]).filter(
+              (entry) => !isPufferEntry(entry)
+            );
+          }
         }
         fs.writeFileSync(CLAUDE_SETTINGS_PATH, JSON.stringify(settings, null, 2));
       }
 
+      // Remove proxy env
+      if (settings.env) {
+        const env = settings.env as Record<string, string>;
+        if (env.ANTHROPIC_BASE_URL?.includes('127.0.0.1')) {
+          delete env.ANTHROPIC_BASE_URL;
+          settings.env = Object.keys(env).length > 0 ? env : undefined;
+          fs.writeFileSync(CLAUDE_SETTINGS_PATH, JSON.stringify(settings, null, 2));
+        }
+      }
+
       this.installed = false;
-      logger.info('Claude Code hook uninstalled');
+      logger.info('Claude Code hooks uninstalled');
     } catch (err) {
       logger.error(`Failed to uninstall Claude Code hook: ${(err as Error).message}`);
     }

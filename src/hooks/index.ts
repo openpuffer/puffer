@@ -54,4 +54,9 @@ export class HookManager {
       .filter(([_, hook]) => hook.isInstalled())
       .map(([name]) => name);
   }
+
+  /** Alias for getInstalledHooks — used by DiscoveryEngine for protection status. */
+  getInstalledHookNames(): string[] {
+    return this.getInstalledHooks();
+  }
 }
