@@ -70,7 +70,8 @@ describe('Proxy Request Handling', () => {
 
       await handleRequest(req, res, body, deps);
 
-      expect(deps.evaluatePipeline).toHaveBeenCalledOnce();
+      // evaluatePipeline called twice: once for request, once for response scanning
+      expect(deps.evaluatePipeline).toHaveBeenCalledTimes(2);
       expect(deps.forwardRequest).toHaveBeenCalledOnce();
       expect(deps.logEvent).toHaveBeenCalled();
       // Response should not be 403
@@ -171,7 +172,8 @@ describe('Proxy Request Handling', () => {
 
       await handleRequest(req, res, body, deps);
 
-      expect(deps.evaluatePipeline).toHaveBeenCalledOnce();
+      // evaluatePipeline called twice: request + response scanning
+      expect(deps.evaluatePipeline).toHaveBeenCalledTimes(2);
       expect(deps.forwardRequest).toHaveBeenCalledOnce();
     });
   });
