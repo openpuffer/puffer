@@ -3,6 +3,39 @@ import { scanProcesses } from './process-scanner.js';
 import { scanPorts } from './port-scanner.js';
 import { scanNetworkConnections } from './network-scanner.js';
 import { logger } from '../utils/logger.js';
+import type { HookManager } from '../hooks/index.js';
+
+/**
+ * Resolve the actual protection status for a discovered agent.
+ */
+function resolveProtectionStatus(
+  agent: DiscoveredAgent,
+  installedHookNames: string[],
+): 'protected' | 'partial' | 'unprotected' {
+  // Agents matched by their name against installed hooks
+  const hookInstalled = installedHookNames.some((hookName) => {
+    if (hookName === 'claude-code' && agent.name === 'claude-code') return true;
+    if (hookName === 'openclaw' && agent.name === 'openclaw') return true;
+    if (hookName === 'vscode-extension' && ['github-copilot', 'cursor', 'cline', 'continue-dev', 'windsurf', 'codeium'].includes(agent.name)) return true;
+    if (hookName === agent.name) return true;
+    return false;
+  });
+
+  // Copilot is always partial at best (proprietary protocol)
+  if (agent.name === 'github-copilot') {
+    return hookInstalled ? 'partial' : 'unprotected';
+  }
+
+  // Claude Code with hooks = fully protected
+  if (agent.name === 'claude-code' && hookInstalled) {
+    return 'protected';
+  }
+
+  // Other agents with hooks
+  if (hookInstalled) return 'partial';
+
+  return 'unprotected';
+}
 
 /**
  * DiscoveryEngine continuously scans for AI agents, local LLM servers,
@@ -14,6 +47,14 @@ export class DiscoveryEngine {
   private knownProviders: Map<string, ProviderConfig> = new Map();
   private interval: NodeJS.Timeout | null = null;
   private onUpdate: ((result: DiscoveryResult) => void) | null = null;
+  private hookManager: HookManager | null = null;
+
+  /**
+   * Set a hook manager reference to resolve protection status.
+   */
+  setHookManager(hookManager: HookManager): void {
+    this.hookManager = hookManager;
+  }
 
   /**
    * Generates a stable key for deduplicating agents.
@@ -66,6 +107,14 @@ export class DiscoveryEngine {
       const key = this.agentKey(agent);
       if (!currentAgents.has(key)) {
         currentAgents.set(key, agent);
+      }
+    }
+
+    // Resolve protection status for each agent
+    if (this.hookManager) {
+      const installedHookNames = this.hookManager.getInstalledHookNames();
+      for (const [, agent] of currentAgents) {
+        agent.protectionStatus = resolveProtectionStatus(agent, installedHookNames);
       }
     }
 
@@ -125,16 +174,17 @@ export class DiscoveryEngine {
 
     logger.info(`Discovery engine starting (interval: ${intervalMs}ms)`);
 
-    // Run initial scan
-    this.scan().catch((err) => {
-      logger.error('Initial discovery scan failed', err);
-    });
-
+    // Set up periodic scanning first to ensure it runs even if initial scan fails
     this.interval = setInterval(() => {
       this.scan().catch((err) => {
-        logger.error('Discovery scan failed', err);
+        try { logger.error('Discovery scan failed', err); } catch { /* swallow */ }
       });
     }, intervalMs);
+
+    // Run initial scan (non-blocking)
+    this.scan().catch((err) => {
+      try { logger.error('Initial discovery scan failed', err); } catch { /* swallow */ }
+    });
   }
 
   /**

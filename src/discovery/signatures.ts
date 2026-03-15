@@ -42,6 +42,7 @@ export const NETWORK_SIGNATURES = [
   { domain: 'copilot-proxy.githubusercontent.com', provider: 'github-copilot' },
   { domain: 'api.githubcopilot.com', provider: 'github-copilot' },
   { domain: 'copilot-telemetry.githubusercontent.com', provider: 'github-copilot' },
+  { domain: 'api.individual.githubcopilot.com', provider: 'github-copilot-chat' },
   // Codeium / Windsurf
   { domain: 'server.codeium.com', provider: 'codeium' },
   { domain: 'api.codeium.com', provider: 'codeium' },
