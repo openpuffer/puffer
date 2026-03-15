@@ -3,7 +3,7 @@ import { Readable } from 'node:stream';
 import httpProxy from 'http-proxy';
 import { v4 as uuidv4 } from 'uuid';
 import { PufferConfig, PufferEvent } from '../types.js';
-import { DEFAULT_PROXY_PORT } from '../utils/constants.js';
+import { DEFAULT_PROXY_PORT, MAX_REQUEST_BODY_BYTES } from '../utils/constants.js';
 import { logger } from '../utils/logger.js';
 import { handleRequest, ProxyDependencies } from './handler.js';
 import { initTLS } from './tls.js';
@@ -89,13 +89,11 @@ export function createProxyServer(options: ProxyOptions): ProxyServer {
       delete req.headers['x-puffer-original-host'];
       delete req.headers['x-puffer-agent'];
 
-      proxy.web(req, res, {
-        target: targetUrl,
-        buffer: createReadableStream(bodyBuffer),
-      });
+      // Track the response for auditing with cleanup on client disconnect
+      let responded = false;
 
-      // Track the response for auditing
       proxy.once('proxyRes', (proxyRes) => {
+        responded = true;
         let responseData = '';
         proxyRes.on('data', (chunk: Buffer) => {
           responseData += chunk.toString();
@@ -110,14 +108,44 @@ export function createProxyServer(options: ProxyOptions): ProxyServer {
           onResponse(proxyRes.statusCode ?? 500, responseBody, proxyRes.headers);
         });
       });
+
+      // Guard: if client disconnects before proxy responds, avoid dangling state
+      req.on('close', () => {
+        if (!responded) {
+          responded = true; // Prevent double processing
+        }
+      });
+
+      proxy.web(req, res, {
+        target: targetUrl,
+        buffer: createReadableStream(bodyBuffer),
+      });
     },
   };
 
   const server = http.createServer((req: IncomingMessage, res: ServerResponse) => {
-    // Collect request body
+    // Collect request body with size limit
     const chunks: Buffer[] = [];
-    req.on('data', (chunk: Buffer) => chunks.push(chunk));
+    let totalSize = 0;
+    let aborted = false;
+
+    req.on('data', (chunk: Buffer) => {
+      if (aborted) return;
+      totalSize += chunk.length;
+      if (totalSize > MAX_REQUEST_BODY_BYTES) {
+        aborted = true;
+        res.writeHead(413, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({
+          error: { type: 'puffer_error', message: `Request body too large (limit: ${MAX_REQUEST_BODY_BYTES / (1024 * 1024)} MB)` },
+        }));
+        req.destroy();
+        return;
+      }
+      chunks.push(chunk);
+    });
+
     req.on('end', () => {
+      if (aborted) return;
       const bodyBuffer = Buffer.concat(chunks);
       handleRequest(req, res, bodyBuffer, deps).catch((err) => {
         logger.error(`Request handling error: ${(err as Error).message}`);

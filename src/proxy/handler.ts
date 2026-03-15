@@ -143,11 +143,29 @@ export async function handleRequest(
         rateLimits: rateLimits ?? undefined,
       },
       layers: [],
-      decision: 'ALLOW' as Decision,
+      decision: null,
     };
 
-    deps.logEvent(responseEvent);
+    // Run LLM response through defense pipeline (PII, injection detection, etc.)
+    deps.evaluatePipeline(responseEvent).then((evaluatedResponse) => {
+      deps.logEvent(evaluatedResponse);
 
+      if (evaluatedResponse.decision === 'BLOCK') {
+        const blockLayer = evaluatedResponse.layers.find((l) => l.verdict === 'block');
+        logger.blocked(
+          `Response contained blocked content: ${blockLayer?.details ?? 'unknown'}`,
+          blockLayer?.name ?? 'unknown',
+          event.source.agent,
+        );
+      }
+    }).catch((err) => {
+      // If pipeline fails, still log the response with ALLOW
+      responseEvent.decision = 'ALLOW' as Decision;
+      deps.logEvent(responseEvent);
+      logger.error(`Response pipeline error: ${(err as Error).message}`);
+    });
+
+    // Total defense pipeline duration (request-side layers only, not round-trip)
     const totalMs = evaluated.layers.reduce((sum, l) => sum + l.durationMs, 0);
     logger.allowed(`${req.method} ${url}`, totalMs);
   });
