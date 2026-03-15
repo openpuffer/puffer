@@ -1,5 +1,6 @@
 import { PufferEvent, LayerResult, Finding, NetworkConfig } from '../types.js';
 import { allowResult } from './helpers.js';
+import { PII_PATTERNS } from './layer-1-pii.js';
 
 const PRIVATE_IP_RANGES: RegExp[] = [
   /^10\.\d{1,3}\.\d{1,3}\.\d{1,3}$/,
@@ -12,6 +13,72 @@ const PRIVATE_IP_RANGES: RegExp[] = [
   /^fe80:/i,
   /^::1$/,
 ];
+
+/**
+ * Normalize hostname to catch alternative IP representations:
+ * - Decimal IP: 2130706433 -> 127.0.0.1
+ * - Octal IP: 0177.0.0.1 -> 127.0.0.1
+ * - IPv6 longform: 0:0:0:0:0:0:0:1 -> ::1
+ * - Shorthand: 127.1 -> 127.0.0.1
+ */
+function normalizeHostname(hostname: string): string[] {
+  const variants: string[] = [hostname];
+
+  // Check if it's a pure decimal IP (single number)
+  if (/^\d+$/.test(hostname)) {
+    const num = parseInt(hostname, 10);
+    if (num >= 0 && num <= 0xFFFFFFFF) {
+      const a = (num >>> 24) & 0xFF;
+      const b = (num >>> 16) & 0xFF;
+      const c = (num >>> 8) & 0xFF;
+      const d = num & 0xFF;
+      variants.push(`${a}.${b}.${c}.${d}`);
+    }
+  }
+
+  // Check for octal notation in dotted IP (any octet starting with 0 and length > 1)
+  const parts = hostname.split('.');
+  if (parts.length >= 2 && parts.length <= 4 && parts.every((p) => /^\d+$/.test(p))) {
+    const hasOctal = parts.some((p) => p.length > 1 && p.startsWith('0'));
+    if (hasOctal) {
+      const octets = parts.map((p) => {
+        if (p.length > 1 && p.startsWith('0')) return parseInt(p, 8);
+        return parseInt(p, 10);
+      });
+      if (octets.every((o) => o >= 0 && o <= 255)) {
+        variants.push(octets.join('.'));
+      }
+    }
+
+    // Handle shorthand IPs (e.g., 127.1 -> 127.0.0.1)
+    if (parts.length < 4 && parts.every((p) => /^\d+$/.test(p))) {
+      const nums = parts.map((p) => parseInt(p, 10));
+      if (parts.length === 2) {
+        variants.push(`${nums[0]}.0.0.${nums[1]}`);
+      } else if (parts.length === 3) {
+        variants.push(`${nums[0]}.${nums[1]}.0.${nums[2]}`);
+      }
+    }
+  }
+
+  // Normalize IPv6 longform to compact
+  if (hostname.includes(':') && !hostname.includes('.')) {
+    const ipv6Parts = hostname.split(':');
+    if (ipv6Parts.length === 8) {
+      // Check if all zeros except last
+      const isLoopback = ipv6Parts.slice(0, 7).every((p) => parseInt(p, 16) === 0) &&
+        parseInt(ipv6Parts[7], 16) === 1;
+      if (isLoopback) variants.push('::1');
+
+      // Check for fc00::/7 or fe80::/10 in longform
+      const firstGroup = parseInt(ipv6Parts[0], 16);
+      if ((firstGroup & 0xFE00) === 0xFC00) variants.push(`fc00:${ipv6Parts.slice(1).join(':')}`);
+      if ((firstGroup & 0xFFC0) === 0xFE80) variants.push(`fe80:${ipv6Parts.slice(1).join(':')}`);
+    }
+  }
+
+  return variants;
+}
 
 function isDGADomain(hostname: string): boolean {
   // Extract the registrable domain (last two parts minus TLD)
@@ -87,24 +154,31 @@ export async function networkEgressGuard(
     };
   }
 
-  const hostname = parsed.hostname;
+  // Strip brackets from IPv6 hostnames (URL parser returns [::1] for IPv6)
+  const hostname = parsed.hostname.replace(/^\[|\]$/g, '');
   const findings: Finding[] = [];
 
-  // Private IP check (anti-SSRF)
+  // Private IP check (anti-SSRF) with normalized hostname variants
   if (config.blockPrivateIPs) {
     const isLocal = event.source.provider.includes('local');
     if (!isLocal) {
-      for (const range of PRIVATE_IP_RANGES) {
-        if (range.test(hostname)) {
-          findings.push({
-            type: 'private_ip',
-            severity: 'critical',
-            location: hostname,
-            value: hostname,
-            suggestion: 'Blocked request to private IP range (anti-SSRF)',
-          });
-          break;
+      const hostVariants = normalizeHostname(hostname);
+      let matched = false;
+      for (const variant of hostVariants) {
+        for (const range of PRIVATE_IP_RANGES) {
+          if (range.test(variant)) {
+            findings.push({
+              type: 'private_ip',
+              severity: 'critical',
+              location: hostname,
+              value: `${hostname} (resolved: ${variant})`,
+              suggestion: 'Blocked request to private IP range (anti-SSRF)',
+            });
+            matched = true;
+            break;
+          }
         }
+        if (matched) break;
       }
     }
   }
@@ -171,6 +245,28 @@ export async function networkEgressGuard(
         value: `${sizeMb.toFixed(2)} MB`,
         suggestion: `Payload size ${sizeMb.toFixed(2)} MB exceeds limit of ${config.maxPayloadSizeMb} MB`,
       });
+    }
+  }
+
+  // PII scan on network payloads
+  if (config.scanPayloadForPII && event.action.type === 'network_request' && event.action.body) {
+    const bodyStr = typeof event.action.body === 'string'
+      ? event.action.body
+      : JSON.stringify(event.action.body);
+    for (const piiPattern of PII_PATTERNS) {
+      const regex = new RegExp(piiPattern.pattern.source, piiPattern.pattern.flags);
+      const match = regex.exec(bodyStr);
+      if (match) {
+        // If pattern has a validator, apply it
+        if (piiPattern.validate && !piiPattern.validate(match[0])) continue;
+        findings.push({
+          type: 'pii_in_payload',
+          severity: piiPattern.severity,
+          location: hostname,
+          value: piiPattern.name,
+          suggestion: `Network payload contains PII: ${piiPattern.name}`,
+        });
+      }
     }
   }
 
