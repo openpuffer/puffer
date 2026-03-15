@@ -8,11 +8,11 @@ interface Heuristic {
   severity: 'critical' | 'high' | 'medium' | 'low';
 }
 
-const HEURISTICS: Heuristic[] = [
+export const HEURISTICS: Heuristic[] = [
   {
     name: 'role_switching',
     pattern:
-      /(?:you are now|act as|pretend to be|forget (?:your|all|previous)|ignore (?:previous|above|all)|disregard (?:your|all|previous)|override (?:your|all)|new instructions?:)/gi,
+      /(?:you are now|act as|pretend to be|forget (?:your|all|previous)|ignore (?:previous|above|all)|disregard (?:your|all|previous)|override (?:your|all)|new instructions?:|ignora (?:las |tus )?(?:instrucciones|reglas)|olvida (?:tus |las )?(?:instrucciones|reglas)|ahora eres|oublie[zr]? (?:tes|les|vos) (?:instructions|r[eè]gles)|tu es maintenant|vergiss (?:deine |alle )?(?:Anweisungen|Regeln|Instruktionen)|du bist (?:jetzt|nun))/gi,
     weight: 0.8,
     severity: 'high',
   },
@@ -117,7 +117,15 @@ export async function injectionDetector(
     });
   }
 
-  const score = Math.min(totalScore / 3.0, 1.0);
+  // Normalize score: use max of (weighted average, highest single weight)
+  // This ensures a single high-confidence heuristic (e.g., "ignore previous instructions")
+  // can still trigger blocking on its own, not be diluted by division
+  const maxSingleWeight = findings.reduce((max, f) => {
+    const h = HEURISTICS.find((h) => h.name === f.type);
+    return h ? Math.max(max, h.weight) : max;
+  }, 0);
+  const averageScore = totalScore / 3.0;
+  const score = Math.min(Math.max(averageScore, maxSingleWeight * 0.9), 1.0);
   const durationMs = Date.now() - start;
 
   if (findings.length === 0) {
