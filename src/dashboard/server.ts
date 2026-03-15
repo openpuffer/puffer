@@ -246,6 +246,20 @@ export function createDashboardServer(deps: DashboardDependencies, preferredPort
     }
   });
 
+  app.get('/api/report/weekly', async (_req, res) => {
+    try {
+      const { calculateScore } = await import('../score/calculator.js');
+      const { generateWeeklyReport } = await import('../reports/weekly.js');
+      const result = await deps.discovery.scan();
+      const stats = deps.auditLogger.getStats();
+      const score = calculateScore(deps.config, result, stats);
+      const report = generateWeeklyReport(deps.auditLogger, { current: score.total, grade: score.grade });
+      res.json(report);
+    } catch (err) {
+      res.status(500).json({ error: 'Failed to generate report' });
+    }
+  });
+
   app.get('/api/alerts', (_req, res) => {
     const entries = deps.auditLogger.readEntries(100);
     const alerts = entries.filter((e: AuditLogEntry) => e.decision === 'BLOCK' || e.decision === 'ESCALATE');

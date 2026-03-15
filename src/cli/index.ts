@@ -171,6 +171,42 @@ program
     console.log(formatScore(score));
   });
 
+// Inline: report
+program
+  .command('report')
+  .description('Generate a threat report')
+  .option('--format <format>', 'Output format: markdown, html', 'markdown')
+  .option('--output <path>', 'Write to file instead of stdout')
+  .action(async (opts) => {
+    const config = loadConfig();
+    const { AuditLogger } = await import('../audit/logger.js');
+    const { DiscoveryEngine } = await import('../discovery/index.js');
+    const { calculateScore } = await import('../score/calculator.js');
+    const { generateWeeklyReport, formatWeeklyMarkdown, formatWeeklyHTML } = await import('../reports/weekly.js');
+
+    console.log('\n  Generating weekly threat report...\n');
+
+    const auditLogger = new AuditLogger(config.audit?.logPath);
+    const discovery = new DiscoveryEngine();
+    const result = await discovery.scan();
+    const stats = auditLogger.getStats();
+    const score = calculateScore(config, result, stats);
+
+    const report = generateWeeklyReport(auditLogger, { current: score.total, grade: score.grade });
+
+    const formatted = opts.format === 'html'
+      ? formatWeeklyHTML(report)
+      : formatWeeklyMarkdown(report);
+
+    if (opts.output) {
+      const fs = await import('node:fs');
+      fs.writeFileSync(opts.output, formatted);
+      logger.info(`Report saved to ${opts.output}`);
+    } else {
+      console.log(formatted);
+    }
+  });
+
 // Inline: dashboard
 program
   .command('dashboard')
