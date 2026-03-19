@@ -122,7 +122,7 @@ export async function networkEgressGuard(
 ): Promise<LayerResult> {
   const start = Date.now();
 
-  if (event.action.type !== 'network_request' && event.action.type !== 'llm_request') {
+  if (event.action.type !== 'network_request') {
     return allowResult(4, 'network_egress');
   }
 
