@@ -126,10 +126,7 @@ export async function networkEgressGuard(
     return allowResult(4, 'network_egress');
   }
 
-  const targetUrl =
-    event.action.type === 'network_request'
-      ? event.action.url
-      : event.action.endpoint;
+  const targetUrl = event.action.url;
 
   let parsed: URL;
   try {

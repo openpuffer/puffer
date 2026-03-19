@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState, useEffect } from 'react';
+import { useMemo, useRef, useState, useEffect, useCallback } from 'react';
 import type { LiveEvent, AgentInfo } from '../App';
 
 export interface GraphNode {
@@ -75,10 +75,50 @@ export function useGraphData(
   liveEvents: LiveEvent[],
   agents: AgentInfo[],
   theme: 'dark' | 'light' = 'dark'
-): GraphData {
+): GraphData & { recentBlocks: Set<string> } {
   const DECISION_COLORS = theme === 'dark' ? DECISION_COLORS_DARK : DECISION_COLORS_LIGHT;
   const DECISION_PARTICLE = theme === 'dark' ? DECISION_PARTICLE_DARK : DECISION_PARTICLE_LIGHT;
-  // Throttle: only recalculate graph data at most every 500ms
+
+  // Track nodes involved in recent BLOCK events (for cinematographic pulse)
+  const [recentBlocks, setRecentBlocks] = useState<Set<string>>(new Set());
+  const blockTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+
+  const addBlockNode = useCallback((nodeId: string) => {
+    setRecentBlocks((prev) => {
+      const next = new Set(prev);
+      next.add(nodeId);
+      return next;
+    });
+    // Clear existing timer for this node
+    const existing = blockTimersRef.current.get(nodeId);
+    if (existing) clearTimeout(existing);
+    // Remove after 3 seconds
+    const timer = setTimeout(() => {
+      setRecentBlocks((prev) => {
+        const next = new Set(prev);
+        next.delete(nodeId);
+        return next;
+      });
+      blockTimersRef.current.delete(nodeId);
+    }, 3000);
+    blockTimersRef.current.set(nodeId, timer);
+  }, []);
+
+  // Watch for new BLOCK events
+  const lastBlockCheckRef = useRef(0);
+  useEffect(() => {
+    for (let i = 0; i < liveEvents.length && i < 5; i++) {
+      const ev = liveEvents[i];
+      if (ev.decision === 'BLOCK') {
+        const agentId = `agent-${ev.source?.agent ?? 'unknown'}`;
+        addBlockNode(agentId);
+        addBlockNode('puffer');
+      }
+    }
+    lastBlockCheckRef.current = liveEvents.length;
+  }, [liveEvents, addBlockNode]);
+
+  // Throttle: only recalculate graph data at most every 1500ms
   // This prevents jumps when many events arrive rapidly
   const [throttledEvents, setThrottledEvents] = useState(liveEvents);
   const throttleRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -125,7 +165,7 @@ export function useGraphData(
 
     for (const agent of agents) {
       ensureNode(`agent-${agent.name}`, {
-        name: agent.name, type: 'agent', val: 1, color: '#fb923c',
+        name: agent.name, type: 'agent', val: 1, color: '#3b82f6',
         hostProgram: agent.hostProgram,
       });
     }
@@ -136,8 +176,8 @@ export function useGraphData(
       const agentId = `agent-${agent}`;
       const providerId = `provider-${provider}`;
 
-      ensureNode(agentId, { name: agent, type: 'agent', val: 1, color: '#fb923c' });
-      ensureNode(providerId, { name: provider, type: 'provider', val: 1, color: '#f59e0b' });
+      ensureNode(agentId, { name: agent, type: 'agent', val: 1, color: '#3b82f6' });
+      ensureNode(providerId, { name: provider, type: 'provider', val: 1, color: '#ec4899' });
 
       const decision = event.decision ?? 'ALLOW';
       const linkColor = DECISION_COLORS[decision] ?? '#6b7280';
@@ -150,7 +190,7 @@ export function useGraphData(
         const isSubagent = server === 'claude-code-agent';
         // Subagents get unique IDs per parent agent; MCP servers are shared
         const nodeId = isSubagent ? `subagent-${agent}-${server}` : `mcp-${server}`;
-        const nodeColor = isSubagent ? '#fb923c' : '#22d3ee';
+        const nodeColor = isSubagent ? '#8b5cf6' : '#22d3ee';
 
         ensureNode(nodeId, {
           name: isSubagent ? 'Sub-Agent' : server,
@@ -231,8 +271,8 @@ export function useGraphData(
           source: agentId, target: 'puffer',
           color: linkColor + '30', curvature: 0.2,
           eventId: event.id, decision,
-          particleCount: decision === 'BLOCK' ? 2 : 1,
-          particleSpeed: decision === 'BLOCK' ? 0.018 : 0.012,
+          particleCount: decision === 'BLOCK' ? 4 : 1,
+          particleSpeed: decision === 'BLOCK' ? 0.022 : 0.012,
           particleColor,
         });
         if (decision !== 'BLOCK') {
@@ -267,6 +307,7 @@ export function useGraphData(
     return {
       nodes: Array.from(cache.values()),
       links: trimmedLinks,
+      recentBlocks,
     };
-  }, [throttledEvents, agents, theme, DECISION_COLORS, DECISION_PARTICLE]);
+  }, [throttledEvents, agents, theme, DECISION_COLORS, DECISION_PARTICLE, recentBlocks]);
 }

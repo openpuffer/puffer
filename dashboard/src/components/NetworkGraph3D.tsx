@@ -7,6 +7,7 @@ import { useTheme, type Theme } from '../hooks/useTheme';
 
 interface NetworkGraph3DProps {
   graphData: GraphData;
+  recentBlocks?: Set<string>;
   onNodeClick?: (node: GraphNode) => void;
 }
 
@@ -53,6 +54,7 @@ function makeGlowTexture(r: number, g: number, b: number): THREE.CanvasTexture {
 }
 const GLOW_TEX = makeGlowTexture(251, 191, 36);
 const GLOW_TEX_LIGHT = makeGlowTexture(100, 116, 139);
+const GLOW_TEX_RED = makeGlowTexture(239, 68, 68);
 
 // ── Small dot texture for neural mesh particles ─────────
 const DOT_TEX = (() => {
@@ -249,7 +251,7 @@ function createNebulae(): THREE.Group {
 
 const ORBIT_RADIUS = 22;
 
-const NetworkGraph3D: React.FC<NetworkGraph3DProps> = ({ graphData, onNodeClick }) => {
+const NetworkGraph3D: React.FC<NetworkGraph3DProps> = ({ graphData, recentBlocks, onNodeClick }) => {
   const fgRef = useRef<any>(null);
   const sceneExtrasRef = useRef<THREE.Group[]>([]);
   const meshRef = useRef<THREE.Group | null>(null);
@@ -466,93 +468,116 @@ const NetworkGraph3D: React.FC<NetworkGraph3DProps> = ({ graphData, onNodeClick 
     return () => window.removeEventListener('resize', h);
   }, []);
 
-  // ── Node rendering — small glowing points ────────────────
+  // ── Node rendering — small glowing points with shape differentiation ──
   const nodeThreeObject = useCallback((node: GraphNode) => {
     const group = new THREE.Group();
     const isDark = theme === 'dark';
+    const isBlocked = recentBlocks?.has(node.id) ?? false;
 
     if (node.type === 'puffer') {
-      const R = 1.8;
+      const R = isBlocked ? 1.8 * 1.3 : 1.8;
+      const coreColor = isBlocked ? 0xef4444 : colors.nodeCoreColor;
+      const shellColor = isBlocked ? 0xef4444 : colors.nodeShellColor;
 
       // Bright core
       group.add(new THREE.Mesh(
         new THREE.SphereGeometry(R * 0.35, 16, 16),
-        new THREE.MeshBasicMaterial({ color: colors.nodeCoreColor, transparent: true, opacity: 0.95 })
+        new THREE.MeshBasicMaterial({ color: coreColor, transparent: true, opacity: 0.95 })
       ));
 
       // Shell
       group.add(new THREE.Mesh(
         new THREE.SphereGeometry(R * 0.7, 20, 20),
         new THREE.MeshBasicMaterial({
-          color: colors.nodeShellColor, transparent: true, opacity: isDark ? 0.5 : 0.2,
+          color: shellColor, transparent: true, opacity: isDark ? 0.5 : 0.2,
           blending: isDark ? THREE.AdditiveBlending : THREE.NormalBlending,
         })
       ));
 
-      // Glow
-      const glowTex = isDark ? GLOW_TEX : GLOW_TEX_LIGHT;
+      // Glow — red when blocking
+      const glowTex = isBlocked ? GLOW_TEX_RED : (isDark ? GLOW_TEX : GLOW_TEX_LIGHT);
+      const glowCol = isBlocked ? 0xef4444 : colors.glowColor;
       const glow = new THREE.Sprite(
         new THREE.SpriteMaterial({
-          map: glowTex, color: colors.glowColor,
+          map: glowTex, color: glowCol,
           transparent: true,
-          opacity: isDark ? 0.7 : 0.25,
+          opacity: isBlocked ? 0.9 : (isDark ? 0.7 : 0.25),
           blending: isDark ? THREE.AdditiveBlending : THREE.NormalBlending,
           depthWrite: false,
         })
       );
-      glow.scale.set(R * (isDark ? 10 : 6), R * (isDark ? 10 : 6), 1);
+      const glowScale = isBlocked ? R * 14 : R * (isDark ? 10 : 6);
+      glow.scale.set(glowScale, glowScale, 1);
       group.add(glow);
 
-      const icon = getPufferIconSprite(R * 1.2, colors.iconColor);
+      const icon = getPufferIconSprite(R * 1.2, isBlocked ? '#fca5a5' : colors.iconColor);
       if (!isDark) {
         (icon.material as THREE.SpriteMaterial).blending = THREE.NormalBlending;
       }
       group.add(icon);
 
     } else {
-      // ─── Small glowing neural point ───
+      // ─── Differentiated nodes by type ───
       const r = node.type === 'agent' ? 0.8
         : node.type === 'subagent' ? 0.45
         : node.type === 'mcp' ? 0.55
-        : 0.7;
+        : 0.7; // provider
 
-      const nodeCol = isDark
-        ? new THREE.Color(node.color)
-        : new THREE.Color(colors.nodeShellColor);
-      const brightCol = isDark
-        ? nodeCol.clone().lerp(new THREE.Color(0xfef3c7), 0.7)
-        : new THREE.Color(colors.nodeCoreColor);
+      const effectiveR = isBlocked ? r * 1.3 : r;
+      const nodeCol = isBlocked
+        ? new THREE.Color(0xef4444)
+        : isDark ? new THREE.Color(node.color) : new THREE.Color(colors.nodeShellColor);
+      const brightCol = isBlocked
+        ? new THREE.Color(0xfca5a5)
+        : isDark ? nodeCol.clone().lerp(new THREE.Color(0xfef3c7), 0.7) : new THREE.Color(colors.nodeCoreColor);
+
+      // Core geometry — different shapes per type
+      let coreGeo: THREE.BufferGeometry;
+      let shellGeo: THREE.BufferGeometry;
+      if (node.type === 'provider') {
+        coreGeo = new THREE.OctahedronGeometry(effectiveR * 0.4);
+        shellGeo = new THREE.OctahedronGeometry(effectiveR);
+      } else if (node.type === 'mcp') {
+        coreGeo = new THREE.BoxGeometry(effectiveR * 0.55, effectiveR * 0.55, effectiveR * 0.55);
+        shellGeo = new THREE.BoxGeometry(effectiveR * 1.4, effectiveR * 1.4, effectiveR * 1.4);
+      } else {
+        coreGeo = new THREE.SphereGeometry(effectiveR * 0.4, 12, 12);
+        shellGeo = new THREE.SphereGeometry(effectiveR, 14, 14);
+      }
 
       // Tiny bright core
       group.add(new THREE.Mesh(
-        new THREE.SphereGeometry(r * 0.4, 12, 12),
+        coreGeo,
         new THREE.MeshBasicMaterial({ color: brightCol, transparent: true, opacity: 0.95 })
       ));
 
       // Shell
       group.add(new THREE.Mesh(
-        new THREE.SphereGeometry(r, 14, 14),
+        shellGeo,
         new THREE.MeshBasicMaterial({
           color: nodeCol, transparent: true, opacity: isDark ? 0.45 : 0.2,
           blending: isDark ? THREE.AdditiveBlending : THREE.NormalBlending,
+          wireframe: node.type === 'subagent',
         })
       ));
 
       // Glow halo
-      const glowTex = isDark ? GLOW_TEX : GLOW_TEX_LIGHT;
+      const glowTex = isBlocked ? GLOW_TEX_RED : (isDark ? GLOW_TEX : GLOW_TEX_LIGHT);
       const glow = new THREE.Sprite(
         new THREE.SpriteMaterial({
-          map: glowTex, color: isDark ? nodeCol : new THREE.Color(colors.glowColor),
+          map: glowTex,
+          color: isBlocked ? 0xef4444 : (isDark ? nodeCol : new THREE.Color(colors.glowColor)),
           transparent: true,
-          opacity: isDark ? 0.5 : 0.15,
+          opacity: isBlocked ? 0.8 : (isDark ? 0.5 : 0.15),
           blending: isDark ? THREE.AdditiveBlending : THREE.NormalBlending,
           depthWrite: false,
         })
       );
-      glow.scale.set(r * (isDark ? 8 : 5), r * (isDark ? 8 : 5), 1);
+      const glowScale = isBlocked ? effectiveR * 12 : effectiveR * (isDark ? 8 : 5);
+      glow.scale.set(glowScale, glowScale, 1);
       group.add(glow);
 
-      const icon = getIconSprite(node.name, r * 2, colors.iconColor);
+      const icon = getIconSprite(node.name, effectiveR * 2, isBlocked ? '#fca5a5' : colors.iconColor);
       if (!isDark) {
         (icon.material as THREE.SpriteMaterial).blending = THREE.NormalBlending;
       }
@@ -560,7 +585,7 @@ const NetworkGraph3D: React.FC<NetworkGraph3DProps> = ({ graphData, onNodeClick 
     }
 
     return group;
-  }, [theme, colors]);
+  }, [theme, colors, recentBlocks]);
 
   const handleClick = useCallback((node: any) => {
     onNodeClick?.(node as GraphNode);

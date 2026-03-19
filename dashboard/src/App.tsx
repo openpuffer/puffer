@@ -11,6 +11,21 @@ import { useWebSocket } from './hooks/useWebSocket';
 import { useGraphData, type GraphNode } from './hooks/useGraphData';
 import { useTheme } from './hooks/useTheme';
 
+// Build sparkline buckets from event history
+function buildSparkData(events: LiveEvent[], filterFn?: (e: LiveEvent) => boolean): { v: number }[] {
+  const now = Date.now();
+  const BUCKET_MS = 5 * 60 * 1000; // 5 min buckets
+  const BUCKETS = 12; // last 60 min
+  const counts = new Array(BUCKETS).fill(0);
+  for (const ev of events) {
+    if (filterFn && !filterFn(ev)) continue;
+    const age = now - new Date(ev.timestamp).getTime();
+    const idx = Math.floor(age / BUCKET_MS);
+    if (idx >= 0 && idx < BUCKETS) counts[BUCKETS - 1 - idx]++;
+  }
+  return counts.map((v) => ({ v }));
+}
+
 interface Stats {
   totalEvents: number;
   blocked: number;
@@ -128,7 +143,7 @@ const App: React.FC = () => {
 
   // Build 3D graph data
   const { theme } = useTheme();
-  const graphData = useGraphData(liveEvents, agents, theme);
+  const { recentBlocks, ...graphData } = useGraphData(liveEvents, agents, theme);
 
   const handleOpenPanel = useCallback((panel: string) => {
     setActivePanel((prev) => (prev === panel ? null : panel));
@@ -155,7 +170,7 @@ const App: React.FC = () => {
   return (
     <div className="relative h-screen w-screen overflow-hidden bg-slate-50 dark:bg-[#06080d]">
       {/* 3D Force Graph Background */}
-      <NetworkGraph3D graphData={graphData} onNodeClick={handleNodeClick} />
+      <NetworkGraph3D graphData={graphData} recentBlocks={recentBlocks} onNodeClick={handleNodeClick} />
 
       {/* HUD Overlay */}
       <HUDOverlay
@@ -165,6 +180,9 @@ const App: React.FC = () => {
         connected={connected}
         onOpenPanel={handleOpenPanel}
         panelOpen={!!activePanel}
+        sparkEvents={buildSparkData(liveEvents)}
+        sparkBlocked={buildSparkData(liveEvents, (e) => e.decision === 'BLOCK')}
+        sparkAllowed={buildSparkData(liveEvents, (e) => e.decision === 'ALLOW')}
       />
 
       {/* Slide-out Drawer Panel */}
