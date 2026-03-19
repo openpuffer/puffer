@@ -19,6 +19,73 @@ export interface ProxyDependencies {
   sessionId: string;
   sequenceCounter: { value: number };
   mode: 'monitor' | 'enforce' | 'paranoid' | 'interactive';
+  passthrough: boolean;
+  /** Returns names of agents currently detected by discovery engine */
+  getDiscoveredAgentNames?: () => string[];
+}
+
+/**
+ * Infer the agent identity from request headers and body when
+ * the explicit x-puffer-agent header is missing.
+ *
+ * Detection priority:
+ *  1. Exact agent name in User-Agent header (e.g. "aider/0.5", "Cline/2.0")
+ *  2. Anthropic SDK fingerprint (User-Agent "Anthropic/JS" or "anthropic-python",
+ *     or presence of anthropic-version header) → attribute to claude-code if
+ *     it's among discovered agents, since Claude Code is the agent that sets
+ *     ANTHROPIC_BASE_URL to route through the proxy.
+ *  3. OpenAI SDK fingerprint ("OpenAI/" in User-Agent) → correlate with
+ *     discovered agents that use OpenAI-compatible APIs.
+ *  4. If process discovery found exactly one agent, attribute to it.
+ */
+function inferAgent(
+  headers: Record<string, string | string[] | undefined>,
+  discoveredAgentNames?: string[],
+): string {
+  const ua = String(headers['user-agent'] ?? '');
+  const uaLower = ua.toLowerCase();
+
+  // 1. Exact agent name in User-Agent
+  if (/aider/i.test(ua)) return 'aider';
+  if (/cursor/i.test(ua)) return 'cursor';
+  if (/cline/i.test(ua)) return 'cline';
+  if (/continue/i.test(ua)) return 'continue-dev';
+  if (/copilot/i.test(ua)) return 'github-copilot';
+  if (/windsurf/i.test(ua)) return 'windsurf';
+  if (/codeium/i.test(ua)) return 'codeium';
+  if (/openclaw|clawdbot/i.test(ua)) return 'openclaw';
+  if (/claude[-_]?code/i.test(ua)) return 'claude-code';
+
+  // 2. Anthropic SDK fingerprint: "Anthropic/JS ...", "anthropic-python/...",
+  //    or the presence of the anthropic-version header.
+  const isAnthropicSDK =
+    uaLower.includes('anthropic/') ||
+    uaLower.includes('anthropic-') ||
+    !!headers['anthropic-version'];
+
+  if (isAnthropicSDK) {
+    // Claude Code is the primary agent that sets ANTHROPIC_BASE_URL to proxy.
+    // If discovery sees it running, attribute the request to it.
+    if (discoveredAgentNames?.includes('claude-code')) return 'claude-code';
+    // Fallback: any other Anthropic-SDK agent found by discovery
+    if (discoveredAgentNames?.includes('python-anthropic')) return 'python-anthropic';
+  }
+
+  // 3. OpenAI SDK fingerprint
+  const isOpenAISDK = uaLower.includes('openai/');
+  if (isOpenAISDK && discoveredAgentNames) {
+    const openaiAgents = discoveredAgentNames.filter((n) =>
+      ['python-openai', 'python-langchain', 'python-crewai', 'python-autogen'].includes(n)
+    );
+    if (openaiAgents.length === 1) return openaiAgents[0];
+  }
+
+  // 4. Single discovered agent fallback
+  if (discoveredAgentNames && discoveredAgentNames.length === 1) {
+    return discoveredAgentNames[0];
+  }
+
+  return 'unknown';
 }
 
 export async function handleRequest(
@@ -28,6 +95,30 @@ export async function handleRequest(
   deps: ProxyDependencies
 ): Promise<void> {
   const url = req.url ?? '/';
+
+  // Health check endpoint — used by daemon startup, env.sh guard, and liveness probes
+  if (url === '/__puffer/health') {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ status: 'ok', version: VERSION, pid: process.pid }));
+    return;
+  }
+
+  // Passthrough mode: skip all defense layers, just forward transparently.
+  // Used during graceful shutdown so existing sessions keep working.
+  if (deps.passthrough) {
+    const headers = req.headers as Record<string, string | string[] | undefined>;
+    let body: unknown;
+    try { body = bodyBuffer.length > 0 ? JSON.parse(bodyBuffer.toString('utf-8')) : {}; } catch { body = {}; }
+    const provider = detectProvider(url, headers, body);
+    const targetUrl = deps.resolveTarget(provider);
+    if (!targetUrl) {
+      res.writeHead(502, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: { type: 'puffer_error', message: `No target for provider: ${provider}` } }));
+      return;
+    }
+    deps.forwardRequest(req, res, targetUrl, bodyBuffer, () => {});
+    return;
+  }
 
   let body: unknown;
   try {
@@ -52,12 +143,19 @@ export async function handleRequest(
     body,
   };
 
+  const agent = headers['x-puffer-agent']
+    ? String(headers['x-puffer-agent'])
+    : inferAgent(headers, deps.getDiscoveredAgentNames?.());
+
+  // Capture raw debug info when agent can't be identified
+  const debugInfo = agent === 'unknown' ? captureDebugInfo(headers, req.method ?? 'POST', url) : undefined;
+
   const event: PufferEvent = {
     id: uuidv4(),
     timestamp: new Date().toISOString(),
     source: {
       type: 'proxy',
-      agent: String(headers['x-puffer-agent'] ?? 'unknown'),
+      agent,
       provider,
       model,
     },
@@ -68,6 +166,7 @@ export async function handleRequest(
       sequenceNumber: seq,
       tokenEstimate: tokens,
       costEstimate: cost,
+      debugInfo,
     },
     layers: [],
     decision: null,
@@ -169,6 +268,60 @@ export async function handleRequest(
     const totalMs = evaluated.layers.reduce((sum, l) => sum + l.durationMs, 0);
     logger.allowed(`${req.method} ${url}`, totalMs);
   });
+}
+
+/**
+ * Capture raw request info for debugging unidentified agents.
+ * Extracts headers relevant for fingerprinting (User-Agent, SDK headers, etc.)
+ */
+function captureDebugInfo(
+  headers: Record<string, string | string[] | undefined>,
+  method: string,
+  endpoint: string,
+): NonNullable<PufferEvent['metadata']['debugInfo']> {
+  const debugHeaders: Record<string, string> = {};
+
+  // Capture all potentially useful headers for agent identification
+  const interestingHeaders = [
+    'user-agent',
+    'anthropic-version',
+    'x-stainless-lang',
+    'x-stainless-runtime',
+    'x-stainless-runtime-version',
+    'x-stainless-os',
+    'x-stainless-arch',
+    'x-stainless-retry-count',
+    'x-stainless-timeout',
+    'openai-organization',
+    'x-request-id',
+    'x-api-key',       // will be masked below
+    'authorization',    // will be masked below
+    'accept',
+    'content-type',
+    'host',
+    'origin',
+    'referer',
+  ];
+
+  for (const name of interestingHeaders) {
+    const val = headers[name];
+    if (val === undefined) continue;
+    let strVal = Array.isArray(val) ? val[0] : String(val);
+
+    // Mask sensitive values — show only prefix for identification
+    if (name === 'x-api-key' || name === 'authorization') {
+      strVal = strVal.length > 12 ? strVal.slice(0, 12) + '...' : '***';
+    }
+
+    debugHeaders[name] = strVal;
+  }
+
+  return {
+    userAgent: String(headers['user-agent'] ?? ''),
+    headers: debugHeaders,
+    method,
+    endpoint,
+  };
 }
 
 function estimateResponseTokens(body: unknown): number {

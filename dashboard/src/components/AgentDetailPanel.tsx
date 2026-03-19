@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import type { LiveEvent, AgentInfo } from '../App';
 import type { GraphNode } from '../hooks/useGraphData';
 
@@ -86,6 +86,25 @@ const AgentDetailPanel: React.FC<AgentDetailPanelProps> = ({ node, agents, liveE
         timestamp: e.timestamp,
       }));
   }, [agentEvents]);
+
+  // Collect debug info from unknown agent events
+  const debugSnapshots = useMemo(() => {
+    if (!node || node.name !== 'unknown') return [];
+    const seen = new Set<string>();
+    const snapshots: NonNullable<LiveEvent['metadata']>['debugInfo'][] = [];
+    for (const e of agentEvents) {
+      const dbg = e.metadata?.debugInfo;
+      if (!dbg) continue;
+      // Deduplicate by user-agent + endpoint
+      const key = `${dbg.userAgent}|${dbg.endpoint}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      snapshots.push(dbg);
+    }
+    return snapshots;
+  }, [node, agentEvents]);
+
+  const [debugExpanded, setDebugExpanded] = useState(false);
 
   if (!node) {
     return <p className="text-sm text-muted-foreground">Select a node to view details</p>;
@@ -234,6 +253,54 @@ const AgentDetailPanel: React.FC<AgentDetailPanelProps> = ({ node, agents, liveE
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Debug Info for Unknown Agents */}
+      {debugSnapshots.length > 0 && (
+        <div className="space-y-2 rounded-lg border border-red-500/30 bg-red-500/[0.05] p-3">
+          <button
+            onClick={() => setDebugExpanded(!debugExpanded)}
+            className="w-full flex items-center justify-between"
+          >
+            <h4 className="font-mono text-xs font-bold text-red-600 dark:text-red-400 tracking-wider">
+              DEBUG INFO ({debugSnapshots.length} unique fingerprint{debugSnapshots.length !== 1 ? 's' : ''})
+            </h4>
+            <span className="font-mono text-xs text-red-400">
+              {debugExpanded ? '\u25B2' : '\u25BC'}
+            </span>
+          </button>
+          {debugExpanded && (
+            <div className="space-y-3 mt-2">
+              {debugSnapshots.map((dbg, i) => (
+                <div key={i} className="space-y-1 rounded border border-border bg-muted/30 p-2.5">
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <span className="h-1.5 w-1.5 rounded-full bg-red-400 flex-shrink-0" />
+                    <span className="font-mono text-[10px] text-muted-foreground">
+                      {dbg?.method} {dbg?.endpoint}
+                    </span>
+                  </div>
+                  {dbg?.userAgent && (
+                    <div className="text-xs">
+                      <span className="text-muted-foreground">User-Agent: </span>
+                      <span className="font-mono text-amber-700 dark:text-amber-300 break-all">
+                        {dbg.userAgent}
+                      </span>
+                    </div>
+                  )}
+                  {dbg?.headers && Object.entries(dbg.headers)
+                    .filter(([key]) => key !== 'user-agent')
+                    .map(([key, val]) => (
+                      <div key={key} className="text-xs">
+                        <span className="text-muted-foreground">{key}: </span>
+                        <span className="font-mono text-foreground/70 break-all">{val}</span>
+                      </div>
+                    ))
+                  }
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 

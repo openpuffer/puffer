@@ -73,20 +73,21 @@ export class VSCodeExtensionHook implements HookHandler {
         }
       }
 
-      // Configure HTTP proxy for VS Code
-      // This routes extension HTTP traffic through Puffer
-      const proxyUrl = `http://127.0.0.1:${this.proxyPort}`;
-      settings['http.proxy'] = proxyUrl;
-      settings['http.proxyStrictSSL'] = false;
-
-      // Mark that Puffer configured this
+      // Mark that Puffer is active — do NOT set http.proxy globally because
+      // Puffer is a reverse proxy (not a forward/CONNECT proxy) and setting
+      // http.proxy breaks extensions like GitHub Copilot that need direct
+      // HTTPS connections to their own endpoints.
+      // AI extensions are already covered by:
+      //  - Generic hook: OPENAI_BASE_URL, ANTHROPIC_BASE_URL env vars
+      //  - Claude Code hook: ANTHROPIC_BASE_URL in Claude settings
+      //  - Network discovery: passive monitoring of Copilot connections
       settings['puffer.installed'] = true;
       settings['puffer.proxyPort'] = this.proxyPort;
 
       fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2));
 
       this.installed = true;
-      logger.info(`VS Code HTTP proxy configured to ${proxyUrl}`);
+      logger.info('VS Code Puffer markers configured (no http.proxy — passive monitoring only)');
     } catch (err) {
       logger.error(`Failed to install VS Code extension hook: ${(err as Error).message}`);
     }
@@ -101,10 +102,14 @@ export class VSCodeExtensionHook implements HookHandler {
 
       // Only remove if Puffer set it
       if (settings['puffer.installed']) {
-        delete settings['http.proxy'];
-        delete settings['http.proxyStrictSSL'];
+        // Clean up current markers
         delete settings['puffer.installed'];
         delete settings['puffer.proxyPort'];
+        // Also clean up legacy http.proxy if a previous Puffer version set it
+        if (typeof settings['http.proxy'] === 'string' && (settings['http.proxy'] as string).includes('127.0.0.1')) {
+          delete settings['http.proxy'];
+          delete settings['http.proxyStrictSSL'];
+        }
 
         fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2));
         logger.info('VS Code proxy configuration removed');

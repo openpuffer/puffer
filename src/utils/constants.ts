@@ -15,6 +15,7 @@ export const PUFFER_DIR = path.join(HOME_DIR, '.puffer');
 export const CONFIG_PATH = path.join(PUFFER_DIR, 'config.yaml');
 export const AUDIT_LOG_PATH = path.join(PUFFER_DIR, 'audit.jsonl');
 export const PID_FILE_PATH = path.join(PUFFER_DIR, 'puffer.pid');
+export const DAEMON_LOG_PATH = path.join(PUFFER_DIR, 'daemon.log');
 
 // Discovery scan interval (30 seconds)
 export const DEFAULT_SCAN_INTERVAL_MS = 30_000;

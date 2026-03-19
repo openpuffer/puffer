@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import http from 'node:http';
 import path from 'node:path';
 import os from 'node:os';
 import { HookHandler } from './index.js';
@@ -61,6 +62,20 @@ export class ClaudeCodeHook implements HookHandler {
     return `curl -s -X POST http://127.0.0.1:${this.dashboardPort}/hooks/claude-code-notification -H "Content-Type: application/json" -d @-`;
   }
 
+  /**
+   * Quick check if a Puffer proxy is alive at the given port.
+   */
+  private async isProxyAlive(port: number): Promise<boolean> {
+    return new Promise<boolean>((resolve) => {
+      const req = http.get(`http://127.0.0.1:${port}/__puffer/health`, (res) => {
+        res.resume();
+        resolve(res.statusCode === 200);
+      });
+      req.on('error', () => resolve(false));
+      req.setTimeout(1000, () => { req.destroy(); resolve(false); });
+    });
+  }
+
   async install(): Promise<void> {
     try {
       const settingsDir = path.dirname(CLAUDE_SETTINGS_PATH);
@@ -71,6 +86,22 @@ export class ClaudeCodeHook implements HookHandler {
       let settings: Record<string, unknown> = {};
       if (fs.existsSync(CLAUDE_SETTINGS_PATH)) {
         settings = JSON.parse(fs.readFileSync(CLAUDE_SETTINGS_PATH, 'utf-8'));
+      }
+
+      // Guard: if a stale ANTHROPIC_BASE_URL exists from a dead Puffer instance, clean it up
+      const existingEnv = settings.env as Record<string, string> | undefined;
+      if (existingEnv?.ANTHROPIC_BASE_URL?.includes('127.0.0.1')) {
+        const existingPortMatch = existingEnv.ANTHROPIC_BASE_URL.match(/:(\d+)/);
+        const existingPort = existingPortMatch ? parseInt(existingPortMatch[1], 10) : 0;
+        if (existingPort > 0 && existingPort !== this.proxyPort) {
+          // Different port — old instance. Check if alive.
+          const alive = await this.isProxyAlive(existingPort);
+          if (!alive) {
+            logger.warn(`Removing stale ANTHROPIC_BASE_URL pointing to dead port ${existingPort}`);
+            delete existingEnv.ANTHROPIC_BASE_URL;
+            if (Object.keys(existingEnv).length === 0) delete settings.env;
+          }
+        }
       }
 
       const hooks = (settings.hooks ?? {}) as Record<string, unknown[]>;

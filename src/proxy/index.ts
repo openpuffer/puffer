@@ -13,6 +13,7 @@ export interface ProxyServer {
   proxy: httpProxy;
   start(): Promise<void>;
   stop(): Promise<void>;
+  setPassthrough(enabled: boolean): void;
   port: number;
 }
 
@@ -20,11 +21,13 @@ export interface ProxyOptions {
   config: PufferConfig;
   evaluatePipeline: (event: PufferEvent) => Promise<PufferEvent>;
   logEvent: (event: PufferEvent) => void;
+  /** Optional callback to get discovered agent names for heuristic identification */
+  getDiscoveredAgentNames?: () => string[];
 }
 
 export function createProxyServer(options: ProxyOptions): ProxyServer {
   const { config, evaluatePipeline, logEvent } = options;
-  const port = config.providers[0]?.proxyPort ?? DEFAULT_PROXY_PORT;
+  const port = config.providers[0]?.proxyPort || DEFAULT_PROXY_PORT;
 
   initTLS();
 
@@ -75,6 +78,8 @@ export function createProxyServer(options: ProxyOptions): ProxyServer {
     sessionId,
     sequenceCounter,
     mode: config.mode,
+    passthrough: false,
+    getDiscoveredAgentNames: options.getDiscoveredAgentNames,
 
     resolveTarget(provider: string): string | null {
       return providerTargets.get(provider) ?? null;
@@ -161,6 +166,10 @@ export function createProxyServer(options: ProxyOptions): ProxyServer {
     server,
     proxy,
     port,
+
+    setPassthrough(enabled: boolean) {
+      deps.passthrough = enabled;
+    },
 
     start(): Promise<void> {
       return new Promise((resolve, reject) => {

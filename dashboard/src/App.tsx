@@ -40,6 +40,12 @@ export interface LiveEvent {
     costEstimate?: number;
     model?: string;
     rateLimits?: { limitTokens?: number; limitRequests?: number; remainingTokens?: number; remainingRequests?: number };
+    debugInfo?: {
+      userAgent?: string;
+      headers?: Record<string, string>;
+      method?: string;
+      endpoint?: string;
+    };
   };
 }
 

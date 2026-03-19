@@ -6,30 +6,41 @@ import { logger } from '../utils/logger.js';
 import { PUFFER_DIR, DEFAULT_PROXY_PORT } from '../utils/constants.js';
 
 const PROXY_BASE = `http://127.0.0.1:${DEFAULT_PROXY_PORT}`;
+const HEALTH_URL = `${PROXY_BASE}/__puffer/health`;
 
 const PUFFER_START_MARKER = '# >>> puffer env >>>';
 const PUFFER_END_MARKER = '# <<< puffer env <<<';
 
-// Unix: env.sh with export statements
+// Unix: env.sh with export statements — guarded by health check so
+// env vars are only set when the Puffer proxy is actually running.
 const ENV_FILE_UNIX = path.join(PUFFER_DIR, 'env.sh');
 const ENV_CONTENT_UNIX = `# Puffer AI proxy — auto-generated, do not edit
-export OPENAI_BASE_URL="${PROXY_BASE}/v1"
-export OPENAI_API_BASE="${PROXY_BASE}/v1"
-export ANTHROPIC_BASE_URL="${PROXY_BASE}"
-export OLLAMA_HOST="${PROXY_BASE}"
+# Only export proxy env vars if Puffer is alive (avoids poisoning shells when Puffer is dead)
+if curl -sf ${HEALTH_URL} > /dev/null 2>&1; then
+  export OPENAI_BASE_URL="${PROXY_BASE}/v1"
+  export OPENAI_API_BASE="${PROXY_BASE}/v1"
+  export ANTHROPIC_BASE_URL="${PROXY_BASE}"
+  export OLLAMA_HOST="${PROXY_BASE}"
+fi
 `;
 
 const RC_BLOCK_UNIX = `${PUFFER_START_MARKER}
 [ -f "${ENV_FILE_UNIX}" ] && source "${ENV_FILE_UNIX}"
 ${PUFFER_END_MARKER}`;
 
-// Windows: env.ps1 with PowerShell $env: statements
+// Windows: env.ps1 with PowerShell $env: statements — guarded by health check
 const ENV_FILE_WIN = path.join(PUFFER_DIR, 'env.ps1');
 const ENV_CONTENT_WIN = `# Puffer AI proxy — auto-generated, do not edit
-$env:OPENAI_BASE_URL = "${PROXY_BASE}/v1"
-$env:OPENAI_API_BASE = "${PROXY_BASE}/v1"
-$env:ANTHROPIC_BASE_URL = "${PROXY_BASE}"
-$env:OLLAMA_HOST = "${PROXY_BASE}"
+# Only export proxy env vars if Puffer is alive
+try {
+  $resp = Invoke-WebRequest -Uri "${HEALTH_URL}" -UseBasicParsing -TimeoutSec 1 -ErrorAction Stop
+  if ($resp.StatusCode -eq 200) {
+    $env:OPENAI_BASE_URL = "${PROXY_BASE}/v1"
+    $env:OPENAI_API_BASE = "${PROXY_BASE}/v1"
+    $env:ANTHROPIC_BASE_URL = "${PROXY_BASE}"
+    $env:OLLAMA_HOST = "${PROXY_BASE}"
+  }
+} catch {}
 `;
 
 function getPowerShellProfilePaths(): string[] {

@@ -31,6 +31,7 @@ export interface GraphLink {
   particleCount: number;
   particleSpeed: number;
   particleColor: string;
+  [key: string]: unknown;
 }
 
 export interface GraphData {
@@ -87,7 +88,7 @@ export function useGraphData(
     throttleRef.current = setTimeout(() => {
       setThrottledEvents(liveEvents);
       throttleRef.current = null;
-    }, 500);
+    }, 1500);
   }, [liveEvents]);
 
   // Persistent node cache — same object refs across renders
@@ -165,7 +166,7 @@ export function useGraphData(
               source: agentId, target: nodeId,
               color: nodeColor + '30', curvature: 0.15,
               eventId: event.id + '-subagent', decision,
-              particleCount: 1, particleSpeed: 0.004, particleColor: nodeColor,
+              particleCount: 1, particleSpeed: 0.012, particleColor: nodeColor,
             });
           } else {
             const lightColor = '#fed7aa';
@@ -173,7 +174,7 @@ export function useGraphData(
               source: nodeId, target: agentId,
               color: lightColor + '25', curvature: 0.15,
               eventId: event.id + '-subagent-res', decision,
-              particleCount: 1, particleSpeed: 0.003, particleColor: lightColor,
+              particleCount: 1, particleSpeed: 0.010, particleColor: lightColor,
             });
           }
         } else {
@@ -183,13 +184,13 @@ export function useGraphData(
               source: agentId, target: 'puffer',
               color: nodeColor + '30', curvature: 0.2,
               eventId: event.id + '-mcp-in', decision,
-              particleCount: 1, particleSpeed: 0.004, particleColor: nodeColor,
+              particleCount: 1, particleSpeed: 0.012, particleColor: nodeColor,
             });
             linkList.push({
               source: 'puffer', target: nodeId,
               color: nodeColor + '25', curvature: 0.2,
               eventId: event.id + '-mcp-out', decision,
-              particleCount: 1, particleSpeed: 0.003, particleColor: nodeColor,
+              particleCount: 1, particleSpeed: 0.010, particleColor: nodeColor,
             });
           } else {
             const lightColor = '#a5f3fc';
@@ -197,13 +198,13 @@ export function useGraphData(
               source: nodeId, target: 'puffer',
               color: lightColor + '25', curvature: 0.2,
               eventId: event.id + '-mcp-res-in', decision,
-              particleCount: 1, particleSpeed: 0.003, particleColor: lightColor,
+              particleCount: 1, particleSpeed: 0.010, particleColor: lightColor,
             });
             linkList.push({
               source: 'puffer', target: agentId,
               color: lightColor + '20', curvature: 0.2,
               eventId: event.id + '-mcp-res-out', decision,
-              particleCount: 1, particleSpeed: 0.003, particleColor: lightColor,
+              particleCount: 1, particleSpeed: 0.010, particleColor: lightColor,
             });
           }
         }
@@ -217,13 +218,13 @@ export function useGraphData(
           source: providerId, target: 'puffer',
           color: '#fbbf2425', curvature: 0.2,
           eventId: event.id + '-resp-in', decision,
-          particleCount: 1, particleSpeed: 0.004, particleColor: '#fcd34d',
+          particleCount: 1, particleSpeed: 0.012, particleColor: '#fcd34d',
         });
         linkList.push({
           source: 'puffer', target: agentId,
           color: '#fbbf2420', curvature: 0.2,
           eventId: event.id + '-resp-out', decision,
-          particleCount: 1, particleSpeed: 0.003, particleColor: '#fcd34d',
+          particleCount: 1, particleSpeed: 0.010, particleColor: '#fcd34d',
         });
       } else {
         linkList.push({
@@ -231,7 +232,7 @@ export function useGraphData(
           color: linkColor + '30', curvature: 0.2,
           eventId: event.id, decision,
           particleCount: decision === 'BLOCK' ? 2 : 1,
-          particleSpeed: decision === 'BLOCK' ? 0.006 : 0.004,
+          particleSpeed: decision === 'BLOCK' ? 0.018 : 0.012,
           particleColor,
         });
         if (decision !== 'BLOCK') {
@@ -239,13 +240,13 @@ export function useGraphData(
             source: 'puffer', target: providerId,
             color: linkColor + '25', curvature: 0.2,
             eventId: event.id + '-out', decision,
-            particleCount: 1, particleSpeed: 0.003, particleColor,
+            particleCount: 1, particleSpeed: 0.010, particleColor,
           });
         }
       }
     }
 
-    const maxLinks = 80;
+    const maxLinks = 30;
     const trimmedLinks = linkList.slice(0, maxLinks);
 
     // Subtle pulse on newest event only
@@ -253,7 +254,7 @@ export function useGraphData(
     prevEventCountRef.current = throttledEvents.length;
     if (isNew && trimmedLinks.length > 0) {
       trimmedLinks[0].particleCount = 2;
-      trimmedLinks[0].particleSpeed = 0.006;
+      trimmedLinks[0].particleSpeed = 0.018;
     }
 
     // Prune stale nodes

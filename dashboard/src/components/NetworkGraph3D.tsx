@@ -667,6 +667,8 @@ const NetworkGraph3D: React.FC<NetworkGraph3DProps> = ({ graphData, onNodeClick 
     wrapperRef.current?.classList.remove('dragging-node');
   }, []);
 
+  // No custom particle object — use default spheres + directional arrows for comet effect
+
   return (
     <div ref={wrapperRef} className="absolute inset-0 graph-canvas-wrapper">
       <ForceGraph3D
@@ -684,21 +686,22 @@ const NetworkGraph3D: React.FC<NetworkGraph3DProps> = ({ graphData, onNodeClick 
         onNodeDrag={handleNodeDragStart}
         onNodeDragEnd={handleNodeDragEnd}
         linkColor="color"
-        linkWidth={0.15}
-        linkOpacity={0.5}
+        linkWidth={0.12}
+        linkOpacity={0.45}
         linkCurvature="curvature"
         linkDirectionalParticles="particleCount"
         linkDirectionalParticleSpeed="particleSpeed"
-        linkDirectionalParticleWidth={0.6}
+        linkDirectionalParticleWidth={0.4}
         linkDirectionalParticleColor="particleColor"
-        linkDirectionalArrowLength={0}
+        linkDirectionalArrowLength={1.2}
         linkDirectionalArrowRelPos={1}
         linkDirectionalArrowColor="particleColor"
-        d3AlphaDecay={0.12}
-        d3VelocityDecay={0.35}
-        d3AlphaMin={0.005}
-        warmupTicks={80}
-        cooldownTicks={50}
+        d3AlphaDecay={0.05}
+        d3VelocityDecay={0.4}
+        d3AlphaMin={0.001}
+        {...{ d3ReheatSimulation: false } as any}
+        warmupTicks={120}
+        cooldownTicks={0}
         showNavInfo={false}
         enableNodeDrag={true}
       />
