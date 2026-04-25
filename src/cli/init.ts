@@ -1,7 +1,7 @@
 import type { Command } from 'commander';
 import chalk from 'chalk';
-import { BANNER, CONFIG_PATH, AUDIT_LOG_PATH, DEFAULT_DASHBOARD_PORT } from '../utils/constants.js';
-import { loadConfig, saveConfig, ensurePufferDir } from '../utils/config.js';
+import { BANNER, CONFIG_PATH, AUDIT_LOG_PATH, DEFAULT_DASHBOARD_PORT } from '@puffer/core';
+import { loadConfig, saveConfig, ensurePufferDir } from '@puffer/core';
 import { DiscoveryEngine } from '../discovery/index.js';
 import { AuditLogger } from '../audit/logger.js';
 import { calculateScore } from '../score/calculator.js';

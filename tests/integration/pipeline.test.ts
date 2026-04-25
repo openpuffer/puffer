@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { createDefaultPipeline, DefensePipeline } from '../../src/layers/index.js';
+import { createDefaultPipeline, DefensePipeline } from '@puffer/engine';
 import { PufferEvent, PufferConfig } from '@puffer/core';
 import injectionAttacks from '../fixtures/injection-attacks.json';
 import safePrompts from '../fixtures/safe-prompts.json';

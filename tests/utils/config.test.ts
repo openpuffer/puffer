@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
-import { loadConfig } from '../../src/utils/config.js';
+import { loadConfig } from '@puffer/core';
 
 describe('loadConfig (YAML + zod)', () => {
   let tmpDir: string;

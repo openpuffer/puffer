@@ -3,13 +3,15 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import YAML from 'yaml';
 import { fromZodError } from 'zod-validation-error';
-import type { PufferConfig } from '@puffer/core';
-import { PufferConfigSchema } from '@puffer/core';
+import type { PufferConfig } from './types.js';
+import { PufferConfigSchema } from './schemas/config.js';
 import { CONFIG_PATH, PUFFER_DIR } from './constants.js';
-import { logger } from '@puffer/core';
+import { logger } from './logger.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const DEFAULT_CONFIG_PATH = path.resolve(__dirname, '../../config/default-policy.yaml');
+// From packages/core/src/, three levels up reaches the repo root where
+// config/default-policy.yaml ships as the bundled fallback.
+const DEFAULT_CONFIG_PATH = path.resolve(__dirname, '../../../config/default-policy.yaml');
 
 function camelCaseKeys(obj: unknown): unknown {
   if (Array.isArray(obj)) return obj.map(camelCaseKeys);

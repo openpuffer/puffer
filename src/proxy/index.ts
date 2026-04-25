@@ -4,7 +4,7 @@ import { Readable } from 'node:stream';
 import httpProxy from 'http-proxy';
 import { v4 as uuidv4 } from 'uuid';
 import type { PufferConfig, PufferEvent } from '@puffer/core';
-import { DEFAULT_PROXY_PORT, MAX_REQUEST_BODY_BYTES } from '../utils/constants.js';
+import { DEFAULT_PROXY_PORT, MAX_REQUEST_BODY_BYTES } from '@puffer/core';
 import { logger } from '@puffer/core';
 import type { ProxyDependencies } from './handler.js';
 import { handleRequest } from './handler.js';

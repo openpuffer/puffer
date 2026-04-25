@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { DefensePipeline } from '../../src/layers/index.js';
+import { DefensePipeline } from '@puffer/engine';
 import { piiScanner } from '@puffer/layer-pii';
 import { injectionDetector } from '@puffer/layer-injection';
 import { LayerFunction } from '@puffer/core';

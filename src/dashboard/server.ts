@@ -9,9 +9,9 @@ import { v4 as uuidv4 } from 'uuid';
 import type { PufferEvent, PufferConfig, AuditLogEntry } from '@puffer/core';
 import type { AuditLogger } from '../audit/logger.js';
 import type { DiscoveryEngine } from '../discovery/index.js';
-import { makeDecision } from '../engine/decision.js';
+import { makeDecision } from '@puffer/engine';
 import { logger } from '@puffer/core';
-import { saveConfig } from '../utils/config.js';
+import { saveConfig } from '@puffer/core';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 

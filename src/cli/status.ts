@@ -1,8 +1,8 @@
 import type { Command } from 'commander';
 import fs from 'node:fs';
 import chalk from 'chalk';
-import { PID_FILE_PATH } from '../utils/constants.js';
-import { loadConfig } from '../utils/config.js';
+import { PID_FILE_PATH } from '@puffer/core';
+import { loadConfig } from '@puffer/core';
 import { AuditLogger } from '../audit/logger.js';
 import { logger } from '@puffer/core';
 

@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import type { PufferEvent, AuditLogEntry } from '@puffer/core';
-import { AUDIT_LOG_PATH } from '../utils/constants.js';
+import { AUDIT_LOG_PATH } from '@puffer/core';
 import { logger } from '@puffer/core';
 
 function expandPath(p: string): string {

@@ -3,7 +3,7 @@
 
 import type { PufferEvent } from '@puffer/core';
 import { logger } from '@puffer/core';
-import { VERSION } from '../utils/constants.js';
+import { VERSION } from '@puffer/core';
 import os from 'node:os';
 
 export interface CloudConfig {

@@ -5,7 +5,7 @@ import YAML from 'yaml';
 import type { HookHandler } from './index.js';
 import { logger } from '@puffer/core';
 import { backupConfigValue, restoreConfigValue } from './config-backup.js';
-import { DEFAULT_PROXY_PORT } from '../utils/constants.js';
+import { DEFAULT_PROXY_PORT } from '@puffer/core';
 
 const AIDER_CONFIG_PATH = path.join(os.homedir(), '.aider.conf.yml');
 const PROXY_BASE = `http://127.0.0.1:${DEFAULT_PROXY_PORT}`;

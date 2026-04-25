@@ -13,6 +13,8 @@
     "./ipc": "./src/ipc.ts"
   },
   "dependencies": {
-    "zod": "^4.3.6"
+    "yaml": "^2.5.0",
+    "zod": "^4.3.6",
+    "zod-validation-error": "^5.0.0"
   }
 }

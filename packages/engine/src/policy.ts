@@ -1,5 +1,5 @@
 import type { PufferConfig } from '@puffer/core';
-import { loadConfig } from '../utils/config.js';
+import { loadConfig } from '@puffer/core';
 import { logger } from '@puffer/core';
 
 /**

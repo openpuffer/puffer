@@ -1,6 +1,6 @@
 import type { HookHandler } from './index.js';
 import { logger } from '@puffer/core';
-import { DEFAULT_DASHBOARD_PORT } from '../utils/constants.js';
+import { DEFAULT_DASHBOARD_PORT } from '@puffer/core';
 
 const OPENCLAW_GATEWAY = 'http://127.0.0.1:18789';
 

@@ -4,7 +4,7 @@ import path from 'node:path';
 import os from 'node:os';
 import type { HookHandler } from './index.js';
 import { logger } from '@puffer/core';
-import { DEFAULT_DASHBOARD_PORT, DEFAULT_PROXY_PORT } from '../utils/constants.js';
+import { DEFAULT_DASHBOARD_PORT, DEFAULT_PROXY_PORT } from '@puffer/core';
 
 const CLAUDE_SETTINGS_PATH = path.join(os.homedir(), '.claude', 'settings.json');
 

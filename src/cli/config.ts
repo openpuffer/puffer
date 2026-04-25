@@ -2,7 +2,7 @@ import type { Command } from 'commander';
 import fs from 'node:fs';
 import { execSync } from 'node:child_process';
 import chalk from 'chalk';
-import { CONFIG_PATH } from '../utils/constants.js';
+import { CONFIG_PATH } from '@puffer/core';
 import { logger } from '@puffer/core';
 
 export function registerConfigCommand(program: Command): void {

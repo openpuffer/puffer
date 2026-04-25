@@ -3,7 +3,7 @@ import path from 'node:path';
 import os from 'node:os';
 import type { HookHandler } from './index.js';
 import { logger } from '@puffer/core';
-import { DEFAULT_PROXY_PORT } from '../utils/constants.js';
+import { DEFAULT_PROXY_PORT } from '@puffer/core';
 
 /**
  * Resolve VS Code settings.json path by platform.

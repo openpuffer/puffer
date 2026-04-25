@@ -1,19 +1,19 @@
 #!/usr/bin/env node
 
 import { Command } from 'commander';
-import { VERSION } from '../utils/constants.js';
+import { VERSION } from '@puffer/core';
 import { registerInitCommand } from './init.js';
 import { registerScanCommand } from './scan.js';
 import { registerStatusCommand } from './status.js';
 import { registerLogsCommand } from './logs.js';
 import { registerConfigCommand } from './config.js';
-import { loadConfig, saveConfig } from '../utils/config.js';
-import { PolicyEngine } from '../engine/policy.js';
+import { loadConfig, saveConfig } from '@puffer/core';
+import { PolicyEngine } from '@puffer/engine';
 import { logger } from '@puffer/core';
 import fs from 'node:fs';
 import { fork } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { PID_FILE_PATH, DAEMON_LOG_PATH, PUFFER_DIR } from '../utils/constants.js';
+import { PID_FILE_PATH, DAEMON_LOG_PATH, PUFFER_DIR } from '@puffer/core';
 import { isDaemonReadyMessage } from '@puffer/core';
 
 const program = new Command();
