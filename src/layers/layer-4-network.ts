@@ -65,14 +65,15 @@ function normalizeHostname(hostname: string): string[] {
   if (hostname.includes(':') && !hostname.includes('.')) {
     const ipv6Parts = hostname.split(':');
     if (ipv6Parts.length === 8) {
+      const lastGroup = ipv6Parts[7] ?? '';
+      const firstGroupStr = ipv6Parts[0] ?? '';
       // Check if all zeros except last
       const isLoopback =
-        ipv6Parts.slice(0, 7).every((p) => parseInt(p, 16) === 0) &&
-        parseInt(ipv6Parts[7], 16) === 1;
+        ipv6Parts.slice(0, 7).every((p) => parseInt(p, 16) === 0) && parseInt(lastGroup, 16) === 1;
       if (isLoopback) variants.push('::1');
 
       // Check for fc00::/7 or fe80::/10 in longform
-      const firstGroup = parseInt(ipv6Parts[0], 16);
+      const firstGroup = parseInt(firstGroupStr, 16);
       if ((firstGroup & 0xfe00) === 0xfc00) variants.push(`fc00:${ipv6Parts.slice(1).join(':')}`);
       if ((firstGroup & 0xffc0) === 0xfe80) variants.push(`fe80:${ipv6Parts.slice(1).join(':')}`);
     }
@@ -86,11 +87,11 @@ function isDGADomain(hostname: string): boolean {
   const parts = hostname.split('.');
   if (parts.length < 2) return false;
   const domain = parts[parts.length - 2];
-  if (domain.length < 8) return false;
+  if (domain === undefined || domain.length < 8) return false;
 
   // Entropy check
   const freq: Record<string, number> = {};
-  for (const char of domain) freq[char] = (freq[char] || 0) + 1;
+  for (const char of domain) freq[char] = (freq[char] ?? 0) + 1;
   const len = domain.length;
   const entropy = -Object.values(freq).reduce((sum, count) => {
     const p = count / len;

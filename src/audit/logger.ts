@@ -99,8 +99,10 @@ export class AuditLogger {
 
     let malformedCount = 0;
     for (let i = end - 1; i >= start; i--) {
+      const line = lines[i];
+      if (line === undefined) continue;
       try {
-        entries.push(JSON.parse(lines[i]));
+        entries.push(JSON.parse(line));
       } catch {
         malformedCount++;
       }

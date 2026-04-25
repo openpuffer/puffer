@@ -71,7 +71,7 @@ export function generateWeeklyReport(
     if (entry.metadata.totalTokens) totalTokens += entry.metadata.totalTokens;
 
     // Timeline
-    const day = new Date(entry.timestamp).toISOString().split('T')[0];
+    const day = new Date(entry.timestamp).toISOString().split('T')[0] ?? '';
     const dayData = dayMap.get(day) ?? { events: 0, blocked: 0 };
     dayData.events++;
     if (entry.decision === 'BLOCK') dayData.blocked++;
@@ -80,8 +80,8 @@ export function generateWeeklyReport(
 
   return {
     period: {
-      start: weekAgo.toISOString().split('T')[0],
-      end: now.toISOString().split('T')[0],
+      start: weekAgo.toISOString().split('T')[0] ?? '',
+      end: now.toISOString().split('T')[0] ?? '',
     },
     score: score ?? { current: 0, grade: 'N/A' },
     summary: {

@@ -65,13 +65,14 @@ export async function mcpPoisoningDetector(
           : JSON.stringify(event.action.result);
 
       const injectionMatches = scanForInjection(resultText);
-      if (injectionMatches.length > 0) {
+      const firstMatch = injectionMatches[0];
+      if (firstMatch !== undefined) {
         findings.push({
           type: 'injection_in_result',
           severity: 'critical',
           location: `${event.action.server}/${event.action.tool}`,
-          value: injectionMatches[0].slice(0, 100),
-          suggestion: `MCP tool result contains injection pattern: ${injectionMatches[0].slice(0, 50)}`,
+          value: firstMatch.slice(0, 100),
+          suggestion: `MCP tool result contains injection pattern: ${firstMatch.slice(0, 50)}`,
         });
       }
     }

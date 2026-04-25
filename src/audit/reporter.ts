@@ -48,8 +48,8 @@ export function generateReport(auditLogger: AuditLogger, lastN = 1000): AuditRep
     .slice(0, 5)
     .map(([name, events]) => ({ name, events }));
 
-  const firstTimestamp = entries.length > 0 ? entries[entries.length - 1].timestamp : 'N/A';
-  const lastTimestamp = entries.length > 0 ? entries[0].timestamp : 'N/A';
+  const firstTimestamp = entries[entries.length - 1]?.timestamp ?? 'N/A';
+  const lastTimestamp = entries[0]?.timestamp ?? 'N/A';
 
   return {
     period: `${firstTimestamp} — ${lastTimestamp}`,

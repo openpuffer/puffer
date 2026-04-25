@@ -162,7 +162,7 @@ export function createDashboardServer(
     eventTimestamps.push(Date.now());
     // Keep only last 5 minutes of timestamps
     const fiveMinAgo = Date.now() - 5 * 60 * 1000;
-    while (eventTimestamps.length > 0 && eventTimestamps[0] < fiveMinAgo) {
+    while (eventTimestamps.length > 0 && (eventTimestamps[0] ?? Infinity) < fiveMinAgo) {
       eventTimestamps.shift();
     }
     // Only accumulate cost and tokens from llm_response events to avoid

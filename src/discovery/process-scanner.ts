@@ -173,14 +173,14 @@ export function scanProcesses(): DiscoveredAgent[] {
         const stripped = line.replace(/^"|"$/g, '');
         const parts = stripped.split(/","?|,/);
         if (parts.length < 2) continue;
-        pid = parseInt(parts[0], 10);
+        pid = parseInt(parts[0] ?? '', 10);
         if (isNaN(pid)) {
           // Fallback: wmic CSV format (Node,CommandLine,ProcessId)
-          pid = parseInt(parts[parts.length - 1], 10);
+          pid = parseInt(parts[parts.length - 1] ?? '', 10);
           command = parts.slice(1, -1).join(',');
         } else if (parts.length >= 3) {
           // Get-CimInstance format with ParentProcessId
-          ppid = parseInt(parts[1], 10);
+          ppid = parseInt(parts[1] ?? '', 10);
           if (isNaN(ppid)) ppid = undefined;
           command = parts.slice(2).join(',').replace(/^"|"$/g, '');
         } else {
@@ -190,8 +190,8 @@ export function scanProcesses(): DiscoveredAgent[] {
         // ps -eo pid,ppid,args format: PID PPID COMMAND...
         const parts = line.trim().split(/\s+/);
         if (parts.length < 3) continue;
-        pid = parseInt(parts[0], 10);
-        ppid = parseInt(parts[1], 10);
+        pid = parseInt(parts[0] ?? '', 10);
+        ppid = parseInt(parts[1] ?? '', 10);
         if (isNaN(ppid)) ppid = undefined;
         command = parts.slice(2).join(' ');
       }

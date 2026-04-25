@@ -14,6 +14,10 @@ const SEVERITY_EMOJI: Record<string, string> = {
   low: '✅',
 };
 
+function severityColor(severity: string): string {
+  return SEVERITY_COLORS[severity] ?? '#6b7280';
+}
+
 export class WebhookChannel implements AlertChannel {
   name = 'webhook';
   private url: string;
@@ -76,7 +80,7 @@ export class WebhookChannel implements AlertChannel {
         {
           title: `${SEVERITY_EMOJI[alert.severity]} ${alert.title}`,
           description: alert.message,
-          color: parseInt(SEVERITY_COLORS[alert.severity].slice(1), 16),
+          color: parseInt(severityColor(alert.severity).slice(1), 16),
           fields: [
             { name: 'Agent', value: alert.event.agent, inline: true },
             { name: 'Severity', value: alert.severity.toUpperCase(), inline: true },
@@ -94,7 +98,7 @@ export class WebhookChannel implements AlertChannel {
   private async sendTeams(alert: AlertPayload): Promise<void> {
     const body = {
       '@type': 'MessageCard',
-      themeColor: SEVERITY_COLORS[alert.severity].slice(1),
+      themeColor: severityColor(alert.severity).slice(1),
       summary: alert.title,
       sections: [
         {

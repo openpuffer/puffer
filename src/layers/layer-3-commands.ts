@@ -182,7 +182,7 @@ export function resetCommandState(): void {
 }
 
 function classifyBinary(command: string): BinaryClass {
-  const binary = command.split(/\s+/)[0].split('/').pop() || '';
+  const binary = (command.split(/\s+/)[0] ?? '').split('/').pop() ?? '';
   for (const [classification, binaries] of Object.entries(BINARY_CLASSIFICATIONS)) {
     if (binaries.includes(binary)) {
       return classification as BinaryClass;

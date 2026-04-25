@@ -81,12 +81,14 @@ function inferAgent(
     const openaiAgents = discoveredAgentNames.filter((n) =>
       ['python-openai', 'python-langchain', 'python-crewai', 'python-autogen'].includes(n),
     );
-    if (openaiAgents.length === 1) return openaiAgents[0];
+    const onlyOpenai = openaiAgents[0];
+    if (openaiAgents.length === 1 && onlyOpenai !== undefined) return onlyOpenai;
   }
 
   // 4. Single discovered agent fallback
   if (discoveredAgentNames && discoveredAgentNames.length === 1) {
-    return discoveredAgentNames[0];
+    const only = discoveredAgentNames[0];
+    if (only !== undefined) return only;
   }
 
   return 'unknown';
@@ -332,7 +334,7 @@ function captureDebugInfo(
   for (const name of interestingHeaders) {
     const val = headers[name];
     if (val === undefined) continue;
-    let strVal = Array.isArray(val) ? val[0] : String(val);
+    let strVal = Array.isArray(val) ? (val[0] ?? '') : String(val);
 
     // Mask sensitive values — show only prefix for identification
     if (name === 'x-api-key' || name === 'authorization') {

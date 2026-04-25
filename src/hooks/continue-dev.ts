@@ -36,6 +36,7 @@ export class ContinueDevHook implements HookHandler {
 
       for (let i = 0; i < models.length; i++) {
         const model = models[i];
+        if (!model) continue;
         const dotPath = `models.${i}.apiBase`;
 
         // Backup original apiBase
@@ -108,6 +109,7 @@ export class ContinueDevHook implements HookHandler {
       if (Array.isArray(models)) {
         for (let i = 0; i < models.length; i++) {
           const model = models[i];
+          if (!model) continue;
 
           // Restore apiBase
           const originalBase = restoreConfigValue(CONTINUE_CONFIG_PATH, `models.${i}.apiBase`);

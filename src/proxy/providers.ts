@@ -1,12 +1,14 @@
 import type { Message, ProviderAdapter, ToolCall } from '../types.js';
 import { COST_TABLE } from '../utils/constants.js';
 
+const FALLBACK_COST = { input: 0, output: 0 };
+
 function estimateTokensFromText(text: string): number {
   return Math.ceil(text.length / 4);
 }
 
 function estimateCostForModel(model: string, tokens: number): number {
-  const entry = COST_TABLE[model] ?? COST_TABLE['default_cloud'];
+  const entry = COST_TABLE[model] ?? COST_TABLE['default_cloud'] ?? FALLBACK_COST;
   return (tokens / 1_000_000) * entry.input;
 }
 
@@ -18,7 +20,7 @@ export function estimateCostWithOutput(
   inputTokens: number,
   outputTokens: number,
 ): number {
-  const entry = COST_TABLE[model] ?? COST_TABLE['default_cloud'];
+  const entry = COST_TABLE[model] ?? COST_TABLE['default_cloud'] ?? FALLBACK_COST;
   return (inputTokens / 1_000_000) * entry.input + (outputTokens / 1_000_000) * entry.output;
 }
 

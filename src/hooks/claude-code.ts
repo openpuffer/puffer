@@ -98,7 +98,8 @@ export class ClaudeCodeHook implements HookHandler {
       const existingEnv = settings.env as Record<string, string> | undefined;
       if (existingEnv?.ANTHROPIC_BASE_URL?.includes('127.0.0.1')) {
         const existingPortMatch = existingEnv.ANTHROPIC_BASE_URL.match(/:(\d+)/);
-        const existingPort = existingPortMatch ? parseInt(existingPortMatch[1], 10) : 0;
+        const existingPort =
+          existingPortMatch?.[1] !== undefined ? parseInt(existingPortMatch[1], 10) : 0;
         if (existingPort > 0 && existingPort !== this.proxyPort) {
           // Different port — old instance. Check if alive.
           const alive = await this.isProxyAlive(existingPort);

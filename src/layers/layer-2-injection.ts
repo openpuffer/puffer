@@ -110,13 +110,14 @@ export async function injectionDetector(
       matches.push(match[0]);
     }
 
-    if (matches.length > 0) {
+    const firstMatch = matches[0];
+    if (firstMatch !== undefined) {
       totalScore += heuristic.weight * matches.length;
       findings.push({
         type: heuristic.name,
         severity: heuristic.severity,
         location: 'input_text',
-        value: matches[0].slice(0, 100),
+        value: firstMatch.slice(0, 100),
         suggestion: `Potential injection pattern: ${heuristic.name} (${matches.length} match(es))`,
       });
     }

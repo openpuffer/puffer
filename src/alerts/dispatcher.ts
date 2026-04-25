@@ -67,9 +67,11 @@ export class AlertDispatcher {
     const results = await Promise.allSettled(this.channels.map((ch) => ch.send(payload)));
 
     for (let i = 0; i < results.length; i++) {
-      if (results[i].status === 'rejected') {
+      const result = results[i];
+      const channel = this.channels[i];
+      if (result?.status === 'rejected') {
         logger.warn(
-          `Alert channel ${this.channels[i].name} failed: ${(results[i] as PromiseRejectedResult).reason}`,
+          `Alert channel ${channel?.name ?? 'unknown'} failed: ${(result as PromiseRejectedResult).reason}`,
         );
       }
     }

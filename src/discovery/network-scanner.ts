@@ -83,6 +83,7 @@ function parseLinuxConnections(domainIpMap: Map<string, string>): DiscoveredAgen
       if (parts.length < 5) continue;
 
       const peerAddress = parts[4]; // e.g. "104.18.6.192:443"
+      if (peerAddress === undefined) continue;
       const peerIp = peerAddress.replace(/:\d+$/, '');
 
       const provider = domainIpMap.get(peerIp);
@@ -90,7 +91,7 @@ function parseLinuxConnections(domainIpMap: Map<string, string>): DiscoveredAgen
 
       const processCol = parts.slice(5).join(' ');
       const pidMatch = processCol.match(/pid=(\d+)/);
-      const pid = pidMatch ? parseInt(pidMatch[1], 10) : 0;
+      const pid = pidMatch && pidMatch[1] !== undefined ? parseInt(pidMatch[1], 10) : 0;
       const command = pid > 0 ? getProcessCommand(pid) : '';
 
       agents.push({
@@ -126,7 +127,9 @@ function parseMacConnections(domainIpMap: Map<string, string>): DiscoveredAgent[
       if (parts.length < 9) continue;
 
       const name = parts[parts.length - 1];
-      const pid = parseInt(parts[1], 10);
+      const pidStr = parts[1];
+      if (name === undefined || pidStr === undefined) continue;
+      const pid = parseInt(pidStr, 10);
       if (isNaN(pid)) continue;
 
       for (const [ip, provider] of domainIpMap) {
@@ -170,8 +173,10 @@ function parseWindowsConnections(domainIpMap: Map<string, string>): DiscoveredAg
       if (parts.length < 5 || parts[0] !== 'TCP') continue;
 
       const foreignAddr = parts[2]; // e.g. "104.18.6.192:443"
+      const pidStr = parts[4];
+      if (foreignAddr === undefined || pidStr === undefined) continue;
       const foreignIp = foreignAddr.replace(/:\d+$/, '');
-      const pid = parseInt(parts[4], 10);
+      const pid = parseInt(pidStr, 10);
 
       const provider = domainIpMap.get(foreignIp);
       if (!provider) continue;
@@ -186,7 +191,7 @@ function parseWindowsConnections(domainIpMap: Map<string, string>): DiscoveredAg
         }).trim();
         // CSV format: "Image Name","PID","Session Name","Session#","Mem Usage"
         const match = taskOutput.match(/"([^"]+)"/);
-        command = match ? match[1] : '';
+        command = match?.[1] ?? '';
       } catch {
         /* ignore */
       }

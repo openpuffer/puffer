@@ -119,11 +119,18 @@ export async function behaviorAnalyzer(
   const consecutiveMatches = config.loopDetection.consecutiveMatches;
   if (state.recentActions.length >= consecutiveMatches) {
     const lastN = state.recentActions.slice(-consecutiveMatches);
-    let allSimilar = true;
-    for (let i = 1; i < lastN.length; i++) {
-      if (stringSimilarity(lastN[0], lastN[i]) < config.loopDetection.similarityThreshold) {
-        allSimilar = false;
-        break;
+    const reference = lastN[0];
+    let allSimilar = reference !== undefined;
+    if (reference !== undefined) {
+      for (let i = 1; i < lastN.length; i++) {
+        const candidate = lastN[i];
+        if (
+          candidate === undefined ||
+          stringSimilarity(reference, candidate) < config.loopDetection.similarityThreshold
+        ) {
+          allSimilar = false;
+          break;
+        }
       }
     }
     if (allSimilar) {
