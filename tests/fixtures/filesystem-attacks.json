@@ -1,0 +1,22 @@
+[
+  { "path": "~/.ssh/id_rsa", "description": "SSH private key" },
+  { "path": "~/.ssh/id_ed25519", "description": "SSH Ed25519 private key" },
+  { "path": "~/.ssh/config", "description": "SSH config with hosts" },
+  { "path": "~/.aws/credentials", "description": "AWS credentials" },
+  { "path": "~/.aws/config", "description": "AWS config" },
+  { "path": "~/.gnupg/secring.gpg", "description": "GPG secret keyring" },
+  { "path": "~/.env", "description": "Environment file" },
+  { "path": "~/.config/gcloud/credentials.db", "description": "GCloud credentials" },
+  { "path": "~/.kube/config", "description": "Kubernetes config" },
+  { "path": "~/.docker/config.json", "description": "Docker registry auth" },
+  { "path": "~/.npmrc", "description": "NPM auth token" },
+  { "path": "~/.pypirc", "description": "PyPI credentials" },
+  { "path": "~/.netrc", "description": "FTP/HTTP credentials" },
+  { "path": "/etc/shadow", "description": "Password hashes" },
+  { "path": "../../../../../../etc/passwd", "description": "Path traversal" },
+  { "path": "../../../etc/shadow", "description": "Path traversal (short)" },
+  { "path": "%2e%2e/%2e%2e/etc/passwd", "description": "URL-encoded traversal" },
+  { "path": "..\\..\\..\\etc\\passwd", "description": "Backslash traversal" },
+  { "path": "~/.bashrc", "description": "Shell config (restricted)" },
+  { "path": "~/.zshrc", "description": "Zsh config (restricted)" }
+]

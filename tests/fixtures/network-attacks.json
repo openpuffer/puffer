@@ -1,0 +1,22 @@
+[
+  { "url": "http://169.254.169.254/latest/meta-data/", "description": "AWS metadata SSRF" },
+  { "url": "http://169.254.169.254/latest/api/token", "description": "AWS IMDSv2 token" },
+  { "url": "http://metadata.google.internal/computeMetadata/v1/", "description": "GCP metadata" },
+  { "url": "http://169.254.169.254/metadata/instance", "description": "Azure metadata" },
+  { "url": "http://192.168.1.1/admin", "description": "Internal router admin" },
+  { "url": "http://10.0.0.1/api/secrets", "description": "Internal network service" },
+  { "url": "http://172.16.0.1:8080/admin", "description": "Internal private range" },
+  { "url": "http://127.0.0.1:3000/admin", "description": "Localhost service" },
+  { "url": "http://127.0.0.1:8080/healthcheck", "description": "Localhost health endpoint" },
+  { "url": "http://[::1]:8080/admin", "description": "IPv6 loopback" },
+  { "url": "http://0.0.0.0:22/", "description": "Zero IP SSH" },
+  { "url": "http://2130706433/admin", "description": "Decimal IP (127.0.0.1)" },
+  { "url": "http://0177.0.0.1/admin", "description": "Octal IP (127.0.0.1)" },
+  { "url": "http://xkjh8a9sd2fq7rv.xyz/exfil", "description": "DGA domain" },
+  { "url": "http://a3kf9d2m5x7q.com/collect", "description": "DGA domain 2" },
+  { "url": "http://192.168.0.100:9200/", "description": "Internal Elasticsearch" },
+  { "url": "http://10.0.0.50:6379/", "description": "Internal Redis" },
+  { "url": "http://172.17.0.1:2375/containers/json", "description": "Docker daemon API" },
+  { "url": "http://169.254.170.2/v2/credentials", "description": "ECS task credentials" },
+  { "url": "http://192.168.1.100:5432/", "description": "Internal PostgreSQL" }
+]
