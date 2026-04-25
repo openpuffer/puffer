@@ -48,6 +48,74 @@ export function extractTextFromEvent(event: PufferEvent): string {
   return parts.join(' ');
 }
 
+/**
+ * Extract only user-authored message content from LLM request/response bodies.
+ * Unlike extractTextFromEvent, this skips JSON structural overhead, system prompts,
+ * tool definitions, and metadata — reducing false positives for PII scanning.
+ */
+export function extractUserContentFromEvent(event: PufferEvent): string {
+  if (event.action.type === 'llm_request' || event.action.type === 'llm_response') {
+    const body = event.action.body;
+    if (!body || typeof body !== 'object') return '';
+
+    const b = body as Record<string, unknown>;
+    const parts: string[] = [];
+
+    // Extract message content only (skip system prompt, tool defs, metadata)
+    const messages = b.messages;
+    if (Array.isArray(messages)) {
+      for (const msg of messages) {
+        if (!msg || typeof msg !== 'object') continue;
+        const content = (msg as Record<string, unknown>).content;
+        if (typeof content === 'string') {
+          parts.push(content);
+        } else if (Array.isArray(content)) {
+          // Anthropic multi-part content blocks
+          for (const block of content) {
+            if (!block || typeof block !== 'object') continue;
+            const bl = block as Record<string, unknown>;
+            if (bl.type === 'text' && typeof bl.text === 'string') {
+              parts.push(bl.text);
+            } else if (bl.type === 'tool_result' && typeof bl.content === 'string') {
+              parts.push(bl.content);
+            }
+          }
+        }
+      }
+    }
+
+    // OpenAI: choices[].message.content (for responses)
+    const choices = b.choices;
+    if (Array.isArray(choices)) {
+      for (const choice of choices) {
+        if (!choice || typeof choice !== 'object') continue;
+        const message = (choice as Record<string, unknown>).message;
+        if (message && typeof message === 'object') {
+          const content = (message as Record<string, unknown>).content;
+          if (typeof content === 'string') parts.push(content);
+        }
+      }
+    }
+
+    // Anthropic response: content[] blocks at top level
+    const topContent = b.content;
+    if (Array.isArray(topContent)) {
+      for (const block of topContent) {
+        if (!block || typeof block !== 'object') continue;
+        const bl = block as Record<string, unknown>;
+        if (bl.type === 'text' && typeof bl.text === 'string') {
+          parts.push(bl.text);
+        }
+      }
+    }
+
+    return parts.join(' ');
+  }
+
+  // For non-LLM events, fall back to the full extraction
+  return extractTextFromEvent(event);
+}
+
 export function getMaxSeverity(findings: Finding[]): string | null {
   const order = ['critical', 'high', 'medium', 'low'];
   for (const severity of order) {
