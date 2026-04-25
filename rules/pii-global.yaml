@@ -1,0 +1,43 @@
+id: PUFFER-PII-GL-001
+name: International PII Patterns
+description: Detects passport numbers, IBANs, and other international PII
+author: puffer-community
+severity: high
+layer: pii
+action: block
+version: "1.0.0"
+tags: [pii, international, iban, passport]
+patterns:
+  - "[A-Z]{2}\\d{2}\\s?[A-Z0-9]{4}\\s?\\d{4}\\s?\\d{4}\\s?\\d{4}\\s?\\d{4}\\s?[\\d]{0,2}"
+  - "(?:passport|pasaporte|passeport)\\s*(?:number|no|#|num)[:\\s]+[A-Z0-9]{6,12}"
+created: "2026-03-01"
+---
+id: PUFFER-PII-GL-002
+name: Database Connection Strings
+description: Detects database connection strings with embedded credentials
+author: puffer-community
+severity: critical
+layer: pii
+action: block
+version: "1.0.0"
+tags: [pii, credentials, database]
+patterns:
+  - "(?:mysql|postgres|mongodb|redis)://[^:]+:[^@]+@"
+  - "Server=.*;.*Password=.*"
+  - "jdbc:[a-z]+://.*:.*@"
+created: "2026-03-01"
+---
+id: PUFFER-PII-GL-003
+name: Webhook and Service Tokens
+description: Detects webhook URLs and service-specific tokens
+author: puffer-community
+severity: high
+layer: pii
+action: block
+version: "1.0.0"
+tags: [pii, tokens, webhooks]
+patterns:
+  - "https://hooks\\.slack\\.com/services/T[A-Z0-9]+/B[A-Z0-9]+/[a-zA-Z0-9]+"
+  - "xoxb-[0-9]+-[0-9]+-[a-zA-Z0-9]+"
+  - "https://discord(?:app)?\\.com/api/webhooks/\\d+/[a-zA-Z0-9_-]+"
+created: "2026-03-01"

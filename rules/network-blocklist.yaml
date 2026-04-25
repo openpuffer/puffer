@@ -1,0 +1,31 @@
+id: PUFFER-NET-BL-001
+name: Cloud Metadata SSRF
+description: Blocks requests to cloud metadata endpoints
+author: puffer-community
+severity: critical
+layer: network
+action: block
+version: "1.0.0"
+tags: [network, ssrf, cloud, metadata]
+patterns:
+  - "169\\.254\\.169\\.254"
+  - "metadata\\.google\\.internal"
+  - "169\\.254\\.170\\.2"
+domain: "169.254.169.254"
+references:
+  - "https://owasp.org/www-community/attacks/Server_Side_Request_Forgery"
+created: "2026-03-01"
+---
+id: PUFFER-NET-BL-002
+name: Known Exfiltration Domains
+description: Blocks requests to known data exfiltration services
+author: puffer-community
+severity: high
+layer: network
+action: block
+version: "1.0.0"
+tags: [network, exfiltration, blocklist]
+patterns:
+  - "(?:webhook\\.site|requestbin\\.com|pipedream\\.net|hookbin\\.com|beeceptor\\.com)"
+  - "(?:ngrok\\.io|tunnel\\.dev|localtunnel\\.me)"
+created: "2026-03-01"

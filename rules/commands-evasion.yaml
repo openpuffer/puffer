@@ -1,0 +1,44 @@
+id: PUFFER-CMD-EV-001
+name: Base64 Decode Pipeline
+description: Detects encoded commands piped through base64 decode
+author: puffer-community
+severity: high
+layer: commands
+action: block
+version: "1.0.0"
+tags: [commands, evasion, encoding]
+patterns:
+  - "echo\\s+[A-Za-z0-9+/=]+\\s*\\|\\s*base64\\s+(?:-d|--decode)"
+  - "\\$\\(.*base64\\s+(?:-d|--decode)"
+  - "printf\\s+.*\\|\\s*base64\\s+-d"
+created: "2026-03-01"
+---
+id: PUFFER-CMD-EV-002
+name: Python Subprocess Abuse
+description: Detects Python used to execute system commands
+author: puffer-community
+severity: critical
+layer: commands
+action: block
+version: "1.0.0"
+tags: [commands, python, evasion]
+patterns:
+  - "python[3]?\\s+-c\\s+['\"].*(?:import\\s+(?:os|subprocess|socket))"
+  - "python[3]?\\s+-c\\s+['\"].*os\\.system"
+  - "python[3]?\\s+-c\\s+['\"].*subprocess\\.(?:call|run|Popen)"
+created: "2026-03-01"
+---
+id: PUFFER-CMD-EV-003
+name: Docker Privilege Escalation
+description: Detects Docker commands that mount host filesystem or add capabilities
+author: puffer-community
+severity: critical
+layer: commands
+action: block
+version: "1.0.0"
+tags: [commands, docker, privilege-escalation]
+patterns:
+  - "docker\\s+(?:run|exec).*--privileged"
+  - "docker\\s+run.*-v\\s+/?:"
+  - "docker.*--cap-add\\s+(?:ALL|SYS_ADMIN|SYS_PTRACE)"
+created: "2026-03-01"

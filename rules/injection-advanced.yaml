@@ -1,0 +1,46 @@
+id: PUFFER-INJ-ADV-001
+name: Indirect Instruction Override
+description: Detects paraphrased attempts to invalidate rules
+author: puffer-community
+severity: high
+layer: injection
+action: block
+version: "1.0.0"
+tags: [injection, bypass, paraphrase]
+patterns:
+  - "(?:rules?|instructions?|guidelines?)\\s+(?:no longer|are\\s+(?:invalid|obsolete|void|null))"
+  - "(?:discard|dismiss|abandon|drop)\\s+(?:all\\s+)?(?:your\\s+)?(?:rules?|instructions?|constraints?)"
+  - "from now on,?\\s+(?:you\\s+)?(?:have|will|shall)\\s+no\\s+(?:rules?|restrictions?|limits?)"
+references:
+  - "https://owasp.org/www-project-top-10-for-large-language-model-applications/"
+created: "2026-03-01"
+---
+id: PUFFER-INJ-ADV-002
+name: Few-shot Injection
+description: Detects few-shot prompting used to teach rule-breaking behavior
+author: puffer-community
+severity: high
+layer: injection
+action: block
+version: "1.0.0"
+tags: [injection, few-shot, social-engineering]
+pattern: "(?:example|e\\.g\\.?)\\s*:.*(?:ignore|forget|bypass|override).*(?:rules?|instructions?).*(?:OK|yes|done|sure)"
+references:
+  - "https://arxiv.org/abs/2302.12173"
+created: "2026-03-01"
+---
+id: PUFFER-INJ-ADV-003
+name: Multilingual Injection
+description: Detects injection attempts in non-English languages
+author: puffer-community
+severity: high
+layer: injection
+action: block
+version: "1.0.0"
+tags: [injection, multilingual, bypass]
+patterns:
+  - "(?:oublie[zr]?|ignore[zr]?)\\s+(?:toutes?\\s+)?(?:les|tes|vos)\\s+(?:instructions|règles|consignes)"
+  - "忽略(?:之前的|所有|以前的)?(?:指令|规则|说明)"
+  - "이전\\s*(?:지침|규칙|명령).*(?:무시|잊어)"
+  - "命令を(?:無視|忘れ)"
+created: "2026-03-01"

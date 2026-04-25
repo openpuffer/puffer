@@ -1,0 +1,28 @@
+id: PUFFER-MCP-001
+name: MCP Tool Result Injection
+description: Detects injection patterns in MCP tool results
+author: puffer-community
+severity: critical
+layer: mcp
+action: block
+version: "1.0.0"
+tags: [mcp, injection, poisoning]
+patterns:
+  - "(?:IMPORTANT|URGENT|CRITICAL)\\s*:?\\s*(?:call|invoke|execute|run)\\s+(?:the\\s+)?(?:bash|shell|tool)"
+  - "(?:override|replace|update)\\s+(?:your|the)\\s+(?:system\\s+)?(?:prompt|instructions)"
+  - "(?:send|post|transmit|forward)\\s+(?:all|this|the)\\s+(?:data|information|content)\\s+to"
+created: "2026-03-01"
+---
+id: PUFFER-MCP-002
+name: Suspicious MCP Tool Names
+description: Detects MCP tools with names that suggest system-level access
+author: puffer-community
+severity: high
+layer: mcp
+action: escalate
+version: "1.0.0"
+tags: [mcp, tool-names, suspicious]
+patterns:
+  - "(?:bash_exec|shell_exec|system_exec|run_command|exec_cmd)"
+  - "(?:sudo|root_access|admin_exec|privilege_escalate)"
+created: "2026-03-01"
