@@ -1,11 +1,15 @@
 import { PufferEvent, PufferConfig } from '../../src/types.js';
 
 export function makeLLMRequestEvent(body: unknown, sessionId = 'adv-sess-1'): PufferEvent {
+  const resolvedBody = typeof body === 'string'
+    ? { messages: [{ role: 'user', content: body }], model: 'test-model', max_tokens: 1024 }
+    : body;
+
   return {
     id: 'adv-test-1',
     timestamp: new Date().toISOString(),
     source: { type: 'proxy', agent: 'test-agent', provider: 'openai' },
-    action: { type: 'llm_request', method: 'POST', endpoint: '/v1/chat/completions', body },
+    action: { type: 'llm_request', method: 'POST', endpoint: '/v1/chat/completions', body: resolvedBody },
     metadata: { sessionId, sequenceNumber: 1 },
     layers: [],
     decision: null,
@@ -13,11 +17,15 @@ export function makeLLMRequestEvent(body: unknown, sessionId = 'adv-sess-1'): Pu
 }
 
 export function makeLLMResponseEvent(body: unknown, sessionId = 'adv-sess-1'): PufferEvent {
+  const resolvedBody = typeof body === 'string'
+    ? { choices: [{ message: { content: body } }] }
+    : body;
+
   return {
     id: 'adv-test-resp-1',
     timestamp: new Date().toISOString(),
     source: { type: 'proxy', agent: 'test-agent', provider: 'openai' },
-    action: { type: 'llm_response', status: 200, body },
+    action: { type: 'llm_response', status: 200, body: resolvedBody },
     metadata: { sessionId, sequenceNumber: 2 },
     layers: [],
     decision: null,

@@ -1,5 +1,5 @@
 import { PufferEvent, LayerResult, Finding, Verdict, PIIConfig } from '../types.js';
-import { extractTextFromEvent, getMaxSeverity, allowResult } from './helpers.js';
+import { extractUserContentFromEvent, getMaxSeverity, allowResult } from './helpers.js';
 
 export interface PIIPattern {
   name: string;
@@ -165,9 +165,14 @@ export const PII_PATTERNS: PIIPattern[] = [
   },
   {
     name: 'password_field',
-    pattern: /(?:password|passwd|pwd|secret|token)[\s]*[=:]\s*['"]?[^\s'"]{8,}/gi,
-    severity: 'critical',
+    pattern: /(?:password|passwd|pwd)[\s]*[=:]\s*['"]?[^\s'"]{8,}/gi,
+    severity: 'high',
     region: 'global',
+    validate: (match: string) => {
+      // Reject common code/config patterns that aren't real password leaks
+      if (/password_hash|password_reset|password_confirm|password_field|password_policy|password_strength|password_min/i.test(match)) return false;
+      return true;
+    },
   },
 ];
 
@@ -178,7 +183,12 @@ export async function piiScanner(event: PufferEvent, config: PIIConfig): Promise
     return allowResult(1, 'pii-scanner');
   }
 
-  const text = extractTextFromEvent(event);
+  // Skip scanning for excluded event contexts
+  if (config.excludeContexts?.length && config.excludeContexts.includes(event.action.type)) {
+    return allowResult(1, 'pii-scanner');
+  }
+
+  const text = extractUserContentFromEvent(event);
   if (!text) {
     return allowResult(1, 'pii-scanner');
   }

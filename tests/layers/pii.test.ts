@@ -18,7 +18,24 @@ function makeEvent(text: string, type: 'llm_request' | 'file_write' = 'llm_reque
     id: 'test-1',
     timestamp: new Date().toISOString(),
     source: { type: 'proxy', agent: 'test-agent', provider: 'openai' },
-    action: { type: 'llm_request', method: 'POST', endpoint: '/v1/chat/completions', body: text },
+    action: {
+      type: 'llm_request',
+      method: 'POST',
+      endpoint: '/v1/chat/completions',
+      body: { messages: [{ role: 'user', content: text }], model: 'gpt-4', max_tokens: 4096 },
+    },
+    metadata: { sessionId: 'sess-1', sequenceNumber: 1 },
+    layers: [],
+    decision: null,
+  };
+}
+
+function makeRawBodyEvent(body: unknown): PufferEvent {
+  return {
+    id: 'test-1',
+    timestamp: new Date().toISOString(),
+    source: { type: 'proxy', agent: 'test-agent', provider: 'anthropic' },
+    action: { type: 'llm_request', method: 'POST', endpoint: '/v1/messages', body },
     metadata: { sessionId: 'sess-1', sequenceNumber: 1 },
     layers: [],
     decision: null,
@@ -153,6 +170,66 @@ describe('PII Scanner', () => {
 
     it('should reject invalid IBAN', () => {
       expect(validateIBAN('GB29NWBK60161331926810')).toBe(false);
+    });
+  });
+
+  describe('False positive regression - Claude Code requests', () => {
+    it('should NOT block a realistic Claude Code request body', async () => {
+      const event = makeRawBodyEvent({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 4096,
+        system: 'You are a helpful assistant.',
+        messages: [
+          { role: 'user', content: 'Please read the file src/config.ts and explain it.' },
+          { role: 'assistant', content: [{ type: 'text', text: 'I\'ll read that file for you.' }] },
+          { role: 'user', content: [{ type: 'tool_result', content: 'export const DEFAULT_TOKEN_LIMIT = 8192;\nexport const SECRET_STORE_PATH = "~/.config/secrets";\nconst password_hash_rounds = 12;' }] },
+        ],
+        tools: [{ name: 'read_file', description: 'Read a file', input_schema: { type: 'object' } }],
+        stream: true,
+      });
+      const result = await piiScanner(event, defaultConfig);
+      expect(result.verdict).toBe('allow');
+    });
+
+    it('should NOT trigger on JSON keys like "token", "secret" in body metadata', async () => {
+      const event = makeRawBodyEvent({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 4096,
+        messages: [{ role: 'user', content: 'Hello, how are you?' }],
+      });
+      const result = await piiScanner(event, defaultConfig);
+      expect(result.verdict).toBe('allow');
+      expect(result.findings.length).toBe(0);
+    });
+
+    it('should still detect real passwords in file_write events', async () => {
+      const event = makeEvent('password=MyS3cretP@ssw0rd123', 'file_write');
+      const result = await piiScanner(event, defaultConfig);
+      expect(result.findings.some((f) => f.type === 'password_field')).toBe(true);
+      expect(result.verdict).not.toBe('allow');
+    });
+
+    it('should still detect real passwords in message content', async () => {
+      const event = makeEvent('Here is my password: MyS3cretP@ssw0rd');
+      const result = await piiScanner(event, defaultConfig);
+      expect(result.findings.some((f) => f.type === 'password_field')).toBe(true);
+    });
+  });
+
+  describe('excludeContexts', () => {
+    it('should skip scanning when event type is in excludeContexts', async () => {
+      const configWithExclude: PIIConfig = { ...defaultConfig, excludeContexts: ['llm_request'] };
+      const event = makeEvent('My SSN is 123-45-6789');
+      const result = await piiScanner(event, configWithExclude);
+      expect(result.verdict).toBe('allow');
+      expect(result.findings.length).toBe(0);
+    });
+
+    it('should still scan non-excluded event types', async () => {
+      const configWithExclude: PIIConfig = { ...defaultConfig, excludeContexts: ['llm_request'] };
+      const event = makeEvent('My SSN is 123-45-6789', 'file_write');
+      const result = await piiScanner(event, configWithExclude);
+      expect(result.findings.some((f) => f.type === 'ssn_us')).toBe(true);
     });
   });
 });
