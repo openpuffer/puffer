@@ -17,6 +17,7 @@
     "@puffer/layer-network": "*",
     "@puffer/layer-filesystem": "*",
     "@puffer/layer-behavior": "*",
-    "@puffer/layer-mcp": "*"
+    "@puffer/layer-mcp": "*",
+    "@puffer/observability": "*"
   }
 }

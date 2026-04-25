@@ -201,6 +201,22 @@ export function createDashboardServer(
     return eventTimestamps.filter((t) => t >= oneMinAgo).length;
   }
 
+  // === Prometheus metrics ===
+  // Exposed unprefixed at /metrics so any standard scraper picks it up
+  // without configuration. The localhost-only middleware higher up
+  // already restricts access to the local host.
+  app.get('/metrics', async (_req, res) => {
+    try {
+      const { renderMetrics } = await import('@puffer/observability');
+      const { contentType, body } = await renderMetrics();
+      res.set('Content-Type', contentType);
+      res.send(body);
+    } catch (err) {
+      logger.error(`Failed to render metrics: ${(err as Error).message}`);
+      res.status(500).type('text/plain').send('# metrics collection failed');
+    }
+  });
+
   // === API endpoints ===
 
   app.get('/api/stats', (_req, res) => {

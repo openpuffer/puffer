@@ -14,6 +14,7 @@
     "@puffer/core": "*",
     "@puffer/discovery": "*",
     "@puffer/engine": "*",
+    "@puffer/observability": "*",
     "@puffer/reports": "*",
     "@puffer/score": "*",
     "cors": "^2.8.5",

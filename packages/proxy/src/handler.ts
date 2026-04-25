@@ -4,6 +4,7 @@ import type { PufferEvent, EventAction, Decision, RateLimitInfo } from '@puffer/
 import { detectProvider, getAdapter, estimateCostWithOutput } from './providers.js';
 import { VERSION } from '@puffer/core';
 import { logger } from '@puffer/core';
+import { llmCostUsdTotal, llmRequestDurationSeconds, llmTokensTotal } from '@puffer/observability';
 
 export interface ProxyDependencies {
   evaluatePipeline: (event: PufferEvent) => Promise<PufferEvent>;
@@ -232,12 +233,18 @@ export async function handleRequest(
     return;
   }
 
+  const upstreamStart = Date.now();
+
   deps.forwardRequest(
     req,
     res,
     targetUrl,
     bodyBuffer,
     (statusCode, responseBody, responseHeaders) => {
+      llmRequestDurationSeconds
+        .labels(provider, model)
+        .observe((Date.now() - upstreamStart) / 1000);
+
       // Extract real token usage from provider response
       const usage = extractUsageFromResponse(responseBody, provider);
       const rateLimits = extractRateLimits(responseHeaders);
@@ -247,6 +254,13 @@ export async function handleRequest(
       if (usage.inputTokens > 0 || usage.outputTokens > 0) {
         costEstimate = estimateCostWithOutput(model, usage.inputTokens, usage.outputTokens);
       }
+
+      if (usage.inputTokens > 0)
+        llmTokensTotal.labels(agent, provider, model, 'input').inc(usage.inputTokens);
+      if (usage.outputTokens > 0)
+        llmTokensTotal.labels(agent, provider, model, 'output').inc(usage.outputTokens);
+      if (costEstimate !== undefined && costEstimate > 0)
+        llmCostUsdTotal.labels(agent, provider, model).inc(costEstimate);
 
       const responseEvent: PufferEvent = {
         id: uuidv4(),

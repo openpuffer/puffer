@@ -7,6 +7,30 @@ import { networkEgressGuard } from '@puffer/layer-network';
 import { filesystemSentinel } from '@puffer/layer-filesystem';
 import { behaviorAnalyzer } from '@puffer/layer-behavior';
 import { mcpPoisoningDetector } from '@puffer/layer-mcp';
+import {
+  auditsTotal,
+  blocksTotal,
+  escalatesTotal,
+  eventsTotal,
+  layerDurationSeconds,
+  layerErrorsTotal,
+  pipelineDurationSeconds,
+} from '@puffer/observability';
+
+// Severity ranking used to label aggregate block/audit counters with the
+// worst severity that actually triggered the verdict on a layer.
+function maxSeverity(result: LayerResult): string {
+  const order: Array<'critical' | 'high' | 'medium' | 'low'> = [
+    'critical',
+    'high',
+    'medium',
+    'low',
+  ];
+  for (const s of order) {
+    if (result.findings.some((f) => f.severity === s)) return s;
+  }
+  return 'low';
+}
 
 interface RegisteredLayer {
   name: string;
@@ -37,6 +61,9 @@ export class DefensePipeline {
   }
 
   async evaluate(event: PufferEvent): Promise<PufferEvent> {
+    const pipelineStart = Date.now();
+    const agent = event.source.agent;
+
     for (const layer of this.layers) {
       const layerConfig = layer.config as { enabled?: boolean };
       if (layerConfig.enabled === false) continue;
@@ -57,14 +84,23 @@ export class DefensePipeline {
         result.durationMs = Date.now() - start;
         event.layers.push(result);
 
-        // SHORT CIRCUIT: If any layer says BLOCK, stop immediately
+        layerDurationSeconds.labels(layer.name).observe(result.durationMs / 1000);
+
         if (result.verdict === 'block') {
+          blocksTotal.labels(layer.name, maxSeverity(result)).inc();
+          // SHORT CIRCUIT: If any layer says BLOCK, stop immediately
           event.decision = 'BLOCK';
+          eventsTotal.labels(agent, 'block').inc();
+          pipelineDurationSeconds.observe((Date.now() - pipelineStart) / 1000);
           return event;
         }
+        if (result.verdict === 'audit') auditsTotal.labels(layer.name, maxSeverity(result)).inc();
+        if (result.verdict === 'escalate') escalatesTotal.labels(layer.name).inc();
       } catch (err) {
         const durationMs = Date.now() - start;
         const errorMsg = (err as Error).message;
+        const reason = errorMsg.includes('timed out') ? 'timeout' : 'exception';
+        layerErrorsTotal.labels(layer.name, reason).inc();
         logger.error(`Layer ${layer.name} error: ${errorMsg}`);
 
         if (this.options.failClosed) {
@@ -87,7 +123,10 @@ export class DefensePipeline {
             durationMs,
           };
           event.layers.push(errorResult);
+          blocksTotal.labels(layer.name, 'critical').inc();
           event.decision = 'BLOCK';
+          eventsTotal.labels(agent, 'block').inc();
+          pipelineDurationSeconds.observe((Date.now() - pipelineStart) / 1000);
           return event;
         } else {
           // Fail-open: layer failure should not block the request — log and continue
@@ -112,6 +151,9 @@ export class DefensePipeline {
     if (hasEscalate) event.decision = 'ESCALATE';
     else if (hasAudit) event.decision = 'AUDIT';
     else event.decision = 'ALLOW';
+
+    eventsTotal.labels(agent, event.decision.toLowerCase()).inc();
+    pipelineDurationSeconds.observe((Date.now() - pipelineStart) / 1000);
 
     return event;
   }

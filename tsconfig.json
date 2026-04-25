@@ -19,6 +19,7 @@
       "@puffer/score": ["./packages/score/src/index.ts"],
       "@puffer/reports": ["./packages/reports/src/index.ts"],
       "@puffer/redteam": ["./packages/redteam/src/index.ts"],
+      "@puffer/observability": ["./packages/observability/src/index.ts"],
       "@puffer/layer-pii": ["./packages/layers/pii/src/index.ts"],
       "@puffer/layer-injection": ["./packages/layers/injection/src/index.ts"],
       "@puffer/layer-commands": ["./packages/layers/commands/src/index.ts"],
