@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import chalk from 'chalk';
 import { PID_FILE_PATH } from '@puffer/core';
 import { loadConfig } from '@puffer/core';
-import { AuditLogger } from '../audit/logger.js';
+import { AuditLogger } from '@puffer/audit';
 import { logger } from '@puffer/core';
 
 export function registerStatusCommand(program: Command): void {

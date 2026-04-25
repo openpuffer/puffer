@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
-import { handleRequest, ProxyDependencies } from '../../src/proxy/handler.js';
-import { detectProvider } from '../../src/proxy/providers.js';
+import { handleRequest, ProxyDependencies } from '@puffer/proxy';
+import { detectProvider } from '@puffer/proxy';
 import { PufferEvent } from '@puffer/core';
 import { IncomingMessage, ServerResponse } from 'node:http';
 

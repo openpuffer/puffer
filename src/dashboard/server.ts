@@ -7,8 +7,8 @@ import { fileURLToPath } from 'node:url';
 import { WebSocketServer, WebSocket } from 'ws';
 import { v4 as uuidv4 } from 'uuid';
 import type { PufferEvent, PufferConfig, AuditLogEntry } from '@puffer/core';
-import type { AuditLogger } from '../audit/logger.js';
-import type { DiscoveryEngine } from '../discovery/index.js';
+import type { AuditLogger } from '@puffer/audit';
+import type { DiscoveryEngine } from '@puffer/discovery';
 import { makeDecision } from '@puffer/engine';
 import { logger } from '@puffer/core';
 import { saveConfig } from '@puffer/core';
@@ -257,7 +257,7 @@ export function createDashboardServer(
 
   app.get('/api/score', async (_req, res) => {
     try {
-      const { calculateScore } = await import('../score/calculator.js');
+      const { calculateScore } = await import('@puffer/score');
       const result = await deps.discovery.scan();
       const stats = deps.auditLogger.getStats();
       const score = calculateScore(deps.config, result, stats);
@@ -270,8 +270,8 @@ export function createDashboardServer(
 
   app.get('/api/report/weekly', async (_req, res) => {
     try {
-      const { calculateScore } = await import('../score/calculator.js');
-      const { generateWeeklyReport } = await import('../reports/weekly.js');
+      const { calculateScore } = await import('@puffer/score');
+      const { generateWeeklyReport } = await import('@puffer/reports');
       const result = await deps.discovery.scan();
       const stats = deps.auditLogger.getStats();
       const score = calculateScore(deps.config, result, stats);

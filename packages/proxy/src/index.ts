@@ -10,6 +10,9 @@ import type { ProxyDependencies } from './handler.js';
 import { handleRequest } from './handler.js';
 import { initTLS } from './tls.js';
 
+export * from './handler.js';
+export * from './providers.js';
+
 export interface ProxyServer {
   server: http.Server;
   proxy: httpProxy;

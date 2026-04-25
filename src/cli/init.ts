@@ -2,10 +2,10 @@ import type { Command } from 'commander';
 import chalk from 'chalk';
 import { BANNER, CONFIG_PATH, AUDIT_LOG_PATH, DEFAULT_DASHBOARD_PORT } from '@puffer/core';
 import { loadConfig, saveConfig, ensurePufferDir } from '@puffer/core';
-import { DiscoveryEngine } from '../discovery/index.js';
-import { AuditLogger } from '../audit/logger.js';
-import { calculateScore } from '../score/calculator.js';
-import { formatScore } from '../score/display.js';
+import { DiscoveryEngine } from '@puffer/discovery';
+import { AuditLogger } from '@puffer/audit';
+import { calculateScore } from '@puffer/score';
+import { formatScore } from '@puffer/score';
 import { logger } from '@puffer/core';
 
 export function registerInitCommand(program: Command): void {

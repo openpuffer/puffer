@@ -60,3 +60,13 @@ export class HookManager {
     return this.getInstalledHooks();
   }
 }
+
+export * from './aider.js';
+export * from './claude-code.js';
+export * from './cline.js';
+export * from './continue-dev.js';
+export * from './cursor.js';
+export * from './generic.js';
+export * from './openclaw.js';
+export * from './vscode-extension.js';
+export * from './config-backup.js';

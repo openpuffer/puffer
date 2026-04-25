@@ -206,10 +206,10 @@ program
   .description('Calculate your Puffer Score (0-100)')
   .action(async () => {
     const config = loadConfig();
-    const { DiscoveryEngine } = await import('../discovery/index.js');
-    const { AuditLogger } = await import('../audit/logger.js');
-    const { calculateScore } = await import('../score/calculator.js');
-    const { formatScore } = await import('../score/display.js');
+    const { DiscoveryEngine } = await import('@puffer/discovery');
+    const { AuditLogger } = await import('@puffer/audit');
+    const { calculateScore } = await import('@puffer/score');
+    const { formatScore } = await import('@puffer/score');
 
     console.log('\n  Calculating Puffer Score...\n');
 
@@ -230,11 +230,11 @@ program
   .option('--output <path>', 'Write to file instead of stdout')
   .action(async (opts) => {
     const config = loadConfig();
-    const { AuditLogger } = await import('../audit/logger.js');
-    const { DiscoveryEngine } = await import('../discovery/index.js');
-    const { calculateScore } = await import('../score/calculator.js');
+    const { AuditLogger } = await import('@puffer/audit');
+    const { DiscoveryEngine } = await import('@puffer/discovery');
+    const { calculateScore } = await import('@puffer/score');
     const { generateWeeklyReport, formatWeeklyMarkdown, formatWeeklyHTML } =
-      await import('../reports/weekly.js');
+      await import('@puffer/reports');
 
     console.log('\n  Generating weekly threat report...\n');
 
@@ -264,7 +264,7 @@ program
   .description('Run red team attack simulations against your configuration')
   .action(async () => {
     const config = loadConfig();
-    const { runRedTeam, formatRedTeamReport } = await import('../redteam/runner.js');
+    const { runRedTeam, formatRedTeamReport } = await import('@puffer/redteam');
 
     console.log('\n  Running red team simulations...\n');
     const result = await runRedTeam(config);

@@ -1,0 +1,16 @@
+{
+  "name": "@puffer/reports",
+  "version": "0.0.0",
+  "description": "Puffer reports module",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@puffer/core": "*",
+    "@puffer/audit": "*"
+  }
+}

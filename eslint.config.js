@@ -19,7 +19,7 @@ export default tseslint.config(
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
-    files: ['src/**/*.ts'],
+    files: ['src/**/*.ts', 'packages/**/src/**/*.ts', 'apps/**/src/**/*.ts'],
     languageOptions: {
       parserOptions: {
         ecmaVersion: 'latest',

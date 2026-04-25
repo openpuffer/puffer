@@ -1,8 +1,8 @@
 import type { Command } from 'commander';
 import fs from 'node:fs';
 import chalk from 'chalk';
-import { AuditLogger } from '../audit/logger.js';
-import { generateReport, formatReport } from '../audit/reporter.js';
+import { AuditLogger } from '@puffer/audit';
+import { generateReport, formatReport } from '@puffer/audit';
 import { AUDIT_LOG_PATH } from '@puffer/core';
 import type { AuditLogEntry } from '@puffer/core';
 

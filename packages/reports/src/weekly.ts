@@ -1,4 +1,4 @@
-import type { AuditLogger } from '../audit/logger.js';
+import type { AuditLogger } from '@puffer/audit';
 
 export interface WeeklyReport {
   period: { start: string; end: string };

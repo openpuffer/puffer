@@ -1,10 +1,10 @@
 import type { Command } from 'commander';
 import chalk from 'chalk';
-import { DiscoveryEngine } from '../discovery/index.js';
+import { DiscoveryEngine } from '@puffer/discovery';
 import { loadConfig } from '@puffer/core';
-import { AuditLogger } from '../audit/logger.js';
-import { calculateScore } from '../score/calculator.js';
-import { formatScore } from '../score/display.js';
+import { AuditLogger } from '@puffer/audit';
+import { calculateScore } from '@puffer/score';
+import { formatScore } from '@puffer/score';
 
 export function registerScanCommand(program: Command): void {
   program
