@@ -1,5 +1,5 @@
 import { PufferEvent, LayerResult, Finding, InjectionConfig } from '../types.js';
-import { extractTextFromEvent, calculateEntropy, allowResult } from './helpers.js';
+import { extractTextFromEvent, extractUserContentFromEvent, calculateEntropy, allowResult } from './helpers.js';
 
 interface Heuristic {
   name: string;
@@ -75,7 +75,15 @@ export async function injectionDetector(
     return allowResult(2, 'injection-detector');
   }
 
-  const text = extractTextFromEvent(event);
+  // For LLM requests/responses with structured bodies, extract only user-authored
+  // message content to avoid scanning system prompts and tool definitions, which
+  // contain injection-like patterns ("ignore previous", "execute command") causing
+  // false positives. Falls back to full text extraction for unstructured bodies
+  // or non-LLM event types.
+  let text = extractUserContentFromEvent(event);
+  if (!text) {
+    text = extractTextFromEvent(event);
+  }
   if (!text) {
     return allowResult(2, 'injection-detector');
   }
