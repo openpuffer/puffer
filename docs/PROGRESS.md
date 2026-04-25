@@ -126,12 +126,40 @@ Este documento es el **estado vivo** del refactor de profesionalización de Puff
 
 ### Pendiente
 
-- QW2b: `noUncheckedIndexedAccess` (~46 errores mecánicos en 12 archivos)
-- QW2c: `exactOptionalPropertyTypes` (~30 errores, más arquitectónicos)
-- Investigar `src/discovery/index.ts:121` (línea original del audit puede haber cambiado tras prettier — verificar)
-- Revisar 11 vulnerabilities reportados por `npm audit` (10 moderate, 1 high — no bloqueantes, requieren atención dirigida)
-- Fases 3-5 del plan original (workspaces, robustez de capas + streaming SSE, observabilidad)
-- Commitear todo en serie de PRs/commits separados según el orden de quick wins (sugerencia: una clean-history opcional con `git add -p` por tema).
+- ~~QW2b~~ ✅ cerrado en `fa185ac` + side-fix `e455e51`
+- ~~QW2c~~ ✅ cerrado en `ea87783`
+- ~~`npm audit`~~ ✅ parcial cerrado en `513b520` (11→6 vulns; las 6 restantes son no-aplicables al runtime, documentadas)
+- ~~`src/discovery/index.ts:121`~~ ✅ verificado — los catches en discovery son recoveries intencionales documentados, no swallows
+- Fase 3 — npm workspaces (apps/ + packages/), 3-5 días — **siguiente, requiere checkpoint humano**
+- Fase 4 — streaming SSE + decoupling, 1-2 semanas
+- Fase 5 — observabilidad (3 niveles)
+
+### Sesión 2 — milestones M1-M4 (2026-04-25 segunda mitad)
+
+| Milestone                          | Commit           | Resumen                                                                                                                                                                                                                                            |
+| ---------------------------------- | ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| M1 — `noUncheckedIndexedAccess`    | `fa185ac`        | 69 errores → 0 en 18 archivos. Cero `!`, cero `as`. Concentración en `continue-dev.ts` (17 errores resueltos con 2 guards).                                                                                                                        |
+| M1-side — `extractModel` signature | `e455e51`        | Alineadas las 3 implementaciones (`openai`, `anthropic`, `ollama`) con la interfaz `ProviderAdapter` que declaraba `(body, url)`.                                                                                                                  |
+| M2 — `exactOptionalPropertyTypes`  | `ea87783`        | 12 errores → 0. Tipos públicos cambiados a `field?: T \| undefined` para reflejar el contrato real. **Hallazgo:** las cláusulas `satisfies` de zod en sesión 1 NO satisfacían realmente — eran falsos positivos enmascarados por el flag faltante. |
+| M3 — npm audit                     | `513b520`        | 11 vulns → 6. Eliminadas: `path-to-regexp` (HIGH ReDoS), `follow-redirects`, `yaml`, `postcss`. Diferidas con justificación: `esbuild` (solo dev server, transitive de vitest) y `uuid` (vuln en v3/v5/v6 con `buf`, Puffer usa v4 sin `buf`).     |
+| M4 — discovery audit               | n/a — sin código | Los 14 catches en `src/discovery/` son TODOS intencionales: fallbacks DNS (`return []`), recovery con wmic, returns explícitos para parsing malformado. ESLint con rule en `error` ya bloquea regresiones futuras.                                 |
+
+### Métricas acumuladas (sesión 1 + 2)
+
+| Métrica         | Sesión 1 fin                        | Sesión 2 fin                                                        |
+| --------------- | ----------------------------------- | ------------------------------------------------------------------- |
+| Tests           | 230                                 | **230 (sin regresiones)**                                           |
+| `tsc --noEmit`  | clean (strict + noImplicitOverride) | **clean (+ noUncheckedIndexedAccess + exactOptionalPropertyTypes)** |
+| ESLint          | 0/0                                 | **0/0**                                                             |
+| `npm audit`     | 11 vulns (10 mod, 1 high)           | **6 vulns (todas mod, todas no-aplicables)**                        |
+| Commits totales | 1                                   | **5** (a4f17b7 → fa185ac → e455e51 → ea87783 → 513b520)             |
+
+### Reglas que sigue activas
+
+- `no-restricted-syntax: error` para empty catches y `.catch(() => {})` — bloquea regresiones de QW10.
+- `tsconfig.json` con `strict + noImplicitOverride + noUncheckedIndexedAccess + exactOptionalPropertyTypes`.
+- Husky pre-commit corre prettier + eslint sobre staged.
+- CI matrix Node 18/20/22 verifica lint + typecheck + format + test.
 
 <!-- Próximas entradas se agregan al inicio de esta sección, formato:
 ### YYYY-MM-DD
