@@ -44,7 +44,9 @@ const openaiAdapter: ProviderAdapter = {
     return [];
   },
 
-  extractModel(body: unknown): string {
+  // The URL is part of the ProviderAdapter contract for future URL-based
+  // model inference; today every implementation reads `body.model` directly.
+  extractModel(body: unknown, _url: string): string {
     return String(safeBody(body).model ?? 'unknown');
   },
 
@@ -103,7 +105,7 @@ const anthropicAdapter: ProviderAdapter = {
     return messages;
   },
 
-  extractModel(body: unknown): string {
+  extractModel(body: unknown, _url: string): string {
     return String(safeBody(body).model ?? 'unknown');
   },
 
@@ -158,7 +160,7 @@ const ollamaAdapter: ProviderAdapter = {
     return [];
   },
 
-  extractModel(body: unknown): string {
+  extractModel(body: unknown, _url: string): string {
     return String(safeBody(body).model ?? 'unknown');
   },
 
