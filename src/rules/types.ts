@@ -10,16 +10,16 @@ export interface PufferRule {
   action: 'block' | 'audit' | 'escalate';
   tags: string[];
   // Detection criteria (at least one required)
-  pattern?: string; // Regex pattern to match
-  patterns?: string[]; // Multiple patterns (OR logic)
-  command?: string; // Command name to match
-  path?: string; // File path pattern (glob)
-  domain?: string; // Domain pattern (glob)
+  pattern?: string | undefined; // Regex pattern to match
+  patterns?: string[] | undefined; // Multiple patterns (OR logic)
+  command?: string | undefined; // Command name to match
+  path?: string | undefined; // File path pattern (glob)
+  domain?: string | undefined; // Domain pattern (glob)
   // Optional metadata
-  version?: string; // SemVer used by the update checker
-  references?: string[]; // Links to advisories, CVEs, etc.
-  created?: string; // ISO date
-  modified?: string;
+  version?: string | undefined; // SemVer used by the update checker
+  references?: string[] | undefined; // Links to advisories, CVEs, etc.
+  created?: string | undefined; // ISO date
+  modified?: string | undefined;
 }
 
 // Remote registry manifest format consumed by src/rules/updater.ts.

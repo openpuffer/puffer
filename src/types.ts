@@ -14,9 +14,9 @@ export interface PufferEvent {
 export interface EventSource {
   type: 'proxy' | 'hook' | 'manual';
   agent: string;
-  pid?: number;
+  pid?: number | undefined;
   provider: string;
-  model?: string;
+  model?: string | undefined;
 }
 
 export type EventAction =
@@ -24,7 +24,7 @@ export type EventAction =
   | { type: 'llm_response'; status: number; body: unknown }
   | { type: 'command_execute'; command: string; args: string[] }
   | { type: 'file_read'; path: string }
-  | { type: 'file_write'; path: string; content?: string }
+  | { type: 'file_write'; path: string; content?: string | undefined }
   | { type: 'network_request'; url: string; method: string; body?: unknown }
   | { type: 'mcp_tool_call'; server: string; tool: string; params: unknown }
   | { type: 'mcp_tool_result'; server: string; tool: string; result: unknown }
@@ -32,29 +32,31 @@ export type EventAction =
   | { type: 'agent_activity_summary'; agent: string; summary: string; connections: number };
 
 export interface RateLimitInfo {
-  limitTokens?: number;
-  limitRequests?: number;
-  remainingTokens?: number;
-  remainingRequests?: number;
+  limitTokens?: number | undefined;
+  limitRequests?: number | undefined;
+  remainingTokens?: number | undefined;
+  remainingRequests?: number | undefined;
 }
 
 export interface EventMetadata {
   sessionId: string;
   sequenceNumber: number;
-  tokenEstimate?: number;
-  costEstimate?: number;
-  inputTokens?: number;
-  outputTokens?: number;
-  totalTokens?: number;
-  model?: string;
-  rateLimits?: RateLimitInfo;
+  tokenEstimate?: number | undefined;
+  costEstimate?: number | undefined;
+  inputTokens?: number | undefined;
+  outputTokens?: number | undefined;
+  totalTokens?: number | undefined;
+  model?: string | undefined;
+  rateLimits?: RateLimitInfo | undefined;
   /** Captured when agent is "unknown" — raw headers and request info for debugging */
-  debugInfo?: {
-    userAgent?: string;
-    headers?: Record<string, string>;
-    method?: string;
-    endpoint?: string;
-  };
+  debugInfo?:
+    | {
+        userAgent?: string | undefined;
+        headers?: Record<string, string> | undefined;
+        method?: string | undefined;
+        endpoint?: string | undefined;
+      }
+    | undefined;
 }
 
 // === LAYER TYPES ===
@@ -74,8 +76,8 @@ export interface Finding {
   type: string;
   severity: 'critical' | 'high' | 'medium' | 'low';
   location: string;
-  value?: string;
-  suggestion?: string;
+  value?: string | undefined;
+  suggestion?: string | undefined;
 }
 
 // === DECISION ===
@@ -101,10 +103,10 @@ export interface DiscoveredAgent {
   pid: number;
   command: string;
   detectedVia: 'process' | 'port' | 'network';
-  provider?: string;
-  port?: number;
-  ppid?: number;
-  hostProgram?: string;
+  provider?: string | undefined;
+  port?: number | undefined;
+  ppid?: number | undefined;
+  hostProgram?: string | undefined;
   protectionStatus: 'protected' | 'unprotected' | 'partial';
 }
 
@@ -176,16 +178,18 @@ export interface PufferConfig {
     retentionDays: number;
   };
   alerts: {
-    webhook?: string;
+    webhook?: string | undefined;
     desktop: boolean;
   };
-  cloud?: {
-    enabled: boolean;
-    url: string;
-    apiKey: string;
-    batchSize?: number;
-    flushIntervalMs?: number;
-  };
+  cloud?:
+    | {
+        enabled: boolean;
+        url: string;
+        apiKey: string;
+        batchSize?: number | undefined;
+        flushIntervalMs?: number | undefined;
+      }
+    | undefined;
 }
 
 // === PII PATTERN ===

@@ -138,7 +138,7 @@ export function createDashboardServer(
     totalCost: number;
     requests: number;
     models: Record<string, number>; // model → request count
-    rateLimits?: { limitTokens?: number; limitRequests?: number };
+    rateLimits?: { limitTokens?: number | undefined; limitRequests?: number | undefined };
   }
   const agentUsageMap = new Map<string, AgentUsage>();
 

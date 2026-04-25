@@ -15,8 +15,8 @@ export interface AlertPayload {
     agent: string;
     action: string;
     decision: string;
-    layer?: string;
-    details?: string;
+    layer?: string | undefined;
+    details?: string | undefined;
   };
   timestamp: string;
 }

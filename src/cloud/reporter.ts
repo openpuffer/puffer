@@ -10,8 +10,8 @@ export interface CloudConfig {
   enabled: boolean;
   url: string; // e.g., https://puffer-server.example.com
   apiKey: string; // Agent API key
-  batchSize?: number; // Events per batch (default 50)
-  flushIntervalMs?: number; // Flush interval (default 60s)
+  batchSize?: number | undefined; // Events per batch (default 50)
+  flushIntervalMs?: number | undefined; // Flush interval (default 60s)
 }
 
 export class CloudReporter {

@@ -25,7 +25,7 @@ export interface ProxyDependencies {
   mode: 'monitor' | 'enforce' | 'paranoid' | 'interactive';
   passthrough: boolean;
   /** Returns names of agents currently detected by discovery engine */
-  getDiscoveredAgentNames?: () => string[];
+  getDiscoveredAgentNames?: (() => string[]) | undefined;
 }
 
 /**
