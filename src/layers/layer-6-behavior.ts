@@ -1,4 +1,4 @@
-import { PufferEvent, LayerResult, Finding, BehaviorConfig } from '../types.js';
+import type { PufferEvent, LayerResult, Finding, BehaviorConfig } from '../types.js';
 import { allowResult } from './helpers.js';
 
 interface SessionState {

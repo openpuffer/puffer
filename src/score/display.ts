@@ -28,7 +28,11 @@ export function formatScore(score: PufferScore): string {
 
   lines.push('');
   lines.push(gc(`  ╔══════════════════════════════════════════╗`));
-  lines.push(gc(`  ║`) + `  🐡 PUFFER SCORE: ${gc.bold(String(score.total))}${chalk.gray('/100')}  ${gc.bold(score.grade)} — ${gc(score.label)}  ` + gc(`║`));
+  lines.push(
+    gc(`  ║`) +
+      `  🐡 PUFFER SCORE: ${gc.bold(String(score.total))}${chalk.gray('/100')}  ${gc.bold(score.grade)} — ${gc(score.label)}  ` +
+      gc(`║`),
+  );
   lines.push(gc(`  ╚══════════════════════════════════════════╝`));
   lines.push('');
 

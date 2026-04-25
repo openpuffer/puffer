@@ -30,7 +30,7 @@ async function buildDomainIpMap(): Promise<Map<string, string>> {
     NETWORK_SIGNATURES.map(async (sig) => {
       const ips = await resolveDomainIPs(sig.domain);
       return { provider: sig.provider, ips };
-    })
+    }),
   );
   for (const result of resolutions) {
     if (result.status === 'fulfilled') {
@@ -187,7 +187,9 @@ function parseWindowsConnections(domainIpMap: Map<string, string>): DiscoveredAg
         // CSV format: "Image Name","PID","Session Name","Session#","Mem Usage"
         const match = taskOutput.match(/"([^"]+)"/);
         command = match ? match[1] : '';
-      } catch { /* ignore */ }
+      } catch {
+        /* ignore */
+      }
 
       agents.push({
         name: `${provider}-client`,

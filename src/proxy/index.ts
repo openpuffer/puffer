@@ -1,11 +1,13 @@
-import http, { IncomingMessage, ServerResponse } from 'node:http';
+import type { IncomingMessage, ServerResponse } from 'node:http';
+import http from 'node:http';
 import { Readable } from 'node:stream';
 import httpProxy from 'http-proxy';
 import { v4 as uuidv4 } from 'uuid';
-import { PufferConfig, PufferEvent } from '../types.js';
+import type { PufferConfig, PufferEvent } from '../types.js';
 import { DEFAULT_PROXY_PORT, MAX_REQUEST_BODY_BYTES } from '../utils/constants.js';
 import { logger } from '../utils/logger.js';
-import { handleRequest, ProxyDependencies } from './handler.js';
+import type { ProxyDependencies } from './handler.js';
+import { handleRequest } from './handler.js';
 import { initTLS } from './tls.js';
 
 export interface ProxyServer {
@@ -44,7 +46,9 @@ export function createProxyServer(options: ProxyOptions): ProxyServer {
       const serverRes = res as ServerResponse;
       if (!serverRes.headersSent) {
         serverRes.writeHead(502, { 'Content-Type': 'application/json' });
-        serverRes.end(JSON.stringify({ error: { type: 'puffer_proxy_error', message: err.message } }));
+        serverRes.end(
+          JSON.stringify({ error: { type: 'puffer_proxy_error', message: err.message } }),
+        );
       }
     }
   });
@@ -59,16 +63,20 @@ export function createProxyServer(options: ProxyOptions): ProxyServer {
   }
   // Add well-known defaults
   if (!providerTargets.has('openai')) providerTargets.set('openai', 'https://api.openai.com');
-  if (!providerTargets.has('anthropic')) providerTargets.set('anthropic', 'https://api.anthropic.com');
+  if (!providerTargets.has('anthropic'))
+    providerTargets.set('anthropic', 'https://api.anthropic.com');
   if (!providerTargets.has('ollama')) providerTargets.set('ollama', 'http://localhost:11434');
   if (!providerTargets.has('deepseek')) providerTargets.set('deepseek', 'https://api.deepseek.com');
   if (!providerTargets.has('groq')) providerTargets.set('groq', 'https://api.groq.com');
   if (!providerTargets.has('together')) providerTargets.set('together', 'https://api.together.xyz');
-  if (!providerTargets.has('openrouter')) providerTargets.set('openrouter', 'https://openrouter.ai');
-  if (!providerTargets.has('openai-compatible')) providerTargets.set('openai-compatible', 'https://api.openai.com');
+  if (!providerTargets.has('openrouter'))
+    providerTargets.set('openrouter', 'https://openrouter.ai');
+  if (!providerTargets.has('openai-compatible'))
+    providerTargets.set('openai-compatible', 'https://api.openai.com');
   if (!providerTargets.has('mistral')) providerTargets.set('mistral', 'https://api.mistral.ai');
   if (!providerTargets.has('cohere')) providerTargets.set('cohere', 'https://api.cohere.ai');
-  if (!providerTargets.has('github-copilot')) providerTargets.set('github-copilot', 'https://copilot-proxy.githubusercontent.com');
+  if (!providerTargets.has('github-copilot'))
+    providerTargets.set('github-copilot', 'https://copilot-proxy.githubusercontent.com');
   if (!providerTargets.has('cursor')) providerTargets.set('cursor', 'https://api2.cursor.sh');
   if (!providerTargets.has('codeium')) providerTargets.set('codeium', 'https://server.codeium.com');
 
@@ -140,9 +148,14 @@ export function createProxyServer(options: ProxyOptions): ProxyServer {
       if (totalSize > MAX_REQUEST_BODY_BYTES) {
         aborted = true;
         res.writeHead(413, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({
-          error: { type: 'puffer_error', message: `Request body too large (limit: ${MAX_REQUEST_BODY_BYTES / (1024 * 1024)} MB)` },
-        }));
+        res.end(
+          JSON.stringify({
+            error: {
+              type: 'puffer_error',
+              message: `Request body too large (limit: ${MAX_REQUEST_BODY_BYTES / (1024 * 1024)} MB)`,
+            },
+          }),
+        );
         req.destroy();
         return;
       }
@@ -156,7 +169,11 @@ export function createProxyServer(options: ProxyOptions): ProxyServer {
         logger.error(`Request handling error: ${(err as Error).message}`);
         if (!res.headersSent) {
           res.writeHead(500, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ error: { type: 'puffer_internal_error', message: 'Internal proxy error' } }));
+          res.end(
+            JSON.stringify({
+              error: { type: 'puffer_internal_error', message: 'Internal proxy error' },
+            }),
+          );
         }
       });
     });

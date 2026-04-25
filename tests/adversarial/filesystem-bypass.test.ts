@@ -85,7 +85,11 @@ describe('Filesystem Sentinel - Adversarial Bypass Tests', () => {
     });
 
     it('should detect private key in file content', async () => {
-      const event = makeFileEvent('/tmp/key.pem', 'file_write', '-----BEGIN RSA PRIVATE KEY-----\nMIIE...');
+      const event = makeFileEvent(
+        '/tmp/key.pem',
+        'file_write',
+        '-----BEGIN RSA PRIVATE KEY-----\nMIIE...',
+      );
       const result = await filesystemSentinel(event, DEFAULT_FILESYSTEM_CONFIG);
       expect(result.findings.some((f) => f.type === 'secret_in_content')).toBe(true);
     });

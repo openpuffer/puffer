@@ -1,16 +1,20 @@
 import fs from 'node:fs';
 import http from 'node:http';
 import { v4 as uuidv4 } from 'uuid';
-import { PufferConfig, PufferEvent, Decision } from './types.js';
+import type { PufferConfig, PufferEvent, Decision } from './types.js';
+import type { DaemonReadyMessage } from './types/ipc.js';
 import { loadConfig, ensurePufferDir } from './utils/config.js';
 import { DEFAULT_PROXY_PORT, PID_FILE_PATH } from './utils/constants.js';
 import { logger } from './utils/logger.js';
-import { createProxyServer, ProxyServer } from './proxy/index.js';
-import { createDefaultPipeline, DefensePipeline } from './layers/index.js';
+import type { ProxyServer } from './proxy/index.js';
+import { createProxyServer } from './proxy/index.js';
+import type { DefensePipeline } from './layers/index.js';
+import { createDefaultPipeline } from './layers/index.js';
 import { DiscoveryEngine } from './discovery/index.js';
 import { AuditLogger } from './audit/logger.js';
 import { makeDecision } from './engine/decision.js';
-import { createDashboardServer, DashboardServer } from './dashboard/server.js';
+import type { DashboardServer } from './dashboard/server.js';
+import { createDashboardServer } from './dashboard/server.js';
 import { HookManager } from './hooks/index.js';
 import { ClaudeCodeHook } from './hooks/claude-code.js';
 import { AiderHook } from './hooks/aider.js';
@@ -59,10 +63,15 @@ async function verifyProxyHealth(port: number, retries = 5, delayMs = 300): Prom
           resolve(res.statusCode === 200);
         });
         req.on('error', () => resolve(false));
-        req.setTimeout(1000, () => { req.destroy(); resolve(false); });
+        req.setTimeout(1000, () => {
+          req.destroy();
+          resolve(false);
+        });
       });
       if (ok) return true;
-    } catch { /* retry */ }
+    } catch {
+      /* retry */
+    }
     if (i < retries - 1) await new Promise((r) => setTimeout(r, delayMs));
   }
   return false;
@@ -96,14 +105,20 @@ export async function cleanupStaleConfig(): Promise<void> {
   }
 
   if (isProcessAlive(pid)) {
-    throw new Error(`Another Puffer instance is already running (PID ${pid}). Use 'puffer stop' first.`);
+    throw new Error(
+      `Another Puffer instance is already running (PID ${pid}). Use 'puffer stop' first.`,
+    );
   }
 
   // Dead process — clean up its hooks
   logger.warn(`Cleaning up stale config from dead Puffer instance (PID ${pid})`);
   await forceCleanupHooks();
 
-  try { fs.unlinkSync(PID_FILE_PATH); } catch { /* ignore */ }
+  try {
+    fs.unlinkSync(PID_FILE_PATH);
+  } catch {
+    /* ignore */
+  }
   logger.info('Stale config cleaned up successfully');
 }
 
@@ -130,9 +145,7 @@ export async function startDaemon(configOverride?: PufferConfig): Promise<Puffer
   }
 
   // Initialize cloud reporter (optional)
-  const cloudReporter = config.cloud?.enabled
-    ? new CloudReporter(config.cloud)
-    : null;
+  const cloudReporter = config.cloud?.enabled ? new CloudReporter(config.cloud) : null;
   cloudReporter?.start();
 
   // Initialize defense pipeline
@@ -148,12 +161,17 @@ export async function startDaemon(configOverride?: PufferConfig): Promise<Puffer
   let dashboard: DashboardServer | null = null;
   if (config.dashboard.enabled) {
     dashboard = createDashboardServer(
-      { auditLogger, discovery, config, evaluatePipeline: async (event) => {
-        const evaluated = await pipeline.evaluate(event);
-        evaluated.decision = makeDecision(evaluated, { mode: config.mode });
-        return evaluated;
-      }},
-      config.dashboard.port
+      {
+        auditLogger,
+        discovery,
+        config,
+        evaluatePipeline: async (event) => {
+          const evaluated = await pipeline.evaluate(event);
+          evaluated.decision = makeDecision(evaluated, { mode: config.mode });
+          return evaluated;
+        },
+      },
+      config.dashboard.port,
     );
     await dashboard.start();
   }
@@ -170,7 +188,12 @@ export async function startDaemon(configOverride?: PufferConfig): Promise<Puffer
     logEvent: (event) => {
       auditLogger.log(event);
       if (dashboard) dashboard.broadcast(event);
-      alertDispatcher.dispatch(event).catch(() => {});
+      // Alert dispatch is fire-and-forget so it doesn't block the proxy
+      // pipeline, but a silent failure means an operator never finds out
+      // their webhook/desktop notification stopped working. Log loudly.
+      alertDispatcher.dispatch(event).catch((err: unknown) => {
+        logger.error(`Alert dispatch failed for event ${event.id}: ${(err as Error).message}`);
+      });
       cloudReporter?.enqueue(event);
     },
     getDiscoveredAgentNames: () => discovery.getAgents().map((a) => a.name),
@@ -182,16 +205,19 @@ export async function startDaemon(configOverride?: PufferConfig): Promise<Puffer
   const healthy = await verifyProxyHealth(proxy.port);
   if (!healthy) {
     await proxy.stop();
-    throw new Error(`Proxy started but health check failed on port ${proxy.port}. Aborting — hooks NOT installed.`);
+    throw new Error(
+      `Proxy started but health check failed on port ${proxy.port}. Aborting — hooks NOT installed.`,
+    );
   }
 
   // Signal readiness to parent process (used in daemon fork mode)
   if (typeof process.send === 'function') {
-    process.send({
+    const readyMsg: DaemonReadyMessage = {
       type: 'ready',
       dashboardPort: dashboard?.getPort() ?? config.dashboard.port,
       proxyPort: proxy.port,
-    });
+    };
+    process.send(readyMsg);
   }
 
   // Initialize hook manager (uses resolved dashboard port + proxy port)
@@ -217,7 +243,13 @@ export async function startDaemon(configOverride?: PufferConfig): Promise<Puffer
     const evaluated = await pipeline.evaluate(event);
     evaluated.decision = makeDecision(evaluated, { mode: config.mode });
     auditLogger.log(evaluated);
-    alertDispatcher.dispatch(evaluated).catch(() => {});
+    // Same reasoning as the proxy logEvent path above: don't block hook
+    // delivery on dispatch, but never swallow the failure.
+    alertDispatcher.dispatch(evaluated).catch((err: unknown) => {
+      logger.error(
+        `Alert dispatch failed for hook event ${evaluated.id}: ${(err as Error).message}`,
+      );
+    });
     return evaluated;
   });
 
@@ -279,7 +311,11 @@ export async function startDaemon(configOverride?: PufferConfig): Promise<Puffer
   // the transparent proxy while new sessions go direct to the API.
   process.on('SIGUSR1', async () => {
     logger.info('Entering drain mode — passthrough enabled, auto-exit in 120s');
-    try { await hookManager.uninstallAll(); } catch { /* best effort */ }
+    try {
+      await hookManager.uninstallAll();
+    } catch {
+      /* best effort */
+    }
     proxy.setPassthrough(true);
     // Keep PID file alive so `puffer stop --force` can still find us
     setTimeout(async () => {
@@ -288,7 +324,11 @@ export async function startDaemon(configOverride?: PufferConfig): Promise<Puffer
       if (dashboard) await dashboard.stop();
       await proxy.stop();
       await auditLogger.flush();
-      try { fs.unlinkSync(PID_FILE_PATH); } catch { /* ignore */ }
+      try {
+        fs.unlinkSync(PID_FILE_PATH);
+      } catch {
+        /* ignore */
+      }
       process.exit(0);
     }, 120_000);
   });
@@ -307,13 +347,21 @@ export async function startDaemon(configOverride?: PufferConfig): Promise<Puffer
   // ANTHROPIC_BASE_URL doesn't point to a dead port.
   process.on('uncaughtException', async (err) => {
     logger.error(`Uncaught exception: ${err.message}`);
-    try { await hookManager.uninstallAll(); } catch { /* best effort */ }
+    try {
+      await hookManager.uninstallAll();
+    } catch {
+      /* best effort */
+    }
     process.exit(1);
   });
 
   process.on('unhandledRejection', async (reason) => {
     logger.error(`Unhandled rejection: ${reason}`);
-    try { await hookManager.uninstallAll(); } catch { /* best effort */ }
+    try {
+      await hookManager.uninstallAll();
+    } catch {
+      /* best effort */
+    }
     process.exit(1);
   });
 

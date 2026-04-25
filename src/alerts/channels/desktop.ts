@@ -11,9 +11,13 @@ export class DesktopChannel implements AlertChannel {
     const platform = process.platform;
 
     if (platform === 'linux') {
-      await this.execCommand(`notify-send -u ${alert.severity === 'critical' ? 'critical' : 'normal'} "${esc(title)}" "${esc(message)}"`);
+      await this.execCommand(
+        `notify-send -u ${alert.severity === 'critical' ? 'critical' : 'normal'} "${esc(title)}" "${esc(message)}"`,
+      );
     } else if (platform === 'darwin') {
-      await this.execCommand(`osascript -e 'display notification "${esc(message)}" with title "${esc(title)}"'`);
+      await this.execCommand(
+        `osascript -e 'display notification "${esc(message)}" with title "${esc(title)}"'`,
+      );
     } else if (platform === 'win32') {
       // PowerShell toast notification
       const ps = `[System.Reflection.Assembly]::LoadWithPartialName('System.Windows.Forms'); $n = New-Object System.Windows.Forms.NotifyIcon; $n.Icon = [System.Drawing.SystemIcons]::Warning; $n.Visible = $true; $n.ShowBalloonTip(5000, '${esc(title)}', '${esc(message)}', 'Warning')`;
@@ -23,7 +27,7 @@ export class DesktopChannel implements AlertChannel {
 
   private execCommand(cmd: string): Promise<void> {
     return new Promise((resolve) => {
-      exec(cmd, (err) => {
+      exec(cmd, (_err) => {
         // Best effort — don't fail the alert pipeline on notification errors
         resolve();
       });

@@ -229,9 +229,9 @@ export interface NetworkConfig {
   mode: 'whitelist' | 'blacklist';
   allowedDomains: string[];
   blockedDomains: string[];
-  blockPrivateIPs: boolean;
+  blockPrivateIps: boolean;
   maxPayloadSizeMb: number;
-  scanPayloadForPII: boolean;
+  scanPayloadForPii: boolean;
 }
 
 export interface FilesystemConfig {
@@ -273,7 +273,10 @@ export interface AuditLogEntry {
   source: EventSource;
   action: { type: string; [key: string]: unknown };
   decision: Decision;
-  layers: Pick<LayerResult, 'layer' | 'name' | 'verdict' | 'confidence' | 'details' | 'durationMs'>[];
+  layers: Pick<
+    LayerResult,
+    'layer' | 'name' | 'verdict' | 'confidence' | 'details' | 'durationMs'
+  >[];
   metadata: EventMetadata;
 }
 

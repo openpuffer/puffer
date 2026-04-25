@@ -24,7 +24,10 @@ export interface UpdateApplyResult {
 /**
  * Check if updates are available from a remote rule registry.
  */
-export async function checkForUpdates(registryUrl: string, force = false): Promise<UpdateCheckResult> {
+export async function checkForUpdates(
+  registryUrl: string,
+  force = false,
+): Promise<UpdateCheckResult> {
   // Rate limit checks (unless forced)
   if (!force && fs.existsSync(LAST_CHECK_FILE)) {
     const lastCheck = parseInt(fs.readFileSync(LAST_CHECK_FILE, 'utf-8'), 10);
@@ -35,13 +38,15 @@ export async function checkForUpdates(registryUrl: string, force = false): Promi
   }
 
   // Fetch remote manifest
-  const manifestUrl = registryUrl.endsWith('/') ? `${registryUrl}manifest.json` : `${registryUrl}/manifest.json`;
+  const manifestUrl = registryUrl.endsWith('/')
+    ? `${registryUrl}manifest.json`
+    : `${registryUrl}/manifest.json`;
   let manifest: RuleManifest;
 
   try {
     const res = await fetch(manifestUrl);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    manifest = await res.json() as RuleManifest;
+    manifest = (await res.json()) as RuleManifest;
   } catch (err) {
     logger.error(`Failed to fetch rule manifest from ${manifestUrl}: ${(err as Error).message}`);
     return { available: 0, upToDate: 0, rules: [] };
@@ -49,7 +54,7 @@ export async function checkForUpdates(registryUrl: string, force = false): Promi
 
   // Compare with local rules
   const localRules = loadRules([USER_RULES_DIR]);
-  const localVersions = new Map(localRules.map(r => [r.id, r.version ?? '0.0.0']));
+  const localVersions = new Map(localRules.map((r) => [r.id, r.version ?? '0.0.0']));
 
   let available = 0;
   let upToDate = 0;
@@ -128,15 +133,30 @@ export async function applyUpdates(registryUrl: string, force = false): Promise<
 /**
  * List all loaded rules from both bundled and user directories.
  */
-export function listLoadedRules(): Array<{ id: string; name: string; layer: string; severity: string; version: string; source: string }> {
+export function listLoadedRules(): Array<{
+  id: string;
+  name: string;
+  layer: string;
+  severity: string;
+  version: string;
+  source: string;
+}> {
   const RULES_DIR = path.join(process.cwd(), 'rules');
-  const bundled = loadRules([RULES_DIR]).map(r => ({
-    id: r.id, name: r.name, layer: r.layer, severity: r.severity,
-    version: r.version ?? '-', source: 'bundled',
+  const bundled = loadRules([RULES_DIR]).map((r) => ({
+    id: r.id,
+    name: r.name,
+    layer: r.layer,
+    severity: r.severity,
+    version: r.version ?? '-',
+    source: 'bundled',
   }));
-  const user = loadRules([USER_RULES_DIR]).map(r => ({
-    id: r.id, name: r.name, layer: r.layer, severity: r.severity,
-    version: r.version ?? '-', source: 'user',
+  const user = loadRules([USER_RULES_DIR]).map((r) => ({
+    id: r.id,
+    name: r.name,
+    layer: r.layer,
+    severity: r.severity,
+    version: r.version ?? '-',
+    source: 'user',
   }));
 
   return [...bundled, ...user];

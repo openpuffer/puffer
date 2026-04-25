@@ -6,9 +6,9 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { WebSocketServer, WebSocket } from 'ws';
 import { v4 as uuidv4 } from 'uuid';
-import { PufferEvent, PufferConfig, DashboardStats, AuditLogEntry } from '../types.js';
-import { AuditLogger } from '../audit/logger.js';
-import { DiscoveryEngine } from '../discovery/index.js';
+import type { PufferEvent, PufferConfig, AuditLogEntry } from '../types.js';
+import type { AuditLogger } from '../audit/logger.js';
+import type { DiscoveryEngine } from '../discovery/index.js';
 import { makeDecision } from '../engine/decision.js';
 import { logger } from '../utils/logger.js';
 import { saveConfig } from '../utils/config.js';
@@ -17,15 +17,21 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // Common dev ports to avoid
 const DEV_PORTS_TO_AVOID = new Set([
-  3000, 3001, 3002, 3003,  // React, Next.js
-  4200,                      // Angular
-  5173, 5174,                // Vite
-  8000,                      // Django, vLLM
-  8080, 8081,                // LocalAI, generic
-  8888,                      // Jupyter
-  9000, 9090,                // Various
-  11434,                     // Ollama
-  1234,                      // LM Studio
+  3000,
+  3001,
+  3002,
+  3003, // React, Next.js
+  4200, // Angular
+  5173,
+  5174, // Vite
+  8000, // Django, vLLM
+  8080,
+  8081, // LocalAI, generic
+  8888, // Jupyter
+  9000,
+  9090, // Various
+  11434, // Ollama
+  1234, // LM Studio
 ]);
 
 export interface DashboardDependencies {
@@ -47,7 +53,8 @@ export interface DashboardServer {
  */
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise((resolve) => {
-    const tester = net.createServer()
+    const tester = net
+      .createServer()
       .once('error', () => resolve(false))
       .once('listening', () => {
         tester.close(() => resolve(true));
@@ -62,7 +69,7 @@ function isPortAvailable(port: number): Promise<boolean> {
  */
 async function findAvailablePort(preferred: number): Promise<number> {
   // Try preferred port first
-  if (!DEV_PORTS_TO_AVOID.has(preferred) && await isPortAvailable(preferred)) {
+  if (!DEV_PORTS_TO_AVOID.has(preferred) && (await isPortAvailable(preferred))) {
     return preferred;
   }
 
@@ -81,7 +88,10 @@ async function findAvailablePort(preferred: number): Promise<number> {
   return 0;
 }
 
-export function createDashboardServer(deps: DashboardDependencies, preferredPort: number): DashboardServer {
+export function createDashboardServer(
+  deps: DashboardDependencies,
+  preferredPort: number,
+): DashboardServer {
   const app = express();
 
   // Security: only allow requests from localhost
@@ -101,7 +111,10 @@ export function createDashboardServer(deps: DashboardDependencies, preferredPort
     res.setHeader('X-Frame-Options', 'DENY');
     res.setHeader('X-XSS-Protection', '1; mode=block');
     res.setHeader('Referrer-Policy', 'no-referrer');
-    res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' ws://127.0.0.1:*");
+    res.setHeader(
+      'Content-Security-Policy',
+      "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' ws://127.0.0.1:*",
+    );
     next();
   });
 
@@ -132,7 +145,14 @@ export function createDashboardServer(deps: DashboardDependencies, preferredPort
   function getOrCreateAgentUsage(agentName: string): AgentUsage {
     let usage = agentUsageMap.get(agentName);
     if (!usage) {
-      usage = { totalTokens: 0, inputTokens: 0, outputTokens: 0, totalCost: 0, requests: 0, models: {} };
+      usage = {
+        totalTokens: 0,
+        inputTokens: 0,
+        outputTokens: 0,
+        totalCost: 0,
+        requests: 0,
+        models: {},
+      };
       agentUsageMap.set(agentName, usage);
     }
     return usage;
@@ -161,7 +181,8 @@ export function createDashboardServer(deps: DashboardDependencies, preferredPort
       const usage = getOrCreateAgentUsage(event.source.agent);
       usage.requests++;
       if (isResponse && event.metadata.inputTokens) usage.inputTokens += event.metadata.inputTokens;
-      if (isResponse && event.metadata.outputTokens) usage.outputTokens += event.metadata.outputTokens;
+      if (isResponse && event.metadata.outputTokens)
+        usage.outputTokens += event.metadata.outputTokens;
       if (isResponse && event.metadata.totalTokens) usage.totalTokens += event.metadata.totalTokens;
       if (isResponse && event.metadata.costEstimate) usage.totalCost += event.metadata.costEstimate;
       if (event.metadata.model) {
@@ -242,6 +263,7 @@ export function createDashboardServer(deps: DashboardDependencies, preferredPort
       const score = calculateScore(deps.config, result, stats);
       res.json(score);
     } catch (err) {
+      logger.error('Failed to calculate score', err);
       res.status(500).json({ error: 'Failed to calculate score' });
     }
   });
@@ -253,16 +275,22 @@ export function createDashboardServer(deps: DashboardDependencies, preferredPort
       const result = await deps.discovery.scan();
       const stats = deps.auditLogger.getStats();
       const score = calculateScore(deps.config, result, stats);
-      const report = generateWeeklyReport(deps.auditLogger, { current: score.total, grade: score.grade });
+      const report = generateWeeklyReport(deps.auditLogger, {
+        current: score.total,
+        grade: score.grade,
+      });
       res.json(report);
     } catch (err) {
+      logger.error('Failed to generate report', err);
       res.status(500).json({ error: 'Failed to generate report' });
     }
   });
 
   app.get('/api/alerts', (_req, res) => {
     const entries = deps.auditLogger.readEntries(100);
-    const alerts = entries.filter((e: AuditLogEntry) => e.decision === 'BLOCK' || e.decision === 'ESCALATE');
+    const alerts = entries.filter(
+      (e: AuditLogEntry) => e.decision === 'BLOCK' || e.decision === 'ESCALATE',
+    );
     res.json({ alerts: alerts.slice(0, 50) });
   });
 
@@ -296,7 +324,10 @@ export function createDashboardServer(deps: DashboardDependencies, preferredPort
   /**
    * Map a tool name from Claude Code (or similar agent) to a PufferEvent action.
    */
-  function toolNameToAction(toolName: string, toolInput: Record<string, unknown>): PufferEvent['action'] {
+  function toolNameToAction(
+    toolName: string,
+    toolInput: Record<string, unknown>,
+  ): PufferEvent['action'] {
     switch (toolName) {
       case 'Bash':
       case 'bash':
@@ -332,7 +363,9 @@ export function createDashboardServer(deps: DashboardDependencies, preferredPort
           server: 'claude-code-agent',
           tool: 'subagent',
           params: {
-            subagent_type: String(toolInput.subagent_type ?? toolInput.subagentType ?? 'general-purpose'),
+            subagent_type: String(
+              toolInput.subagent_type ?? toolInput.subagentType ?? 'general-purpose',
+            ),
             description: String(toolInput.description ?? ''),
             ...toolInput,
           },
@@ -413,27 +446,29 @@ export function createDashboardServer(deps: DashboardDependencies, preferredPort
 
       // Log, broadcast, and track
       deps.auditLogger.log(evaluated);
-      broadcastToAll(JSON.stringify({
-        type: 'event',
-        data: {
-          id: evaluated.id,
-          timestamp: evaluated.timestamp,
-          source: evaluated.source,
-          action: actionForBroadcast(evaluated.action),
-          decision: evaluated.decision,
-          layers: evaluated.layers.map((l) => ({
-            layer: l.layer,
-            name: l.name,
-            verdict: l.verdict,
-          })),
-        },
-      }));
+      broadcastToAll(
+        JSON.stringify({
+          type: 'event',
+          data: {
+            id: evaluated.id,
+            timestamp: evaluated.timestamp,
+            source: evaluated.source,
+            action: actionForBroadcast(evaluated.action),
+            decision: evaluated.decision,
+            layers: evaluated.layers.map((l) => ({
+              layer: l.layer,
+              name: l.name,
+              verdict: l.verdict,
+            })),
+          },
+        }),
+      );
       broadcastToAll(buildStatsMessage());
       recordEvent(evaluated);
 
       const isBlocked = evaluated.decision === 'BLOCK' && deps.config.mode === 'enforce';
       const blockReason = isBlocked
-        ? evaluated.layers.find((l) => l.verdict === 'block')?.details ?? 'Blocked by Puffer'
+        ? (evaluated.layers.find((l) => l.verdict === 'block')?.details ?? 'Blocked by Puffer')
         : undefined;
 
       // Return in Claude Code hook format: hookSpecificOutput with permissionDecision
@@ -505,19 +540,23 @@ export function createDashboardServer(deps: DashboardDependencies, preferredPort
       // Run PostToolUse results through defense pipeline (detect PII, injection in results)
       const evaluated = await deps.evaluatePipeline(event);
       deps.auditLogger.log(evaluated);
-      broadcastToAll(JSON.stringify({
-        type: 'event',
-        data: {
-          id: evaluated.id,
-          timestamp: evaluated.timestamp,
-          source: evaluated.source,
-          action: { type: 'llm_response' } as Record<string, unknown>,
-          decision: evaluated.decision,
-          layers: evaluated.layers.map((l) => ({
-            layer: l.layer, name: l.name, verdict: l.verdict,
-          })),
-        },
-      }));
+      broadcastToAll(
+        JSON.stringify({
+          type: 'event',
+          data: {
+            id: evaluated.id,
+            timestamp: evaluated.timestamp,
+            source: evaluated.source,
+            action: { type: 'llm_response' } as Record<string, unknown>,
+            decision: evaluated.decision,
+            layers: evaluated.layers.map((l) => ({
+              layer: l.layer,
+              name: l.name,
+              verdict: l.verdict,
+            })),
+          },
+        }),
+      );
       broadcastToAll(buildStatsMessage());
       recordEvent(evaluated);
 
@@ -570,17 +609,19 @@ export function createDashboardServer(deps: DashboardDependencies, preferredPort
       };
 
       deps.auditLogger.log(event);
-      broadcastToAll(JSON.stringify({
-        type: 'event',
-        data: {
-          id: event.id,
-          timestamp: event.timestamp,
-          source: event.source,
-          action: { type: 'notification', category } as Record<string, unknown>,
-          decision: 'ALLOW',
-          layers: [],
-        },
-      }));
+      broadcastToAll(
+        JSON.stringify({
+          type: 'event',
+          data: {
+            id: event.id,
+            timestamp: event.timestamp,
+            source: event.source,
+            action: { type: 'notification', category } as Record<string, unknown>,
+            decision: 'ALLOW',
+            layers: [],
+          },
+        }),
+      );
       broadcastToAll(buildStatsMessage());
       recordEvent(event);
 
@@ -615,13 +656,27 @@ export function createDashboardServer(deps: DashboardDependencies, preferredPort
           action = { type: 'file_read', path: String(body.path ?? '') };
           break;
         case 'file_write':
-          action = { type: 'file_write', path: String(body.path ?? ''), content: body.content as string | undefined };
+          action = {
+            type: 'file_write',
+            path: String(body.path ?? ''),
+            content: body.content as string | undefined,
+          };
           break;
         case 'http_request':
-          action = { type: 'network_request', url: String(body.url ?? ''), method: String(body.method ?? 'GET'), body: body.payload };
+          action = {
+            type: 'network_request',
+            url: String(body.url ?? ''),
+            method: String(body.method ?? 'GET'),
+            body: body.payload,
+          };
           break;
         case 'skill_invoke':
-          action = { type: 'mcp_tool_call', server: String(body.server ?? 'openclaw'), tool: String(body.skill ?? body.tool ?? ''), params: body.params ?? {} };
+          action = {
+            type: 'mcp_tool_call',
+            server: String(body.server ?? 'openclaw'),
+            tool: String(body.skill ?? body.tool ?? ''),
+            params: body.params ?? {},
+          };
           break;
         default:
           action = { type: 'llm_request', method: 'HOOK', endpoint: actionType, body };
@@ -641,26 +696,33 @@ export function createDashboardServer(deps: DashboardDependencies, preferredPort
 
       const evaluated = await deps.evaluatePipeline(event);
       deps.auditLogger.log(evaluated);
-      broadcastToAll(JSON.stringify({
-        type: 'event',
-        data: {
-          id: evaluated.id,
-          timestamp: evaluated.timestamp,
-          source: evaluated.source,
-          action: { type: actionType } as Record<string, unknown>,
-          decision: evaluated.decision,
-          layers: evaluated.layers.map((l) => ({ layer: l.layer, name: l.name, verdict: l.verdict })),
-        },
-      }));
+      broadcastToAll(
+        JSON.stringify({
+          type: 'event',
+          data: {
+            id: evaluated.id,
+            timestamp: evaluated.timestamp,
+            source: evaluated.source,
+            action: { type: actionType } as Record<string, unknown>,
+            decision: evaluated.decision,
+            layers: evaluated.layers.map((l) => ({
+              layer: l.layer,
+              name: l.name,
+              verdict: l.verdict,
+            })),
+          },
+        }),
+      );
       broadcastToAll(buildStatsMessage());
       recordEvent(evaluated);
 
       // Return allow/deny in OpenClaw's expected format
       res.status(200).json({
         allow: evaluated.decision !== 'BLOCK',
-        reason: evaluated.decision === 'BLOCK'
-          ? `Puffer: ${evaluated.layers.find((l) => l.verdict === 'block')?.details ?? 'Blocked'}`
-          : undefined,
+        reason:
+          evaluated.decision === 'BLOCK'
+            ? `Puffer: ${evaluated.layers.find((l) => l.verdict === 'block')?.details ?? 'Blocked'}`
+            : undefined,
         decision: evaluated.decision,
         event_id: evaluated.id,
       });
@@ -762,17 +824,23 @@ export function createDashboardServer(deps: DashboardDependencies, preferredPort
 
       const evaluated = await deps.evaluatePipeline(event);
       deps.auditLogger.log(evaluated);
-      broadcastToAll(JSON.stringify({
-        type: 'event',
-        data: {
-          id: evaluated.id,
-          timestamp: evaluated.timestamp,
-          source: evaluated.source,
-          action: { type: eventType } as Record<string, unknown>,
-          decision: evaluated.decision,
-          layers: evaluated.layers.map((l) => ({ layer: l.layer, name: l.name, verdict: l.verdict })),
-        },
-      }));
+      broadcastToAll(
+        JSON.stringify({
+          type: 'event',
+          data: {
+            id: evaluated.id,
+            timestamp: evaluated.timestamp,
+            source: evaluated.source,
+            action: { type: eventType } as Record<string, unknown>,
+            decision: evaluated.decision,
+            layers: evaluated.layers.map((l) => ({
+              layer: l.layer,
+              name: l.name,
+              verdict: l.verdict,
+            })),
+          },
+        }),
+      );
       broadcastToAll(buildStatsMessage());
       recordEvent(evaluated);
 
@@ -817,27 +885,29 @@ export function createDashboardServer(deps: DashboardDependencies, preferredPort
 
       // Log, broadcast, and track
       deps.auditLogger.log(evaluated);
-      broadcastToAll(JSON.stringify({
-        type: 'event',
-        data: {
-          id: evaluated.id,
-          timestamp: evaluated.timestamp,
-          source: evaluated.source,
-          action: actionForBroadcast(evaluated.action),
-          decision: evaluated.decision,
-          layers: evaluated.layers.map((l) => ({
-            layer: l.layer,
-            name: l.name,
-            verdict: l.verdict,
-          })),
-        },
-      }));
+      broadcastToAll(
+        JSON.stringify({
+          type: 'event',
+          data: {
+            id: evaluated.id,
+            timestamp: evaluated.timestamp,
+            source: evaluated.source,
+            action: actionForBroadcast(evaluated.action),
+            decision: evaluated.decision,
+            layers: evaluated.layers.map((l) => ({
+              layer: l.layer,
+              name: l.name,
+              verdict: l.verdict,
+            })),
+          },
+        }),
+      );
       broadcastToAll(buildStatsMessage());
       recordEvent(evaluated);
 
       const isBlocked = evaluated.decision === 'BLOCK' && deps.config.mode === 'enforce';
       const blockReason = isBlocked
-        ? evaluated.layers.find((l) => l.verdict === 'block')?.details ?? 'Blocked by Puffer'
+        ? (evaluated.layers.find((l) => l.verdict === 'block')?.details ?? 'Blocked by Puffer')
         : undefined;
 
       res.status(200).json({
@@ -892,17 +962,23 @@ export function createDashboardServer(deps: DashboardDependencies, preferredPort
       evaluated.decision = makeDecision(evaluated, { mode: deps.config.mode });
 
       deps.auditLogger.log(evaluated);
-      broadcastToAll(JSON.stringify({
-        type: 'event',
-        data: {
-          id: evaluated.id,
-          timestamp: evaluated.timestamp,
-          source: evaluated.source,
-          action: actionForBroadcast(evaluated.action),
-          decision: evaluated.decision,
-          layers: evaluated.layers.map((l) => ({ layer: l.layer, name: l.name, verdict: l.verdict })),
-        },
-      }));
+      broadcastToAll(
+        JSON.stringify({
+          type: 'event',
+          data: {
+            id: evaluated.id,
+            timestamp: evaluated.timestamp,
+            source: evaluated.source,
+            action: actionForBroadcast(evaluated.action),
+            decision: evaluated.decision,
+            layers: evaluated.layers.map((l) => ({
+              layer: l.layer,
+              name: l.name,
+              verdict: l.verdict,
+            })),
+          },
+        }),
+      );
       broadcastToAll(buildStatsMessage());
       recordEvent(evaluated);
 
@@ -911,7 +987,14 @@ export function createDashboardServer(deps: DashboardDependencies, preferredPort
         decision: evaluated.decision,
         event_id: evaluated.id,
         findings: evaluated.layers
-          .flatMap(l => l.findings.map(f => ({ layer: l.name, type: f.type, severity: f.severity, value: f.value })))
+          .flatMap((l) =>
+            l.findings.map((f) => ({
+              layer: l.name,
+              type: f.type,
+              severity: f.severity,
+              value: f.value,
+            })),
+          )
           .slice(0, 10),
       });
     } catch (err) {
@@ -923,7 +1006,9 @@ export function createDashboardServer(deps: DashboardDependencies, preferredPort
   /**
    * Extract broadcast-safe metadata (tokens, cost, model, rate limits).
    */
-  function metadataForBroadcast(meta: PufferEvent['metadata']): Record<string, unknown> | undefined {
+  function metadataForBroadcast(
+    meta: PufferEvent['metadata'],
+  ): Record<string, unknown> | undefined {
     const data: Record<string, unknown> = {};
     if (meta.inputTokens) data.inputTokens = meta.inputTokens;
     if (meta.outputTokens) data.outputTokens = meta.outputTokens;
@@ -989,7 +1074,11 @@ export function createDashboardServer(deps: DashboardDependencies, preferredPort
     ws.on('close', () => clients.delete(ws));
     ws.on('error', () => {
       clients.delete(ws);
-      try { ws.close(); } catch { /* already closed */ }
+      try {
+        ws.close();
+      } catch {
+        /* already closed */
+      }
     });
   });
 
@@ -1030,10 +1119,12 @@ export function createDashboardServer(deps: DashboardDependencies, preferredPort
   // Periodic agents broadcast every 10 seconds
   const agentsInterval = setInterval(() => {
     const agents = deps.discovery.getAgents();
-    broadcastToAll(JSON.stringify({
-      type: 'agents',
-      payload: { agents },
-    }));
+    broadcastToAll(
+      JSON.stringify({
+        type: 'agents',
+        payload: { agents },
+      }),
+    );
   }, 10000);
 
   let resolvedPort = preferredPort;

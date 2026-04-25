@@ -27,15 +27,15 @@ npx openpuffer init
 
 Puffer sits between your AI agents and LLM providers, inspecting every request and response through a **7-layer defense pipeline**:
 
-| Layer | Name | What It Detects |
-|-------|------|----------------|
-| L1 | PII Scanner | SSNs, credit cards, API keys, passwords, private keys, JWTs |
-| L2 | Injection Detector | Prompt injection attacks, role switching, data exfiltration |
-| L3 | Command Analyzer | Dangerous shell commands (`rm -rf /`, `curl \| bash`, fork bombs) |
-| L4 | Network Egress Guard | SSRF attempts, DGA domains, unauthorized outbound calls |
-| L5 | Filesystem Sentinel | Access to `~/.ssh`, `~/.aws`, path traversal, secret leakage |
-| L6 | Behavior Analyzer | Cost runaway, agent loops, bypass attempts |
-| L7 | MCP Detector | Unauthorized MCP servers, tool result poisoning |
+| Layer | Name                 | What It Detects                                                   |
+| ----- | -------------------- | ----------------------------------------------------------------- |
+| L1    | PII Scanner          | SSNs, credit cards, API keys, passwords, private keys, JWTs       |
+| L2    | Injection Detector   | Prompt injection attacks, role switching, data exfiltration       |
+| L3    | Command Analyzer     | Dangerous shell commands (`rm -rf /`, `curl \| bash`, fork bombs) |
+| L4    | Network Egress Guard | SSRF attempts, DGA domains, unauthorized outbound calls           |
+| L5    | Filesystem Sentinel  | Access to `~/.ssh`, `~/.aws`, path traversal, secret leakage      |
+| L6    | Behavior Analyzer    | Cost runaway, agent loops, bypass attempts                        |
+| L7    | MCP Detector         | Unauthorized MCP servers, tool result poisoning                   |
 
 ## Features
 
@@ -49,31 +49,31 @@ Puffer sits between your AI agents and LLM providers, inspecting every request a
 
 ## Supported Agents
 
-| Agent | Detection Method | Hook Type |
-|-------|-----------------|-----------|
-| Claude Code | Process scan | Native hook (settings.json) |
-| OpenClaw | Process + Port scan | Middleware skill |
-| Cursor | Process scan | Env-based proxy |
-| Aider | Process scan | Env-based proxy |
-| Continue.dev | Process scan | Env-based proxy |
-| Cline | Process scan | Env-based proxy |
-| GitHub Copilot | Process scan | Env-based proxy |
-| Python (LangChain, CrewAI, AutoGen) | Process scan | Env-based proxy |
+| Agent                               | Detection Method    | Hook Type                   |
+| ----------------------------------- | ------------------- | --------------------------- |
+| Claude Code                         | Process scan        | Native hook (settings.json) |
+| OpenClaw                            | Process + Port scan | Middleware skill            |
+| Cursor                              | Process scan        | Env-based proxy             |
+| Aider                               | Process scan        | Env-based proxy             |
+| Continue.dev                        | Process scan        | Env-based proxy             |
+| Cline                               | Process scan        | Env-based proxy             |
+| GitHub Copilot                      | Process scan        | Env-based proxy             |
+| Python (LangChain, CrewAI, AutoGen) | Process scan        | Env-based proxy             |
 
 ## Supported LLM Providers
 
-| Provider | Type | Auto-Discovery |
-|----------|------|---------------|
-| OpenAI | Cloud | Network scan |
-| Anthropic | Cloud | Network scan |
-| Ollama | Local | Port 11434 |
-| LM Studio | Local | Port 1234 |
-| LocalAI | Local | Port 8080 |
-| vLLM | Local | Port 8000 |
-| DeepSeek | Cloud | Network scan |
-| Groq | Cloud | Network scan |
-| Together | Cloud | Network scan |
-| OpenRouter | Cloud | Network scan |
+| Provider   | Type  | Auto-Discovery |
+| ---------- | ----- | -------------- |
+| OpenAI     | Cloud | Network scan   |
+| Anthropic  | Cloud | Network scan   |
+| Ollama     | Local | Port 11434     |
+| LM Studio  | Local | Port 1234      |
+| LocalAI    | Local | Port 8080      |
+| vLLM       | Local | Port 8000      |
+| DeepSeek   | Cloud | Network scan   |
+| Groq       | Cloud | Network scan   |
+| Together   | Cloud | Network scan   |
+| OpenRouter | Cloud | Network scan   |
 
 ## CLI Commands
 
@@ -95,12 +95,12 @@ puffer deflate     # Switch back to normal mode
 Puffer uses YAML configuration at `~/.puffer/config.yaml`. Edit manually or use the dashboard.
 
 ```yaml
-mode: enforce  # monitor | enforce | paranoid | interactive
+mode: enforce # monitor | enforce | paranoid | interactive
 
 layers:
   pii:
     enabled: true
-    regions: ["us", "eu", "global"]
+    regions: ['us', 'eu', 'global']
     action_by_severity:
       critical: block
       high: block
@@ -117,8 +117,8 @@ layers:
   commands:
     enabled: true
     require_approval:
-      - "sudo *"
-      - "npm publish *"
+      - 'sudo *'
+      - 'npm publish *'
 
   behavior:
     max_cost_per_session_usd: 10.00
@@ -174,17 +174,32 @@ npm install
 # Build
 npm run build
 
-# Run tests (97 tests across 9 files)
+# Run tests
 npm test
 
-# Type check
+# Type check + lint + format check
+npm run typecheck
 npm run lint
+npm run format:check
+
+# Auto-fix
+npm run lint:fix
+npm run format
 
 # Build dashboard
 cd dashboard
 npm install
 npm run build
 ```
+
+## Documentation
+
+- [Architecture overview](docs/architecture/overview.md) — project identity, high-level architecture, repo structure
+- [Implementation phases](docs/architecture/implementation-phases.md) — the 6 build phases (proxy, discovery, 7-layer pipeline, CLI, dashboard, hooks)
+- [Configuration & audit](docs/architecture/operations.md) — config schema and audit logging
+- [Testing strategy](docs/architecture/testing.md) — adversarial + unit test approach
+- [Packaging & release](docs/architecture/packaging-and-release.md) — npm distribution, build order
+- [Refactor progress log](docs/PROGRESS.md) — current modernization effort
 
 ## License
 

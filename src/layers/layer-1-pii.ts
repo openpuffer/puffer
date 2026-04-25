@@ -1,4 +1,4 @@
-import { PufferEvent, LayerResult, Finding, Verdict, PIIConfig } from '../types.js';
+import type { PufferEvent, LayerResult, Finding, Verdict, PIIConfig } from '../types.js';
 import { extractUserContentFromEvent, getMaxSeverity, allowResult } from './helpers.js';
 
 export interface PIIPattern {
@@ -170,7 +170,12 @@ export const PII_PATTERNS: PIIPattern[] = [
     region: 'global',
     validate: (match: string) => {
       // Reject common code/config patterns that aren't real password leaks
-      if (/password_hash|password_reset|password_confirm|password_field|password_policy|password_strength|password_min/i.test(match)) return false;
+      if (
+        /password_hash|password_reset|password_confirm|password_field|password_policy|password_strength|password_min/i.test(
+          match,
+        )
+      )
+        return false;
       return true;
     },
   },

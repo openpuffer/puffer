@@ -1,15 +1,21 @@
-import { PufferEvent, PufferConfig } from '../../src/types.js';
+import { PufferEvent } from '../../src/types.js';
 
 export function makeLLMRequestEvent(body: unknown, sessionId = 'adv-sess-1'): PufferEvent {
-  const resolvedBody = typeof body === 'string'
-    ? { messages: [{ role: 'user', content: body }], model: 'test-model', max_tokens: 1024 }
-    : body;
+  const resolvedBody =
+    typeof body === 'string'
+      ? { messages: [{ role: 'user', content: body }], model: 'test-model', max_tokens: 1024 }
+      : body;
 
   return {
     id: 'adv-test-1',
     timestamp: new Date().toISOString(),
     source: { type: 'proxy', agent: 'test-agent', provider: 'openai' },
-    action: { type: 'llm_request', method: 'POST', endpoint: '/v1/chat/completions', body: resolvedBody },
+    action: {
+      type: 'llm_request',
+      method: 'POST',
+      endpoint: '/v1/chat/completions',
+      body: resolvedBody,
+    },
     metadata: { sessionId, sequenceNumber: 1 },
     layers: [],
     decision: null,
@@ -17,9 +23,8 @@ export function makeLLMRequestEvent(body: unknown, sessionId = 'adv-sess-1'): Pu
 }
 
 export function makeLLMResponseEvent(body: unknown, sessionId = 'adv-sess-1'): PufferEvent {
-  const resolvedBody = typeof body === 'string'
-    ? { choices: [{ message: { content: body } }] }
-    : body;
+  const resolvedBody =
+    typeof body === 'string' ? { choices: [{ message: { content: body } }] } : body;
 
   return {
     id: 'adv-test-resp-1',
@@ -32,7 +37,11 @@ export function makeLLMResponseEvent(body: unknown, sessionId = 'adv-sess-1'): P
   };
 }
 
-export function makeCommandEvent(command: string, args: string[] = [], sessionId = 'adv-sess-1'): PufferEvent {
+export function makeCommandEvent(
+  command: string,
+  args: string[] = [],
+  sessionId = 'adv-sess-1',
+): PufferEvent {
   return {
     id: 'adv-test-cmd-1',
     timestamp: new Date().toISOString(),
@@ -61,9 +70,10 @@ export function makeFileEvent(
   type: 'file_read' | 'file_write' = 'file_read',
   content?: string,
 ): PufferEvent {
-  const action = type === 'file_write'
-    ? { type: 'file_write' as const, path, content }
-    : { type: 'file_read' as const, path };
+  const action =
+    type === 'file_write'
+      ? { type: 'file_write' as const, path, content }
+      : { type: 'file_read' as const, path };
 
   return {
     id: 'adv-test-fs-1',
@@ -76,7 +86,11 @@ export function makeFileEvent(
   };
 }
 
-export function makeMCPToolCallEvent(server: string, tool: string, params: unknown = {}): PufferEvent {
+export function makeMCPToolCallEvent(
+  server: string,
+  tool: string,
+  params: unknown = {},
+): PufferEvent {
   return {
     id: 'adv-test-mcp-1',
     timestamp: new Date().toISOString(),
@@ -128,9 +142,9 @@ export const DEFAULT_NETWORK_CONFIG = {
   mode: 'blacklist' as const,
   allowedDomains: [] as string[],
   blockedDomains: [] as string[],
-  blockPrivateIPs: true,
+  blockPrivateIps: true,
   maxPayloadSizeMb: 50,
-  scanPayloadForPII: true,
+  scanPayloadForPii: true,
 };
 
 export const DEFAULT_FILESYSTEM_CONFIG = {
@@ -174,9 +188,7 @@ export const DEFAULT_BEHAVIOR_CONFIG = {
 
 export const DEFAULT_MCP_CONFIG = {
   enabled: true,
-  authorizedServers: [
-    { url: 'https://mcp.trusted.com', allowedTools: ['search', 'read'] },
-  ],
+  authorizedServers: [{ url: 'https://mcp.trusted.com', allowedTools: ['search', 'read'] }],
   blockUnauthorized: true,
   scanToolResults: true,
 };

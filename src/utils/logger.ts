@@ -49,7 +49,7 @@ export const logger = {
   blocked(reason: string, layerName: string, agent: string): void {
     console.log(
       chalk.red.bold(`[${PREFIX} PUFFER] BLOCKED: ${reason}`) +
-      chalk.gray(` | Layer: ${layerName} | Agent: ${agent}`)
+        chalk.gray(` | Layer: ${layerName} | Agent: ${agent}`),
     );
   },
 
@@ -57,7 +57,7 @@ export const logger = {
     if (shouldLog('debug')) {
       console.log(
         chalk.green(`[${PREFIX} PUFFER] ALLOW: ${action}`) +
-        chalk.gray(` | 7 layers passed in ${durationMs}ms`)
+          chalk.gray(` | 7 layers passed in ${durationMs}ms`),
       );
     }
   },

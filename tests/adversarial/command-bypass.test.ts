@@ -12,8 +12,11 @@ describe('Command Analyzer - Adversarial Bypass Tests', () => {
       const event = makeCommandEvent('bash', ['-c', '$(echo cm0gLXJmIC8= | base64 -d)']);
       const result = await commandAnalyzer(event, DEFAULT_COMMANDS_CONFIG);
       // New patterns detect base64 decode in subshell expansion and echo|base64 -d
-      const hasBase64Pattern = result.findings.some((f) => f.type === 'dangerous_pattern' &&
-        (f.suggestion?.includes('base64') || f.suggestion?.includes('Base64')));
+      const hasBase64Pattern = result.findings.some(
+        (f) =>
+          f.type === 'dangerous_pattern' &&
+          (f.suggestion?.includes('base64') || f.suggestion?.includes('Base64')),
+      );
       expect(hasBase64Pattern).toBe(true);
       expect(result.verdict).toBe('block');
     });
@@ -64,9 +67,11 @@ describe('Command Analyzer - Adversarial Bypass Tests', () => {
       const result = await commandAnalyzer(event, DEFAULT_COMMANDS_CONFIG);
       // env is not classified -> defaults to 'caution'
       // But the full command string contains "rm -rf /" pattern
-      expect(result.findings.some(
-        (f) => f.type === 'dangerous_pattern' && f.suggestion?.includes('Recursive delete'),
-      )).toBe(true);
+      expect(
+        result.findings.some(
+          (f) => f.type === 'dangerous_pattern' && f.suggestion?.includes('Recursive delete'),
+        ),
+      ).toBe(true);
     });
   });
 

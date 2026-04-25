@@ -1,4 +1,4 @@
-import { Command } from 'commander';
+import type { Command } from 'commander';
 import chalk from 'chalk';
 import { DiscoveryEngine } from '../discovery/index.js';
 import { loadConfig } from '../utils/config.js';
@@ -20,13 +20,15 @@ export function registerScanCommand(program: Command): void {
       if (result.agents.length > 0) {
         console.log(chalk.white.bold('  Discovered agents:'));
         for (const agent of result.agents) {
-          const statusColor = agent.protectionStatus === 'protected' ? 'green' : 'red';
-          const statusLabel = agent.protectionStatus === 'protected'
-            ? chalk.green('protected')
-            : agent.protectionStatus === 'partial'
-              ? chalk.yellow('partial')
-              : chalk.red('unprotected');
-          console.log(`    - ${agent.name} (PID: ${agent.pid}, via ${agent.detectedVia}) [${statusLabel}]`);
+          const statusLabel =
+            agent.protectionStatus === 'protected'
+              ? chalk.green('protected')
+              : agent.protectionStatus === 'partial'
+                ? chalk.yellow('partial')
+                : chalk.red('unprotected');
+          console.log(
+            `    - ${agent.name} (PID: ${agent.pid}, via ${agent.detectedVia}) [${statusLabel}]`,
+          );
         }
         console.log('');
       } else {
@@ -38,9 +40,8 @@ export function registerScanCommand(program: Command): void {
         console.log(chalk.white.bold('  Discovered providers:'));
         for (const provider of result.providers) {
           const type = provider.isLocal ? chalk.blue('local') : chalk.yellow('cloud');
-          const status = provider.status === 'active'
-            ? chalk.green('active')
-            : chalk.red(provider.status);
+          const status =
+            provider.status === 'active' ? chalk.green('active') : chalk.red(provider.status);
           console.log(`    - ${provider.name} -> ${provider.targetUrl} [${type}, ${status}]`);
         }
         console.log('');
@@ -58,11 +59,20 @@ export function registerScanCommand(program: Command): void {
       }
 
       // Summary
-      const protectedCount = result.agents.filter((a) => a.protectionStatus === 'protected').length;
-      const unprotectedCount = result.agents.filter((a) => a.protectionStatus !== 'protected').length;
-      console.log(chalk.cyan(`  Summary: ${result.agents.length} agent(s), ${result.providers.length} provider(s)`));
+      const unprotectedCount = result.agents.filter(
+        (a) => a.protectionStatus !== 'protected',
+      ).length;
+      console.log(
+        chalk.cyan(
+          `  Summary: ${result.agents.length} agent(s), ${result.providers.length} provider(s)`,
+        ),
+      );
       if (unprotectedCount > 0) {
-        console.log(chalk.red(`  ${unprotectedCount} unprotected agent(s) — run 'puffer init' to protect them.`));
+        console.log(
+          chalk.red(
+            `  ${unprotectedCount} unprotected agent(s) — run 'puffer init' to protect them.`,
+          ),
+        );
       }
 
       // Calculate and display Puffer Score

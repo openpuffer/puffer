@@ -41,7 +41,9 @@ export class AlertDispatcher {
     if (this.channels.length === 0) return;
 
     // Determine severity from findings
-    const blockingLayer = event.layers.find(l => l.verdict === 'block' || l.verdict === 'escalate');
+    const blockingLayer = event.layers.find(
+      (l) => l.verdict === 'block' || l.verdict === 'escalate',
+    );
     const maxSeverity = this.getMaxSeverity(event);
 
     if (!this.meetsThreshold(maxSeverity)) return;
@@ -62,13 +64,13 @@ export class AlertDispatcher {
     };
 
     // Send to all channels in parallel
-    const results = await Promise.allSettled(
-      this.channels.map(ch => ch.send(payload)),
-    );
+    const results = await Promise.allSettled(this.channels.map((ch) => ch.send(payload)));
 
     for (let i = 0; i < results.length; i++) {
       if (results[i].status === 'rejected') {
-        logger.warn(`Alert channel ${this.channels[i].name} failed: ${(results[i] as PromiseRejectedResult).reason}`);
+        logger.warn(
+          `Alert channel ${this.channels[i].name} failed: ${(results[i] as PromiseRejectedResult).reason}`,
+        );
       }
     }
   }
@@ -77,7 +79,10 @@ export class AlertDispatcher {
     let max: 'critical' | 'high' | 'medium' | 'low' = 'low';
     for (const layer of event.layers) {
       for (const finding of layer.findings) {
-        if (AlertDispatcher.SEVERITY_ORDER.indexOf(finding.severity) > AlertDispatcher.SEVERITY_ORDER.indexOf(max)) {
+        if (
+          AlertDispatcher.SEVERITY_ORDER.indexOf(finding.severity) >
+          AlertDispatcher.SEVERITY_ORDER.indexOf(max)
+        ) {
           max = finding.severity;
         }
       }
@@ -88,6 +93,9 @@ export class AlertDispatcher {
   }
 
   private meetsThreshold(severity: 'critical' | 'high' | 'medium' | 'low'): boolean {
-    return AlertDispatcher.SEVERITY_ORDER.indexOf(severity) >= AlertDispatcher.SEVERITY_ORDER.indexOf(this.minSeverity);
+    return (
+      AlertDispatcher.SEVERITY_ORDER.indexOf(severity) >=
+      AlertDispatcher.SEVERITY_ORDER.indexOf(this.minSeverity)
+    );
   }
 }

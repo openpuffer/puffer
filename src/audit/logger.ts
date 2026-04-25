@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
-import { PufferEvent, AuditLogEntry } from '../types.js';
+import type { PufferEvent, AuditLogEntry } from '../types.js';
 import { AUDIT_LOG_PATH } from '../utils/constants.js';
 import { logger } from '../utils/logger.js';
 
@@ -116,7 +116,13 @@ export class AuditLogger {
   /**
    * Get stats from the audit log.
    */
-  getStats(): { total: number; blocked: number; allowed: number; audit: number; escalated: number } {
+  getStats(): {
+    total: number;
+    blocked: number;
+    allowed: number;
+    audit: number;
+    escalated: number;
+  } {
     if (!fs.existsSync(this.logPath)) {
       return { total: 0, blocked: 0, allowed: 0, audit: 0, escalated: 0 };
     }
@@ -134,10 +140,18 @@ export class AuditLogger {
       try {
         const entry = JSON.parse(line) as AuditLogEntry;
         switch (entry.decision) {
-          case 'BLOCK': blocked++; break;
-          case 'ALLOW': allowed++; break;
-          case 'AUDIT': audit++; break;
-          case 'ESCALATE': escalated++; break;
+          case 'BLOCK':
+            blocked++;
+            break;
+          case 'ALLOW':
+            allowed++;
+            break;
+          case 'AUDIT':
+            audit++;
+            break;
+          case 'ESCALATE':
+            escalated++;
+            break;
         }
       } catch {
         malformedCount++;

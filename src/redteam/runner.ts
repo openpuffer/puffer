@@ -22,25 +22,52 @@ function buildEvent(scenario: Scenario): PufferEvent {
 
   switch (scenario.eventType) {
     case 'llm_request':
-      action = { type: 'llm_request', method: 'POST', endpoint: '/v1/messages', body: scenario.payload };
+      action = {
+        type: 'llm_request',
+        method: 'POST',
+        endpoint: '/v1/messages',
+        body: scenario.payload,
+      };
       break;
     case 'command_execute':
-      action = { type: 'command_execute', command: scenario.payload.command as string, args: scenario.payload.args as string[] };
+      action = {
+        type: 'command_execute',
+        command: scenario.payload.command as string,
+        args: scenario.payload.args as string[],
+      };
       break;
     case 'file_read':
       action = { type: 'file_read', path: scenario.payload.path as string };
       break;
     case 'file_write':
-      action = { type: 'file_write', path: scenario.payload.path as string, content: scenario.payload.content as string };
+      action = {
+        type: 'file_write',
+        path: scenario.payload.path as string,
+        content: scenario.payload.content as string,
+      };
       break;
     case 'network_request':
-      action = { type: 'network_request', url: scenario.payload.url as string, method: scenario.payload.method as string };
+      action = {
+        type: 'network_request',
+        url: scenario.payload.url as string,
+        method: scenario.payload.method as string,
+      };
       break;
     case 'mcp_tool_call':
-      action = { type: 'mcp_tool_call', server: scenario.payload.server as string, tool: scenario.payload.tool as string, params: scenario.payload.params };
+      action = {
+        type: 'mcp_tool_call',
+        server: scenario.payload.server as string,
+        tool: scenario.payload.tool as string,
+        params: scenario.payload.params,
+      };
       break;
     case 'mcp_tool_result':
-      action = { type: 'mcp_tool_result', server: scenario.payload.server as string, tool: scenario.payload.tool as string, result: scenario.payload.result };
+      action = {
+        type: 'mcp_tool_result',
+        server: scenario.payload.server as string,
+        tool: scenario.payload.tool as string,
+        result: scenario.payload.result,
+      };
       break;
   }
 
@@ -80,7 +107,7 @@ export async function runRedTeam(config: PufferConfig): Promise<RedTeamResult> {
       });
     } else if (!scenario.expectedBlock && wasBlocked) {
       // Safe operation was blocked
-      const blockingLayer = evaluated.layers.find(l => l.verdict === 'block');
+      const blockingLayer = evaluated.layers.find((l) => l.verdict === 'block');
       vulnerabilities.push({
         scenario,
         expected: 'ALLOW',
@@ -105,8 +132,13 @@ export function formatRedTeamReport(result: RedTeamResult): string {
   const lines: string[] = [];
 
   lines.push('');
-  const scoreColor = result.score >= 80 ? chalk.green : result.score >= 60 ? chalk.yellow : chalk.red;
-  lines.push(scoreColor.bold(`  🐡 RED TEAM REPORT: ${result.passed}/${result.total} attacks handled correctly (${result.score}%)`));
+  const scoreColor =
+    result.score >= 80 ? chalk.green : result.score >= 60 ? chalk.yellow : chalk.red;
+  lines.push(
+    scoreColor.bold(
+      `  🐡 RED TEAM REPORT: ${result.passed}/${result.total} attacks handled correctly (${result.score}%)`,
+    ),
+  );
   lines.push('');
 
   if (result.vulnerabilities.length === 0) {
@@ -115,10 +147,16 @@ export function formatRedTeamReport(result: RedTeamResult): string {
     lines.push(chalk.red.bold(`  ✗ ${result.vulnerabilities.length} vulnerability(ies) found:\n`));
 
     for (const vuln of result.vulnerabilities) {
-      const severityColor = vuln.scenario.severity === 'critical' ? chalk.red :
-        vuln.scenario.severity === 'high' ? chalk.yellow : chalk.blue;
+      const severityColor =
+        vuln.scenario.severity === 'critical'
+          ? chalk.red
+          : vuln.scenario.severity === 'high'
+            ? chalk.yellow
+            : chalk.blue;
 
-      lines.push(`  ${severityColor(`[${vuln.scenario.severity.toUpperCase()}]`)} ${chalk.white(vuln.scenario.name)}`);
+      lines.push(
+        `  ${severityColor(`[${vuln.scenario.severity.toUpperCase()}]`)} ${chalk.white(vuln.scenario.name)}`,
+      );
       lines.push(chalk.gray(`    ${vuln.scenario.description}`));
       lines.push(chalk.gray(`    Expected: ${vuln.expected} → Got: ${vuln.actual}`));
       lines.push(chalk.yellow(`    Fix: ${vuln.details}`));

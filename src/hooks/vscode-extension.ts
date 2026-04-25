@@ -1,12 +1,9 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
-import { execSync } from 'node:child_process';
-import { HookHandler } from './index.js';
+import type { HookHandler } from './index.js';
 import { logger } from '../utils/logger.js';
 import { DEFAULT_PROXY_PORT } from '../utils/constants.js';
-
-const PUFFER_EXT_ID = 'puffer.puffer-security';
 
 /**
  * Resolve VS Code settings.json path by platform.
@@ -20,21 +17,14 @@ function getVSCodeSettingsPath(): string {
   } else if (platform === 'darwin') {
     return path.join(home, 'Library', 'Application Support', 'Code', 'User', 'settings.json');
   } else if (platform === 'win32') {
-    return path.join(process.env.APPDATA ?? path.join(home, 'AppData', 'Roaming'), 'Code', 'User', 'settings.json');
+    return path.join(
+      process.env.APPDATA ?? path.join(home, 'AppData', 'Roaming'),
+      'Code',
+      'User',
+      'settings.json',
+    );
   }
   return path.join(home, '.config', 'Code', 'User', 'settings.json');
-}
-
-/**
- * Check if VS Code CLI is available.
- */
-function isVSCodeAvailable(): boolean {
-  try {
-    execSync('code --version', { stdio: 'ignore', timeout: 5000 });
-    return true;
-  } catch {
-    return false;
-  }
 }
 
 /**
@@ -106,7 +96,10 @@ export class VSCodeExtensionHook implements HookHandler {
         delete settings['puffer.installed'];
         delete settings['puffer.proxyPort'];
         // Also clean up legacy http.proxy if a previous Puffer version set it
-        if (typeof settings['http.proxy'] === 'string' && (settings['http.proxy'] as string).includes('127.0.0.1')) {
+        if (
+          typeof settings['http.proxy'] === 'string' &&
+          (settings['http.proxy'] as string).includes('127.0.0.1')
+        ) {
           delete settings['http.proxy'];
           delete settings['http.proxyStrictSSL'];
         }

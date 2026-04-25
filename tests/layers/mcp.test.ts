@@ -26,9 +26,7 @@ function makeEvent(
 
 const defaultConfig: MCPConfig = {
   enabled: true,
-  authorizedServers: [
-    { url: 'https://mcp.trusted.com', allowedTools: ['search', 'read'] },
-  ],
+  authorizedServers: [{ url: 'https://mcp.trusted.com', allowedTools: ['search', 'read'] }],
   blockUnauthorized: true,
   scanToolResults: true,
 };
@@ -53,7 +51,9 @@ describe('MCP Poisoning Detector', () => {
 
   describe('Authorized operations', () => {
     it('should allow authorized server and tool', async () => {
-      const event = makeEvent('mcp_tool_call', 'https://mcp.trusted.com', 'search', { query: 'test' });
+      const event = makeEvent('mcp_tool_call', 'https://mcp.trusted.com', 'search', {
+        query: 'test',
+      });
       const result = await mcpPoisoningDetector(event, defaultConfig);
       expect(result.verdict).toBe('allow');
       expect(result.findings).toHaveLength(0);

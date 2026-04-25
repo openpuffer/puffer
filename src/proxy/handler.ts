@@ -1,8 +1,8 @@
-import { IncomingMessage, IncomingHttpHeaders, ServerResponse } from 'node:http';
+import type { IncomingMessage, IncomingHttpHeaders, ServerResponse } from 'node:http';
 import { v4 as uuidv4 } from 'uuid';
-import { PufferEvent, EventAction, Decision, RateLimitInfo } from '../types.js';
+import type { PufferEvent, EventAction, Decision, RateLimitInfo } from '../types.js';
 import { detectProvider, getAdapter, estimateCostWithOutput } from './providers.js';
-import { COST_TABLE, VERSION } from '../utils/constants.js';
+import { VERSION } from '../utils/constants.js';
 import { logger } from '../utils/logger.js';
 
 export interface ProxyDependencies {
@@ -13,7 +13,11 @@ export interface ProxyDependencies {
     res: ServerResponse,
     targetUrl: string,
     body: Buffer,
-    onResponse: (statusCode: number, responseBody: unknown, responseHeaders?: IncomingHttpHeaders) => void
+    onResponse: (
+      statusCode: number,
+      responseBody: unknown,
+      responseHeaders?: IncomingHttpHeaders,
+    ) => void,
   ) => void;
   resolveTarget: (provider: string) => string | null;
   sessionId: string;
@@ -75,7 +79,7 @@ function inferAgent(
   const isOpenAISDK = uaLower.includes('openai/');
   if (isOpenAISDK && discoveredAgentNames) {
     const openaiAgents = discoveredAgentNames.filter((n) =>
-      ['python-openai', 'python-langchain', 'python-crewai', 'python-autogen'].includes(n)
+      ['python-openai', 'python-langchain', 'python-crewai', 'python-autogen'].includes(n),
     );
     if (openaiAgents.length === 1) return openaiAgents[0];
   }
@@ -92,7 +96,7 @@ export async function handleRequest(
   req: IncomingMessage,
   res: ServerResponse,
   bodyBuffer: Buffer,
-  deps: ProxyDependencies
+  deps: ProxyDependencies,
 ): Promise<void> {
   const url = req.url ?? '/';
 
@@ -108,12 +112,20 @@ export async function handleRequest(
   if (deps.passthrough) {
     const headers = req.headers as Record<string, string | string[] | undefined>;
     let body: unknown;
-    try { body = bodyBuffer.length > 0 ? JSON.parse(bodyBuffer.toString('utf-8')) : {}; } catch { body = {}; }
+    try {
+      body = bodyBuffer.length > 0 ? JSON.parse(bodyBuffer.toString('utf-8')) : {};
+    } catch {
+      body = {};
+    }
     const provider = detectProvider(url, headers, body);
     const targetUrl = deps.resolveTarget(provider);
     if (!targetUrl) {
       res.writeHead(502, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: { type: 'puffer_error', message: `No target for provider: ${provider}` } }));
+      res.end(
+        JSON.stringify({
+          error: { type: 'puffer_error', message: `No target for provider: ${provider}` },
+        }),
+      );
       return;
     }
     deps.forwardRequest(req, res, targetUrl, bodyBuffer, () => {});
@@ -148,7 +160,8 @@ export async function handleRequest(
     : inferAgent(headers, deps.getDiscoveredAgentNames?.());
 
   // Capture raw debug info when agent can't be identified
-  const debugInfo = agent === 'unknown' ? captureDebugInfo(headers, req.method ?? 'POST', url) : undefined;
+  const debugInfo =
+    agent === 'unknown' ? captureDebugInfo(headers, req.method ?? 'POST', url) : undefined;
 
   const event: PufferEvent = {
     id: uuidv4(),
@@ -186,16 +199,18 @@ export async function handleRequest(
     logger.blocked(reason, blockLayer?.name ?? 'unknown', event.source.agent);
 
     res.writeHead(403, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({
-      error: {
-        type: 'puffer_blocked',
-        message: 'Request blocked by Puffer defense layer',
-        layer: blockLayer?.name ?? 'unknown',
-        details: reason,
-        event_id: event.id,
-        puffer_version: VERSION,
-      },
-    }));
+    res.end(
+      JSON.stringify({
+        error: {
+          type: 'puffer_blocked',
+          message: 'Request blocked by Puffer defense layer',
+          layer: blockLayer?.name ?? 'unknown',
+          details: reason,
+          event_id: event.id,
+          puffer_version: VERSION,
+        },
+      }),
+    );
     return;
   }
 
@@ -203,71 +218,82 @@ export async function handleRequest(
   const targetUrl = deps.resolveTarget(provider);
   if (!targetUrl) {
     res.writeHead(502, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({
-      error: {
-        type: 'puffer_error',
-        message: `No target URL configured for provider: ${provider}`,
-        puffer_version: VERSION,
-      },
-    }));
+    res.end(
+      JSON.stringify({
+        error: {
+          type: 'puffer_error',
+          message: `No target URL configured for provider: ${provider}`,
+          puffer_version: VERSION,
+        },
+      }),
+    );
     return;
   }
 
-  deps.forwardRequest(req, res, targetUrl, bodyBuffer, (statusCode, responseBody, responseHeaders) => {
-    // Extract real token usage from provider response
-    const usage = extractUsageFromResponse(responseBody, provider);
-    const rateLimits = extractRateLimits(responseHeaders);
+  deps.forwardRequest(
+    req,
+    res,
+    targetUrl,
+    bodyBuffer,
+    (statusCode, responseBody, responseHeaders) => {
+      // Extract real token usage from provider response
+      const usage = extractUsageFromResponse(responseBody, provider);
+      const rateLimits = extractRateLimits(responseHeaders);
 
-    // Compute accurate cost if real tokens available, otherwise fall back to estimate
-    let costEstimate: number | undefined;
-    if (usage.inputTokens > 0 || usage.outputTokens > 0) {
-      costEstimate = estimateCostWithOutput(model, usage.inputTokens, usage.outputTokens);
-    }
-
-    const responseEvent: PufferEvent = {
-      id: uuidv4(),
-      timestamp: new Date().toISOString(),
-      source: event.source,
-      action: { type: 'llm_response', status: statusCode, body: responseBody },
-      payload: responseBody,
-      metadata: {
-        sessionId: deps.sessionId,
-        sequenceNumber: deps.sequenceCounter.value++,
-        tokenEstimate: usage.totalTokens || estimateResponseTokens(responseBody),
-        costEstimate,
-        inputTokens: usage.inputTokens || undefined,
-        outputTokens: usage.outputTokens || undefined,
-        totalTokens: usage.totalTokens || undefined,
-        model,
-        rateLimits: rateLimits ?? undefined,
-      },
-      layers: [],
-      decision: null,
-    };
-
-    // Run LLM response through defense pipeline (PII, injection detection, etc.)
-    deps.evaluatePipeline(responseEvent).then((evaluatedResponse) => {
-      deps.logEvent(evaluatedResponse);
-
-      if (evaluatedResponse.decision === 'BLOCK') {
-        const blockLayer = evaluatedResponse.layers.find((l) => l.verdict === 'block');
-        logger.blocked(
-          `Response contained blocked content: ${blockLayer?.details ?? 'unknown'}`,
-          blockLayer?.name ?? 'unknown',
-          event.source.agent,
-        );
+      // Compute accurate cost if real tokens available, otherwise fall back to estimate
+      let costEstimate: number | undefined;
+      if (usage.inputTokens > 0 || usage.outputTokens > 0) {
+        costEstimate = estimateCostWithOutput(model, usage.inputTokens, usage.outputTokens);
       }
-    }).catch((err) => {
-      // If pipeline fails, still log the response with ALLOW
-      responseEvent.decision = 'ALLOW' as Decision;
-      deps.logEvent(responseEvent);
-      logger.error(`Response pipeline error: ${(err as Error).message}`);
-    });
 
-    // Total defense pipeline duration (request-side layers only, not round-trip)
-    const totalMs = evaluated.layers.reduce((sum, l) => sum + l.durationMs, 0);
-    logger.allowed(`${req.method} ${url}`, totalMs);
-  });
+      const responseEvent: PufferEvent = {
+        id: uuidv4(),
+        timestamp: new Date().toISOString(),
+        source: event.source,
+        action: { type: 'llm_response', status: statusCode, body: responseBody },
+        payload: responseBody,
+        metadata: {
+          sessionId: deps.sessionId,
+          sequenceNumber: deps.sequenceCounter.value++,
+          tokenEstimate: usage.totalTokens || estimateResponseTokens(responseBody),
+          costEstimate,
+          inputTokens: usage.inputTokens || undefined,
+          outputTokens: usage.outputTokens || undefined,
+          totalTokens: usage.totalTokens || undefined,
+          model,
+          rateLimits: rateLimits ?? undefined,
+        },
+        layers: [],
+        decision: null,
+      };
+
+      // Run LLM response through defense pipeline (PII, injection detection, etc.)
+      deps
+        .evaluatePipeline(responseEvent)
+        .then((evaluatedResponse) => {
+          deps.logEvent(evaluatedResponse);
+
+          if (evaluatedResponse.decision === 'BLOCK') {
+            const blockLayer = evaluatedResponse.layers.find((l) => l.verdict === 'block');
+            logger.blocked(
+              `Response contained blocked content: ${blockLayer?.details ?? 'unknown'}`,
+              blockLayer?.name ?? 'unknown',
+              event.source.agent,
+            );
+          }
+        })
+        .catch((err) => {
+          // If pipeline fails, still log the response with ALLOW
+          responseEvent.decision = 'ALLOW' as Decision;
+          deps.logEvent(responseEvent);
+          logger.error(`Response pipeline error: ${(err as Error).message}`);
+        });
+
+      // Total defense pipeline duration (request-side layers only, not round-trip)
+      const totalMs = evaluated.layers.reduce((sum, l) => sum + l.durationMs, 0);
+      logger.allowed(`${req.method} ${url}`, totalMs);
+    },
+  );
 }
 
 /**
@@ -294,8 +320,8 @@ function captureDebugInfo(
     'x-stainless-timeout',
     'openai-organization',
     'x-request-id',
-    'x-api-key',       // will be masked below
-    'authorization',    // will be masked below
+    'x-api-key', // will be masked below
+    'authorization', // will be masked below
     'accept',
     'content-type',
     'host',
@@ -335,7 +361,10 @@ function estimateResponseTokens(body: unknown): number {
  * OpenAI format: usage.prompt_tokens, usage.completion_tokens, usage.total_tokens
  * Anthropic format: usage.input_tokens, usage.output_tokens
  */
-function extractUsageFromResponse(body: unknown, provider: string): {
+function extractUsageFromResponse(
+  body: unknown,
+  provider: string,
+): {
   inputTokens: number;
   outputTokens: number;
   totalTokens: number;

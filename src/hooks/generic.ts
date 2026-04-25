@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
-import { HookHandler } from './index.js';
+import type { HookHandler } from './index.js';
 import { logger } from '../utils/logger.js';
 import { PUFFER_DIR, DEFAULT_PROXY_PORT } from '../utils/constants.js';
 
@@ -68,17 +68,17 @@ export class GenericHook implements HookHandler {
         logger.debug(`Generic hook: wrote ${ENV_FILE_WIN}`);
 
         for (const profilePath of getPowerShellProfilePaths()) {
-          this.injectRcBlock(profilePath, `${PUFFER_START_MARKER}\n. "${ENV_FILE_WIN}"\n${PUFFER_END_MARKER}`);
+          this.injectRcBlock(
+            profilePath,
+            `${PUFFER_START_MARKER}\n. "${ENV_FILE_WIN}"\n${PUFFER_END_MARKER}`,
+          );
         }
       } else {
         // Unix: write env.sh and inject into shell RC files
         fs.writeFileSync(ENV_FILE_UNIX, ENV_CONTENT_UNIX);
         logger.debug(`Generic hook: wrote ${ENV_FILE_UNIX}`);
 
-        const rcFiles = [
-          path.join(os.homedir(), '.bashrc'),
-          path.join(os.homedir(), '.zshrc'),
-        ];
+        const rcFiles = [path.join(os.homedir(), '.bashrc'), path.join(os.homedir(), '.zshrc')];
         for (const rcFile of rcFiles) {
           this.injectRcBlock(rcFile, RC_BLOCK_UNIX);
         }

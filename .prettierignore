@@ -1,0 +1,14 @@
+node_modules
+dist
+coverage
+.nyc_output
+*.tsbuildinfo
+package-lock.json
+
+# Build artifacts
+dashboard/dist
+dashboard/node_modules
+
+# Don't reformat the audit/test JSONL data
+tests/fixtures/**/*.jsonl
+benchmarks/**/*.json

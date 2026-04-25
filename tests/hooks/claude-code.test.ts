@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
@@ -35,20 +35,25 @@ describe('ClaudeCodeHook', () => {
 
     // Check PreToolUse has the right command
     const pre = settings.hooks.PreToolUse.find(
-      (e: Record<string, unknown>) => Array.isArray(e.hooks) &&
+      (e: Record<string, unknown>) =>
+        Array.isArray(e.hooks) &&
         (e.hooks as Record<string, unknown>[]).some(
-          (h) => typeof h.command === 'string' && (h.command as string).includes('/hooks/claude-code')
-        )
+          (h) =>
+            typeof h.command === 'string' && (h.command as string).includes('/hooks/claude-code'),
+        ),
     );
     expect(pre).toBeDefined();
     expect(pre.matcher).toBe('.*');
 
     // Check Notification hook exists
     const notif = settings.hooks.Notification.find(
-      (e: Record<string, unknown>) => Array.isArray(e.hooks) &&
+      (e: Record<string, unknown>) =>
+        Array.isArray(e.hooks) &&
         (e.hooks as Record<string, unknown>[]).some(
-          (h) => typeof h.command === 'string' && (h.command as string).includes('/hooks/claude-code-notification')
-        )
+          (h) =>
+            typeof h.command === 'string' &&
+            (h.command as string).includes('/hooks/claude-code-notification'),
+        ),
     );
     expect(notif).toBeDefined();
   });
@@ -87,11 +92,13 @@ describe('ClaudeCodeHook', () => {
     // No Puffer entries in any hook type
     for (const hookType of ['PreToolUse', 'PostToolUse', 'Notification']) {
       const entries = settings.hooks[hookType] ?? [];
-      const hasPuffer = entries.some((e: Record<string, unknown>) =>
-        Array.isArray(e.hooks) &&
-        (e.hooks as Record<string, unknown>[]).some(
-          (h) => typeof h.command === 'string' && (h.command as string).includes('/hooks/claude-code')
-        )
+      const hasPuffer = entries.some(
+        (e: Record<string, unknown>) =>
+          Array.isArray(e.hooks) &&
+          (e.hooks as Record<string, unknown>[]).some(
+            (h) =>
+              typeof h.command === 'string' && (h.command as string).includes('/hooks/claude-code'),
+          ),
       );
       expect(hasPuffer).toBe(false);
     }
@@ -108,10 +115,12 @@ describe('ClaudeCodeHook', () => {
 
     const settings = JSON.parse(fs.readFileSync(SETTINGS_PATH, 'utf-8'));
     const pufferPre = settings.hooks.PreToolUse.filter(
-      (e: Record<string, unknown>) => Array.isArray(e.hooks) &&
+      (e: Record<string, unknown>) =>
+        Array.isArray(e.hooks) &&
         (e.hooks as Record<string, unknown>[]).some(
-          (h) => typeof h.command === 'string' && (h.command as string).includes('/hooks/claude-code')
-        )
+          (h) =>
+            typeof h.command === 'string' && (h.command as string).includes('/hooks/claude-code'),
+        ),
     );
     expect(pufferPre.length).toBe(1);
   });

@@ -1,5 +1,4 @@
-import { AuditLogEntry } from '../types.js';
-import { AuditLogger } from './logger.js';
+import type { AuditLogger } from './logger.js';
 import chalk from 'chalk';
 
 export interface AuditReport {

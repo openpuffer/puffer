@@ -1,4 +1,4 @@
-import { PufferEvent, PufferConfig, LayerFunction, LayerResult } from '../types.js';
+import type { PufferEvent, PufferConfig, LayerFunction, LayerResult } from '../types.js';
 import { logger } from '../utils/logger.js';
 import { piiScanner } from './layer-1-pii.js';
 import { injectionDetector } from './layer-2-injection.js';
@@ -48,7 +48,10 @@ export class DefensePipeline {
         const result = await Promise.race([
           layer.fn(event, layer.config),
           new Promise<never>((_, reject) =>
-            setTimeout(() => reject(new Error(`Layer ${layer.name} timed out after ${timeoutMs}ms`)), timeoutMs),
+            setTimeout(
+              () => reject(new Error(`Layer ${layer.name} timed out after ${timeoutMs}ms`)),
+              timeoutMs,
+            ),
           ),
         ]);
         result.durationMs = Date.now() - start;
@@ -72,13 +75,15 @@ export class DefensePipeline {
             verdict: 'block',
             confidence: 0,
             details: `Layer error (fail-closed): ${errorMsg}`,
-            findings: [{
-              type: 'layer_error',
-              severity: 'critical',
-              location: layer.name,
-              value: errorMsg,
-              suggestion: 'Layer failed and fail-closed mode is active',
-            }],
+            findings: [
+              {
+                type: 'layer_error',
+                severity: 'critical',
+                location: layer.name,
+                value: errorMsg,
+                suggestion: 'Layer failed and fail-closed mode is active',
+              },
+            ],
             durationMs,
           };
           event.layers.push(errorResult);
@@ -125,11 +130,31 @@ export function createDefaultPipeline(config: PufferConfig): DefensePipeline {
   const pipeline = new DefensePipeline(options);
 
   pipeline.registerLayer('pii_scanner', piiScanner as LayerFunction, config.layers.pii);
-  pipeline.registerLayer('injection_detector', injectionDetector as LayerFunction, config.layers.injection);
-  pipeline.registerLayer('command_analyzer', commandAnalyzer as LayerFunction, config.layers.commands);
-  pipeline.registerLayer('network_egress', networkEgressGuard as LayerFunction, config.layers.network);
-  pipeline.registerLayer('filesystem_sentinel', filesystemSentinel as LayerFunction, config.layers.filesystem);
-  pipeline.registerLayer('behavior_analyzer', behaviorAnalyzer as LayerFunction, config.layers.behavior);
+  pipeline.registerLayer(
+    'injection_detector',
+    injectionDetector as LayerFunction,
+    config.layers.injection,
+  );
+  pipeline.registerLayer(
+    'command_analyzer',
+    commandAnalyzer as LayerFunction,
+    config.layers.commands,
+  );
+  pipeline.registerLayer(
+    'network_egress',
+    networkEgressGuard as LayerFunction,
+    config.layers.network,
+  );
+  pipeline.registerLayer(
+    'filesystem_sentinel',
+    filesystemSentinel as LayerFunction,
+    config.layers.filesystem,
+  );
+  pipeline.registerLayer(
+    'behavior_analyzer',
+    behaviorAnalyzer as LayerFunction,
+    config.layers.behavior,
+  );
   pipeline.registerLayer('mcp_detector', mcpPoisoningDetector as LayerFunction, config.layers.mcp);
 
   return pipeline;

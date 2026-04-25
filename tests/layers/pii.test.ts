@@ -181,10 +181,21 @@ describe('PII Scanner', () => {
         system: 'You are a helpful assistant.',
         messages: [
           { role: 'user', content: 'Please read the file src/config.ts and explain it.' },
-          { role: 'assistant', content: [{ type: 'text', text: 'I\'ll read that file for you.' }] },
-          { role: 'user', content: [{ type: 'tool_result', content: 'export const DEFAULT_TOKEN_LIMIT = 8192;\nexport const SECRET_STORE_PATH = "~/.config/secrets";\nconst password_hash_rounds = 12;' }] },
+          { role: 'assistant', content: [{ type: 'text', text: "I'll read that file for you." }] },
+          {
+            role: 'user',
+            content: [
+              {
+                type: 'tool_result',
+                content:
+                  'export const DEFAULT_TOKEN_LIMIT = 8192;\nexport const SECRET_STORE_PATH = "~/.config/secrets";\nconst password_hash_rounds = 12;',
+              },
+            ],
+          },
         ],
-        tools: [{ name: 'read_file', description: 'Read a file', input_schema: { type: 'object' } }],
+        tools: [
+          { name: 'read_file', description: 'Read a file', input_schema: { type: 'object' } },
+        ],
         stream: true,
       });
       const result = await piiScanner(event, defaultConfig);

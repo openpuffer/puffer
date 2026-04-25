@@ -29,9 +29,9 @@ const defaultConfig: NetworkConfig = {
   mode: 'blacklist',
   allowedDomains: [],
   blockedDomains: [],
-  blockPrivateIPs: true,
+  blockPrivateIps: true,
   maxPayloadSizeMb: 10,
-  scanPayloadForPII: false,
+  scanPayloadForPii: false,
 };
 
 describe('Network Egress Guard', () => {
@@ -82,7 +82,7 @@ describe('Network Egress Guard', () => {
         ...defaultConfig,
         mode: 'whitelist',
         allowedDomains: ['api.openai.com'],
-        blockPrivateIPs: false,
+        blockPrivateIps: false,
       };
       const event = makeEvent('https://api.openai.com/v1/chat/completions');
       const result = await networkEgressGuard(event, config);
@@ -96,7 +96,7 @@ describe('Network Egress Guard', () => {
         ...defaultConfig,
         mode: 'blacklist',
         blockedDomains: ['evil.com', '*.malware.org'],
-        blockPrivateIPs: false,
+        blockPrivateIps: false,
       };
       const event = makeEvent('https://evil.com/payload');
       const result = await networkEgressGuard(event, config);
@@ -109,7 +109,7 @@ describe('Network Egress Guard', () => {
         ...defaultConfig,
         mode: 'blacklist',
         blockedDomains: ['evil.com'],
-        blockPrivateIPs: false,
+        blockPrivateIps: false,
       };
       const event = makeEvent('https://api.openai.com/v1/chat');
       const result = await networkEgressGuard(event, config);
@@ -119,7 +119,7 @@ describe('Network Egress Guard', () => {
 
   describe('DGA domain detection', () => {
     it('should detect DGA-like domains', async () => {
-      const config: NetworkConfig = { ...defaultConfig, blockPrivateIPs: false };
+      const config: NetworkConfig = { ...defaultConfig, blockPrivateIps: false };
       const event = makeEvent('https://xk7mq9brt3np.com/callback');
       const result = await networkEgressGuard(event, config);
       expect(result.findings.some((f) => f.type === 'dga_domain')).toBe(true);
@@ -128,7 +128,7 @@ describe('Network Egress Guard', () => {
 
   describe('Clean requests', () => {
     it('should allow clean requests', async () => {
-      const config: NetworkConfig = { ...defaultConfig, blockPrivateIPs: false };
+      const config: NetworkConfig = { ...defaultConfig, blockPrivateIps: false };
       const event = makeEvent('https://api.github.com/repos');
       const result = await networkEgressGuard(event, config);
       expect(result.verdict).toBe('allow');

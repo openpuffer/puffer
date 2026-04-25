@@ -58,7 +58,10 @@ export class WebhookChannel implements AlertChannel {
         {
           type: 'context',
           elements: [
-            { type: 'mrkdwn', text: `🐡 Puffer | Event: \`${alert.event.id.slice(0, 8)}\` | ${alert.timestamp}` },
+            {
+              type: 'mrkdwn',
+              text: `🐡 Puffer | Event: \`${alert.event.id.slice(0, 8)}\` | ${alert.timestamp}`,
+            },
           ],
         },
       ],
@@ -69,18 +72,20 @@ export class WebhookChannel implements AlertChannel {
 
   private async sendDiscord(alert: AlertPayload): Promise<void> {
     const body = {
-      embeds: [{
-        title: `${SEVERITY_EMOJI[alert.severity]} ${alert.title}`,
-        description: alert.message,
-        color: parseInt(SEVERITY_COLORS[alert.severity].slice(1), 16),
-        fields: [
-          { name: 'Agent', value: alert.event.agent, inline: true },
-          { name: 'Severity', value: alert.severity.toUpperCase(), inline: true },
-          { name: 'Layer', value: alert.event.layer ?? 'N/A', inline: true },
-        ],
-        footer: { text: `🐡 Puffer | ${alert.event.id.slice(0, 8)}` },
-        timestamp: alert.timestamp,
-      }],
+      embeds: [
+        {
+          title: `${SEVERITY_EMOJI[alert.severity]} ${alert.title}`,
+          description: alert.message,
+          color: parseInt(SEVERITY_COLORS[alert.severity].slice(1), 16),
+          fields: [
+            { name: 'Agent', value: alert.event.agent, inline: true },
+            { name: 'Severity', value: alert.severity.toUpperCase(), inline: true },
+            { name: 'Layer', value: alert.event.layer ?? 'N/A', inline: true },
+          ],
+          footer: { text: `🐡 Puffer | ${alert.event.id.slice(0, 8)}` },
+          timestamp: alert.timestamp,
+        },
+      ],
     };
 
     await this.post(body);
@@ -91,16 +96,18 @@ export class WebhookChannel implements AlertChannel {
       '@type': 'MessageCard',
       themeColor: SEVERITY_COLORS[alert.severity].slice(1),
       summary: alert.title,
-      sections: [{
-        activityTitle: `${SEVERITY_EMOJI[alert.severity]} ${alert.title}`,
-        facts: [
-          { name: 'Agent', value: alert.event.agent },
-          { name: 'Severity', value: alert.severity.toUpperCase() },
-          { name: 'Action', value: alert.event.action },
-          { name: 'Layer', value: alert.event.layer ?? 'N/A' },
-        ],
-        text: alert.message,
-      }],
+      sections: [
+        {
+          activityTitle: `${SEVERITY_EMOJI[alert.severity]} ${alert.title}`,
+          facts: [
+            { name: 'Agent', value: alert.event.agent },
+            { name: 'Severity', value: alert.severity.toUpperCase() },
+            { name: 'Action', value: alert.event.action },
+            { name: 'Layer', value: alert.event.layer ?? 'N/A' },
+          ],
+          text: alert.message,
+        },
+      ],
     };
 
     await this.post(body);

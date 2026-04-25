@@ -1,4 +1,4 @@
-import { PufferEvent, LayerResult, Finding, NetworkConfig } from '../types.js';
+import type { PufferEvent, LayerResult, Finding, NetworkConfig } from '../types.js';
 import { allowResult } from './helpers.js';
 import { PII_PATTERNS } from './layer-1-pii.js';
 
@@ -27,11 +27,11 @@ function normalizeHostname(hostname: string): string[] {
   // Check if it's a pure decimal IP (single number)
   if (/^\d+$/.test(hostname)) {
     const num = parseInt(hostname, 10);
-    if (num >= 0 && num <= 0xFFFFFFFF) {
-      const a = (num >>> 24) & 0xFF;
-      const b = (num >>> 16) & 0xFF;
-      const c = (num >>> 8) & 0xFF;
-      const d = num & 0xFF;
+    if (num >= 0 && num <= 0xffffffff) {
+      const a = (num >>> 24) & 0xff;
+      const b = (num >>> 16) & 0xff;
+      const c = (num >>> 8) & 0xff;
+      const d = num & 0xff;
       variants.push(`${a}.${b}.${c}.${d}`);
     }
   }
@@ -66,14 +66,15 @@ function normalizeHostname(hostname: string): string[] {
     const ipv6Parts = hostname.split(':');
     if (ipv6Parts.length === 8) {
       // Check if all zeros except last
-      const isLoopback = ipv6Parts.slice(0, 7).every((p) => parseInt(p, 16) === 0) &&
+      const isLoopback =
+        ipv6Parts.slice(0, 7).every((p) => parseInt(p, 16) === 0) &&
         parseInt(ipv6Parts[7], 16) === 1;
       if (isLoopback) variants.push('::1');
 
       // Check for fc00::/7 or fe80::/10 in longform
       const firstGroup = parseInt(ipv6Parts[0], 16);
-      if ((firstGroup & 0xFE00) === 0xFC00) variants.push(`fc00:${ipv6Parts.slice(1).join(':')}`);
-      if ((firstGroup & 0xFFC0) === 0xFE80) variants.push(`fe80:${ipv6Parts.slice(1).join(':')}`);
+      if ((firstGroup & 0xfe00) === 0xfc00) variants.push(`fc00:${ipv6Parts.slice(1).join(':')}`);
+      if ((firstGroup & 0xffc0) === 0xfe80) variants.push(`fe80:${ipv6Parts.slice(1).join(':')}`);
     }
   }
 
@@ -156,7 +157,7 @@ export async function networkEgressGuard(
   const findings: Finding[] = [];
 
   // Private IP check (anti-SSRF) with normalized hostname variants
-  if (config.blockPrivateIPs) {
+  if (config.blockPrivateIps) {
     const isLocal = event.source.provider.includes('local');
     if (!isLocal) {
       const hostVariants = normalizeHostname(hostname);
@@ -232,7 +233,8 @@ export async function networkEgressGuard(
 
   // Payload size check
   if (config.maxPayloadSizeMb > 0 && event.action.type === 'network_request' && event.action.body) {
-    const bodyStr = typeof event.action.body === 'string' ? event.action.body : JSON.stringify(event.action.body);
+    const bodyStr =
+      typeof event.action.body === 'string' ? event.action.body : JSON.stringify(event.action.body);
     const sizeMb = Buffer.byteLength(bodyStr, 'utf-8') / (1024 * 1024);
     if (sizeMb > config.maxPayloadSizeMb) {
       findings.push({
@@ -246,10 +248,9 @@ export async function networkEgressGuard(
   }
 
   // PII scan on network payloads
-  if (config.scanPayloadForPII && event.action.type === 'network_request' && event.action.body) {
-    const bodyStr = typeof event.action.body === 'string'
-      ? event.action.body
-      : JSON.stringify(event.action.body);
+  if (config.scanPayloadForPii && event.action.type === 'network_request' && event.action.body) {
+    const bodyStr =
+      typeof event.action.body === 'string' ? event.action.body : JSON.stringify(event.action.body);
     for (const piiPattern of PII_PATTERNS) {
       const regex = new RegExp(piiPattern.pattern.source, piiPattern.pattern.flags);
       const match = regex.exec(bodyStr);

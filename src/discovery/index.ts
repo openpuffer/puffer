@@ -16,7 +16,13 @@ function resolveProtectionStatus(
   const hookInstalled = installedHookNames.some((hookName) => {
     if (hookName === 'claude-code' && agent.name === 'claude-code') return true;
     if (hookName === 'openclaw' && agent.name === 'openclaw') return true;
-    if (hookName === 'vscode-extension' && ['github-copilot', 'cursor', 'cline', 'continue-dev', 'windsurf', 'codeium'].includes(agent.name)) return true;
+    if (
+      hookName === 'vscode-extension' &&
+      ['github-copilot', 'cursor', 'cline', 'continue-dev', 'windsurf', 'codeium'].includes(
+        agent.name,
+      )
+    )
+      return true;
     if (hookName === agent.name) return true;
     return false;
   });
@@ -150,8 +156,8 @@ export class DiscoveryEngine {
 
     logger.debug(
       `Discovery scan complete: ${result.agents.length} agent(s), ` +
-      `${result.providers.length} provider(s), ` +
-      `${newSinceLastScan.length} new, ${removedSinceLastScan.length} removed`
+        `${result.providers.length} provider(s), ` +
+        `${newSinceLastScan.length} new, ${removedSinceLastScan.length} removed`,
     );
 
     // Notify listener
@@ -177,13 +183,21 @@ export class DiscoveryEngine {
     // Set up periodic scanning first to ensure it runs even if initial scan fails
     this.interval = setInterval(() => {
       this.scan().catch((err) => {
-        try { logger.error('Discovery scan failed', err); } catch { /* swallow */ }
+        try {
+          logger.error('Discovery scan failed', err);
+        } catch {
+          /* swallow */
+        }
       });
     }, intervalMs);
 
     // Run initial scan (non-blocking)
     this.scan().catch((err) => {
-      try { logger.error('Initial discovery scan failed', err); } catch { /* swallow */ }
+      try {
+        logger.error('Initial discovery scan failed', err);
+      } catch {
+        /* swallow */
+      }
     });
   }
 

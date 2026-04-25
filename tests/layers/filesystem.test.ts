@@ -71,11 +71,7 @@ describe('Filesystem Sentinel', () => {
 
   describe('Secret detection', () => {
     it('should detect AWS keys in written content', async () => {
-      const event = makeEvent(
-        'file_write',
-        '/tmp/config.txt',
-        'aws_key=AKIAIOSFODNN7EXAMPLE',
-      );
+      const event = makeEvent('file_write', '/tmp/config.txt', 'aws_key=AKIAIOSFODNN7EXAMPLE');
       const result = await filesystemSentinel(event, defaultConfig);
       expect(result.findings.some((f) => f.type === 'secret_in_content')).toBe(true);
     });
@@ -97,7 +93,12 @@ describe('Filesystem Sentinel', () => {
         id: 'test-1',
         timestamp: new Date().toISOString(),
         source: { type: 'proxy', agent: 'test-agent', provider: 'openai' },
-        action: { type: 'llm_request', method: 'POST', endpoint: '/v1/chat/completions', body: 'hello' },
+        action: {
+          type: 'llm_request',
+          method: 'POST',
+          endpoint: '/v1/chat/completions',
+          body: 'hello',
+        },
         metadata: { sessionId: 'sess-1', sequenceNumber: 1 },
         layers: [],
         decision: null,

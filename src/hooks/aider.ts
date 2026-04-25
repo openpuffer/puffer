@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import YAML from 'yaml';
-import { HookHandler } from './index.js';
+import type { HookHandler } from './index.js';
 import { logger } from '../utils/logger.js';
 import { backupConfigValue, restoreConfigValue } from './config-backup.js';
 import { DEFAULT_PROXY_PORT } from '../utils/constants.js';

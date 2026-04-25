@@ -1,4 +1,4 @@
-import { Command } from 'commander';
+import type { Command } from 'commander';
 import chalk from 'chalk';
 import { BANNER, CONFIG_PATH, AUDIT_LOG_PATH, DEFAULT_DASHBOARD_PORT } from '../utils/constants.js';
 import { loadConfig, saveConfig, ensurePufferDir } from '../utils/config.js';
@@ -29,18 +29,21 @@ export function registerInitCommand(program: Command): void {
       if (result.agents.length > 0) {
         console.log(chalk.white.bold('  Discovered AI agents:'));
         for (const agent of result.agents) {
-          const status = agent.protectionStatus === 'protected'
-            ? chalk.green('✓ protected')
-            : agent.protectionStatus === 'partial'
-              ? chalk.yellow('~ partial')
-              : chalk.red('✗ unprotected');
+          const status =
+            agent.protectionStatus === 'protected'
+              ? chalk.green('✓ protected')
+              : agent.protectionStatus === 'partial'
+                ? chalk.yellow('~ partial')
+                : chalk.red('✗ unprotected');
           const host = agent.hostProgram ? chalk.gray(` in ${agent.hostProgram}`) : '';
           console.log(`    ${status}  ${chalk.white(agent.name)}${host}`);
         }
         console.log('');
       } else {
         console.log(chalk.gray('  No AI agents currently running.\n'));
-        console.log(chalk.gray('  Start an AI agent (Claude Code, Cursor, etc.) and re-run puffer init.\n'));
+        console.log(
+          chalk.gray('  Start an AI agent (Claude Code, Cursor, etc.) and re-run puffer init.\n'),
+        );
       }
 
       // Display discovered providers
@@ -79,10 +82,16 @@ export function registerInitCommand(program: Command): void {
       // Set recommended mode based on findings
       if (result.securityWarnings.length > 0) {
         config.mode = 'enforce';
-        console.log(chalk.yellow(`  Mode set to ${chalk.bold('enforce')} (security warnings detected)`));
+        console.log(
+          chalk.yellow(`  Mode set to ${chalk.bold('enforce')} (security warnings detected)`),
+        );
       } else {
         config.mode = 'monitor';
-        console.log(chalk.green(`  Mode set to ${chalk.bold('monitor')} (safe default, upgrade to enforce when ready)`));
+        console.log(
+          chalk.green(
+            `  Mode set to ${chalk.bold('monitor')} (safe default, upgrade to enforce when ready)`,
+          ),
+        );
       }
 
       saveConfig(config, configPath);
@@ -106,17 +115,34 @@ export function registerInitCommand(program: Command): void {
       console.log('');
 
       console.log(chalk.white.bold('  Next steps:'));
-      console.log(chalk.white('    1. ') + chalk.gray('puffer start        ') + '— Start the Puffer daemon');
-      console.log(chalk.white('    2. ') + chalk.gray('puffer dashboard    ') + '— Open the monitoring dashboard');
-      console.log(chalk.white('    3. ') + chalk.gray('puffer score        ') + '— Check your security score anytime');
+      console.log(
+        chalk.white('    1. ') + chalk.gray('puffer start        ') + '— Start the Puffer daemon',
+      );
+      console.log(
+        chalk.white('    2. ') +
+          chalk.gray('puffer dashboard    ') +
+          '— Open the monitoring dashboard',
+      );
+      console.log(
+        chalk.white('    3. ') +
+          chalk.gray('puffer score        ') +
+          '— Check your security score anytime',
+      );
       if (score.total < 70) {
-        console.log(chalk.white('    4. ') + chalk.yellow('Follow recommendations above to improve your score'));
+        console.log(
+          chalk.white('    4. ') +
+            chalk.yellow('Follow recommendations above to improve your score'),
+        );
       }
       console.log('');
 
       const agentCount = result.agents.length;
-      const protectedCount = result.agents.filter(a => a.protectionStatus === 'protected').length;
-      console.log(chalk.cyan(`  ${agentCount} agent(s) found, ${protectedCount} protected, 7-layer defense ready`));
+      const protectedCount = result.agents.filter((a) => a.protectionStatus === 'protected').length;
+      console.log(
+        chalk.cyan(
+          `  ${agentCount} agent(s) found, ${protectedCount} protected, 7-layer defense ready`,
+        ),
+      );
       console.log(chalk.green.bold('\n  🐡 Puffer is ready to protect.\n'));
     });
 }

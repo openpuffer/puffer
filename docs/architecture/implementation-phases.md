@@ -1,213 +1,7 @@
-# PUFFER 🐡 — Complete Build Guide
+# Implementation Phases
 
-> **Purpose of this document**: This is the master blueprint for building Puffer from scratch.
-> It is written for an AI coding agent (Claude Code) that will execute the implementation.
-> Every architectural decision, file, function, and behavior is specified here.
-> Follow this document sequentially. Do not skip sections. Do not deviate from the spec.
-
----
-
-## Table of Contents
-
-1. [Project Identity](#1-project-identity)
-2. [Architecture Overview](#2-architecture-overview)
-3. [Project Structure](#3-project-structure)
-4. [Phase 1: Core Proxy Engine (MVP)](#4-phase-1-core-proxy-engine-mvp)
-5. [Phase 2: Auto-Discovery Engine](#5-phase-2-auto-discovery-engine)
-6. [Phase 3: 7-Layer Defense Pipeline](#6-phase-3-7-layer-defense-pipeline)
-7. [Phase 4: CLI](#7-phase-4-cli)
-8. [Phase 5: Dashboard](#8-phase-5-dashboard)
-9. [Phase 6: Agent Hooks](#9-phase-6-agent-hooks)
-10. [Configuration System](#10-configuration-system)
-11. [Audit Logging](#11-audit-logging)
-12. [Testing Strategy](#12-testing-strategy)
-13. [Packaging and Distribution](#13-packaging-and-distribution)
-14. [README and Documentation](#14-readme-and-documentation)
-
----
-
-## 1. Project Identity
-
-- **Name**: Puffer
-- **Tagline**: "The autonomous immune system for AI agents."
-- **Mascot**: Pufferfish 🐡 — small and silent, inflates when threatened
-- **Philosophy**: Like the human subconscious — always running, detects threats before you're aware, acts on instinct
-- **Core principle**: "Assume the agent will be compromised — contain the blast radius."
-- **Language**: The project is written primarily in **TypeScript/Node.js** for the MVP (not Rust). Reason: fastest path to working product, same ecosystem as OpenClaw and most AI agent tools, easy to contribute to, Claude Code is excellent at TypeScript. Rust can be introduced later for performance-critical paths.
-- **License**: Apache 2.0 for core, BSL (Business Source License) for enterprise features (added later)
-
----
-
-## 2. Architecture Overview
-
-### 2.1 High-Level Architecture
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    PUFFER DAEMON                             │
-│                  (always running)                            │
-│                                                             │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐      │
-│  │ AUTO-DISCOVER │  │ LLM PROXY    │  │ AGENT HOOKS  │      │
-│  │              │  │              │  │              │      │
-│  │ • Process    │  │ • HTTP proxy │  │ • Claude Code│      │
-│  │   scanner    │  │ • Intercepts │  │ • OpenClaw   │      │
-│  │ • Port       │  │   all LLM    │  │ • Cursor     │      │
-│  │   scanner    │  │   API calls  │  │ • LangChain  │      │
-│  │ • Network    │  │ • Cloud +    │  │ • Custom     │      │
-│  │   scanner    │  │   Local      │  │              │      │
-│  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘      │
-│         │                 │                 │               │
-│         └─────────────────┼─────────────────┘               │
-│                           ▼                                 │
-│              ┌────────────────────────┐                     │
-│              │  7-LAYER DEFENSE ENGINE │                     │
-│              │                        │                     │
-│              │  L1: PII Scanner       │                     │
-│              │  L2: Prompt Injection   │                     │
-│              │  L3: Command Analyzer   │                     │
-│              │  L4: Network Egress     │                     │
-│              │  L5: Filesystem Sentinel│                     │
-│              │  L6: Behavior Analyzer  │                     │
-│              │  L7: MCP Poisoning      │                     │
-│              └────────────┬───────────┘                     │
-│                           ▼                                 │
-│              ┌────────────────────────┐                     │
-│              │  DECISION ENGINE       │                     │
-│              │  ALLOW/BLOCK/AUDIT/    │                     │
-│              │  ESCALATE              │                     │
-│              └────────────┬───────────┘                     │
-│                           ▼                                 │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐      │
-│  │ AUDIT LOG    │  │ DASHBOARD    │  │ ALERTS       │      │
-│  │ (JSONL)      │  │ (localhost)  │  │ (webhook)    │      │
-│  └──────────────┘  └──────────────┘  └──────────────┘      │
-└─────────────────────────────────────────────────────────────┘
-```
-
-### 2.2 Data Flow for a Single Action
-
-1. An agent (OpenClaw, Claude Code, Python script, etc.) makes a request
-2. The request is intercepted by either the LLM Proxy or an Agent Hook
-3. The request is wrapped in a standardized `PufferEvent` object
-4. The `PufferEvent` passes through the 7-Layer Defense Pipeline sequentially
-5. If ANY layer returns `BLOCK`, the pipeline short-circuits immediately
-6. The Decision Engine returns: `ALLOW`, `BLOCK`, `AUDIT`, or `ESCALATE`
-7. The action is executed (or blocked), and the full event is logged to the audit trail
-
-### 2.3 Key Design Decisions
-
-- **Node.js + TypeScript**: Same ecosystem as OpenClaw, Claude Code, and most AI tooling
-- **Single binary via `npx`**: Zero-install experience. `npx puffer init` and it works.
-- **Local-first**: All processing happens on the user's machine. Zero cloud calls.
-- **Plugin architecture**: Each defense layer is a standalone module. Easy to add/remove/customize.
-- **Zero-config default**: Puffer auto-discovers agents and applies sensible defaults. Users CAN configure via YAML but don't have to.
-
----
-
-## 3. Project Structure
-
-```
-puffer/
-├── package.json
-├── tsconfig.json
-├── README.md
-├── LICENSE                    # Apache 2.0
-├── GUIDE.md                   # This file
-├── puffer.config.yaml         # Default configuration (ships with package)
-│
-├── src/
-│   ├── index.ts               # Main entry point — starts the daemon
-│   ├── types.ts               # All TypeScript interfaces and types
-│   │
-│   ├── discovery/             # Auto-discovery engine
-│   │   ├── index.ts           # Discovery orchestrator
-│   │   ├── process-scanner.ts # Scans running processes for AI agents
-│   │   ├── port-scanner.ts    # Probes known LLM ports
-│   │   ├── network-scanner.ts # Detects outbound LLM API traffic
-│   │   └── signatures.ts      # Known agent/model signatures database
-│   │
-│   ├── proxy/                 # LLM API Proxy
-│   │   ├── index.ts           # Proxy server setup
-│   │   ├── handler.ts         # Request/response interception logic
-│   │   ├── providers.ts       # Provider-specific adapters (OpenAI, Anthropic, Ollama, etc.)
-│   │   └── tls.ts             # TLS/certificate handling
-│   │
-│   ├── layers/                # 7 Defense Layers
-│   │   ├── index.ts           # Pipeline orchestrator — runs all layers sequentially
-│   │   ├── layer-1-pii.ts     # PII Scanner
-│   │   ├── layer-2-injection.ts  # Prompt Injection Detector
-│   │   ├── layer-3-commands.ts   # Command Analyzer
-│   │   ├── layer-4-network.ts    # Network Egress Guard
-│   │   ├── layer-5-filesystem.ts # Filesystem Sentinel
-│   │   ├── layer-6-behavior.ts   # Behavior Analyzer
-│   │   └── layer-7-mcp.ts       # MCP Poisoning Detector
-│   │
-│   ├── hooks/                 # Agent-specific hooks
-│   │   ├── index.ts           # Hook manager
-│   │   ├── claude-code.ts     # Claude Code hook integration
-│   │   ├── openclaw.ts        # OpenClaw skill/middleware hook
-│   │   └── generic.ts         # Generic hook for any agent
-│   │
-│   ├── engine/                # Decision engine
-│   │   ├── decision.ts        # ALLOW/BLOCK/AUDIT/ESCALATE logic
-│   │   └── policy.ts          # Policy loader and evaluator
-│   │
-│   ├── audit/                 # Audit logging
-│   │   ├── logger.ts          # JSONL audit log writer
-│   │   └── reporter.ts        # Summary report generator
-│   │
-│   ├── dashboard/             # Web dashboard
-│   │   ├── server.ts          # Express server for dashboard
-│   │   └── public/            # Static files (React SPA, built separately)
-│   │       └── index.html
-│   │
-│   ├── cli/                   # CLI commands
-│   │   ├── index.ts           # CLI entry point (commander.js)
-│   │   ├── init.ts            # `puffer init` command
-│   │   ├── scan.ts            # `puffer scan` command
-│   │   ├── status.ts          # `puffer status` command
-│   │   ├── logs.ts            # `puffer logs` command
-│   │   └── config.ts          # `puffer config` command
-│   │
-│   └── utils/                 # Shared utilities
-│       ├── config.ts          # Configuration loader (YAML)
-│       ├── logger.ts          # Console logger with 🐡 branding
-│       └── constants.ts       # Ports, paths, version, etc.
-│
-├── config/
-│   └── default-policy.yaml    # Ships with Puffer — sensible defaults
-│
-├── tests/
-│   ├── proxy.test.ts
-│   ├── discovery.test.ts
-│   ├── layers/
-│   │   ├── pii.test.ts
-│   │   ├── injection.test.ts
-│   │   ├── commands.test.ts
-│   │   ├── network.test.ts
-│   │   ├── filesystem.test.ts
-│   │   ├── behavior.test.ts
-│   │   └── mcp.test.ts
-│   └── integration/
-│       ├── ollama-proxy.test.ts
-│       └── openai-proxy.test.ts
-│
-├── dashboard/                 # Dashboard React app (separate build)
-│   ├── package.json
-│   ├── src/
-│   │   ├── App.tsx
-│   │   ├── components/
-│   │   └── hooks/
-│   └── vite.config.ts
-│
-└── .github/
-    └── workflows/
-        ├── test.yml
-        └── release.yml
-```
-
----
+> The 6 build phases as originally specified in PUFFER-GUIDE.md
+> (sections 4–9).
 
 ## 4. Phase 1: Core Proxy Engine (MVP)
 
@@ -223,25 +17,25 @@ The proxy is an HTTP server that sits between AI agents and LLM providers. It re
 // === CORE EVENT TYPE ===
 // Every intercepted action becomes a PufferEvent
 export interface PufferEvent {
-  id: string;                    // UUID v4
-  timestamp: string;             // ISO 8601
-  source: EventSource;           // Where did this event come from?
-  action: EventAction;           // What is the agent trying to do?
-  payload: any;                  // The actual data (request body, command string, etc.)
-  metadata: EventMetadata;       // Additional context
-  layers: LayerResult[];         // Results from each defense layer (populated during pipeline)
-  decision: Decision | null;     // Final decision (populated after pipeline)
+  id: string; // UUID v4
+  timestamp: string; // ISO 8601
+  source: EventSource; // Where did this event come from?
+  action: EventAction; // What is the agent trying to do?
+  payload: any; // The actual data (request body, command string, etc.)
+  metadata: EventMetadata; // Additional context
+  layers: LayerResult[]; // Results from each defense layer (populated during pipeline)
+  decision: Decision | null; // Final decision (populated after pipeline)
 }
 
 export interface EventSource {
   type: 'proxy' | 'hook' | 'manual';
-  agent: string;                 // Detected agent name (e.g., "openclaw", "claude-code", "python-openai")
-  pid?: number;                  // Process ID if known
-  provider: string;              // LLM provider (e.g., "openai", "anthropic", "ollama")
-  model?: string;                // Model name if known (e.g., "gpt-4o", "llama3")
+  agent: string; // Detected agent name (e.g., "openclaw", "claude-code", "python-openai")
+  pid?: number; // Process ID if known
+  provider: string; // LLM provider (e.g., "openai", "anthropic", "ollama")
+  model?: string; // Model name if known (e.g., "gpt-4o", "llama3")
 }
 
-export type EventAction = 
+export type EventAction =
   | { type: 'llm_request'; method: string; endpoint: string; body: any }
   | { type: 'llm_response'; status: number; body: any }
   | { type: 'command_execute'; command: string; args: string[] }
@@ -252,31 +46,31 @@ export type EventAction =
   | { type: 'mcp_tool_result'; server: string; tool: string; result: any };
 
 export interface EventMetadata {
-  sessionId: string;             // Groups events from the same agent session
-  sequenceNumber: number;        // Order within the session
-  tokenEstimate?: number;        // Estimated tokens in this request
-  costEstimate?: number;         // Estimated cost in USD
+  sessionId: string; // Groups events from the same agent session
+  sequenceNumber: number; // Order within the session
+  tokenEstimate?: number; // Estimated tokens in this request
+  costEstimate?: number; // Estimated cost in USD
 }
 
 // === LAYER TYPES ===
 export type Verdict = 'allow' | 'block' | 'audit' | 'escalate';
 
 export interface LayerResult {
-  layer: number;                 // 1-7
-  name: string;                  // e.g., "pii_scanner"
+  layer: number; // 1-7
+  name: string; // e.g., "pii_scanner"
   verdict: Verdict;
-  confidence: number;            // 0.0 - 1.0
-  details: string;               // Human-readable explanation
-  findings: Finding[];           // Specific things detected
-  durationMs: number;            // How long this layer took
+  confidence: number; // 0.0 - 1.0
+  details: string; // Human-readable explanation
+  findings: Finding[]; // Specific things detected
+  durationMs: number; // How long this layer took
 }
 
 export interface Finding {
-  type: string;                  // e.g., "ssn_detected", "prompt_injection", "dangerous_command"
+  type: string; // e.g., "ssn_detected", "prompt_injection", "dangerous_command"
   severity: 'critical' | 'high' | 'medium' | 'low';
-  location: string;              // Where in the payload
-  value?: string;                // The detected value (redacted if PII)
-  suggestion?: string;           // What to do about it
+  location: string; // Where in the payload
+  value?: string; // The detected value (redacted if PII)
+  suggestion?: string; // What to do about it
 }
 
 // === DECISION ===
@@ -284,23 +78,23 @@ export type Decision = 'ALLOW' | 'BLOCK' | 'AUDIT' | 'ESCALATE';
 
 // === PROVIDER CONFIG ===
 export interface ProviderConfig {
-  name: string;                  // "openai", "anthropic", "ollama", "lm_studio", etc.
-  targetUrl: string;             // Where to forward (e.g., "https://api.openai.com", "http://localhost:11434")
-  proxyPort: number;             // Local port Puffer listens on for this provider
-  apiFormat: 'openai' | 'anthropic' | 'ollama' | 'generic';  // API format
-  isLocal: boolean;              // true for Ollama, LM Studio, etc.
-  detected: boolean;             // Was this auto-discovered?
+  name: string; // "openai", "anthropic", "ollama", "lm_studio", etc.
+  targetUrl: string; // Where to forward (e.g., "https://api.openai.com", "http://localhost:11434")
+  proxyPort: number; // Local port Puffer listens on for this provider
+  apiFormat: 'openai' | 'anthropic' | 'ollama' | 'generic'; // API format
+  isLocal: boolean; // true for Ollama, LM Studio, etc.
+  detected: boolean; // Was this auto-discovered?
   status: 'active' | 'inactive' | 'error';
 }
 
 // === DISCOVERED AGENT ===
 export interface DiscoveredAgent {
-  name: string;                  // "openclaw", "claude-code", "python-langchain", etc.
+  name: string; // "openclaw", "claude-code", "python-langchain", etc.
   pid: number;
-  command: string;               // Full command line
+  command: string; // Full command line
   detectedVia: 'process' | 'port' | 'network';
-  provider?: string;             // Which LLM provider it's using
-  port?: number;                 // If it's a server
+  provider?: string; // Which LLM provider it's using
+  port?: number; // If it's a server
   protectionStatus: 'protected' | 'unprotected' | 'partial';
 }
 
@@ -310,7 +104,7 @@ export interface PufferConfig {
   providers: ProviderConfig[];
   autoDiscovery: {
     enabled: boolean;
-    scanIntervalMs: number;      // Default: 30000 (30 seconds)
+    scanIntervalMs: number; // Default: 30000 (30 seconds)
     processScanner: boolean;
     portScanner: boolean;
     networkScanner: boolean;
@@ -326,22 +120,22 @@ export interface PufferConfig {
   };
   dashboard: {
     enabled: boolean;
-    port: number;                // Default: 8788
+    port: number; // Default: 8788
   };
   audit: {
-    logPath: string;             // Default: ~/.puffer/audit.jsonl
-    retentionDays: number;       // Default: 30
+    logPath: string; // Default: ~/.puffer/audit.jsonl
+    retentionDays: number; // Default: 30
   };
   alerts: {
-    webhook?: string;            // Optional webhook URL for alerts
-    desktop: boolean;            // Desktop notifications
+    webhook?: string; // Optional webhook URL for alerts
+    desktop: boolean; // Desktop notifications
   };
 }
 
 // Layer-specific configs (defined in detail in each layer section below)
 export interface PIIConfig {
   enabled: boolean;
-  regions: string[];             // ["us", "eu", "mx"]
+  regions: string[]; // ["us", "eu", "mx"]
   actionBySeverity: Record<string, Verdict>;
   customPatterns: { name: string; pattern: string; severity: string }[];
   excludeContexts: string[];
@@ -349,12 +143,12 @@ export interface PIIConfig {
 
 export interface InjectionConfig {
   enabled: boolean;
-  mode: 'heuristic' | 'model' | 'hybrid';  // 'heuristic' for MVP (no model download needed)
+  mode: 'heuristic' | 'model' | 'hybrid'; // 'heuristic' for MVP (no model download needed)
   thresholds: {
     directInput: { block: number; audit: number };
     externalContent: { block: number; audit: number };
   };
-  heuristics: string[];          // Which heuristic checks to enable
+  heuristics: string[]; // Which heuristic checks to enable
 }
 
 export interface CommandsConfig {
@@ -434,7 +228,7 @@ function detectProvider(req: IncomingMessage, body: any): string {
   // 1. Check explicit header
   const target = req.headers['x-puffer-target'] as string;
   if (target) return target;
-  
+
   // 2. Check the URL path patterns
   const url = req.url || '';
   if (url.includes('/v1/chat/completions') || url.includes('/v1/embeddings')) {
@@ -443,11 +237,11 @@ function detectProvider(req: IncomingMessage, body: any): string {
     const originalHost = req.headers['x-puffer-original-host'] as string;
     if (originalHost?.includes('anthropic')) return 'anthropic';
     if (originalHost?.includes('openai')) return 'openai';
-    return 'openai-compatible';  // Default to OpenAI format
+    return 'openai-compatible'; // Default to OpenAI format
   }
   if (url.includes('/v1/messages')) return 'anthropic';
   if (url.includes('/api/generate') || url.includes('/api/chat')) return 'ollama';
-  
+
   // 3. Default
   return 'unknown';
 }
@@ -474,32 +268,32 @@ Each LLM provider has slightly different API formats. Puffer needs to understand
 
 **Supported providers and their specifications:**
 
-| Provider | API Base | Request Format | Chat Endpoint | Model Field |
-|----------|----------|---------------|---------------|-------------|
-| OpenAI | api.openai.com | `{ model, messages, tools }` | `/v1/chat/completions` | `model` |
-| Anthropic | api.anthropic.com | `{ model, messages, system }` | `/v1/messages` | `model` |
-| Ollama | localhost:11434 | `{ model, messages }` | `/api/chat` | `model` |
-| LM Studio | localhost:1234 | OpenAI-compatible | `/v1/chat/completions` | `model` |
-| LocalAI | localhost:8080 | OpenAI-compatible | `/v1/chat/completions` | `model` |
-| vLLM | localhost:8000 | OpenAI-compatible | `/v1/chat/completions` | `model` |
-| DeepSeek | api.deepseek.com | OpenAI-compatible | `/v1/chat/completions` | `model` |
-| Google | generativelanguage.googleapis.com | `{ contents }` | `/v1/models/*/generateContent` | in URL |
-| Together | api.together.xyz | OpenAI-compatible | `/v1/chat/completions` | `model` |
-| Groq | api.groq.com | OpenAI-compatible | `/v1/chat/completions` | `model` |
-| OpenRouter | openrouter.ai | OpenAI-compatible | `/api/v1/chat/completions` | `model` |
+| Provider   | API Base                          | Request Format                | Chat Endpoint                  | Model Field |
+| ---------- | --------------------------------- | ----------------------------- | ------------------------------ | ----------- |
+| OpenAI     | api.openai.com                    | `{ model, messages, tools }`  | `/v1/chat/completions`         | `model`     |
+| Anthropic  | api.anthropic.com                 | `{ model, messages, system }` | `/v1/messages`                 | `model`     |
+| Ollama     | localhost:11434                   | `{ model, messages }`         | `/api/chat`                    | `model`     |
+| LM Studio  | localhost:1234                    | OpenAI-compatible             | `/v1/chat/completions`         | `model`     |
+| LocalAI    | localhost:8080                    | OpenAI-compatible             | `/v1/chat/completions`         | `model`     |
+| vLLM       | localhost:8000                    | OpenAI-compatible             | `/v1/chat/completions`         | `model`     |
+| DeepSeek   | api.deepseek.com                  | OpenAI-compatible             | `/v1/chat/completions`         | `model`     |
+| Google     | generativelanguage.googleapis.com | `{ contents }`                | `/v1/models/*/generateContent` | in URL      |
+| Together   | api.together.xyz                  | OpenAI-compatible             | `/v1/chat/completions`         | `model`     |
+| Groq       | api.groq.com                      | OpenAI-compatible             | `/v1/chat/completions`         | `model`     |
+| OpenRouter | openrouter.ai                     | OpenAI-compatible             | `/api/v1/chat/completions`     | `model`     |
 
 **For each provider, implement:**
 
 ```typescript
 interface ProviderAdapter {
   name: string;
-  extractMessages(body: any): Message[];      // Extract the message array
+  extractMessages(body: any): Message[]; // Extract the message array
   extractModel(body: any, url: string): string; // Extract model name
   extractSystemPrompt(body: any): string | null;
-  extractToolCalls(body: any): ToolCall[];     // Extract tool/function calls
-  estimateTokens(body: any): number;           // Rough token estimate
-  estimateCost(body: any): number;             // Estimated cost in USD
-  formatBlockResponse(reason: string): any;    // Format a block response in provider's format
+  extractToolCalls(body: any): ToolCall[]; // Extract tool/function calls
+  estimateTokens(body: any): number; // Rough token estimate
+  estimateCost(body: any): number; // Estimated cost in USD
+  formatBlockResponse(reason: string): any; // Format a block response in provider's format
 }
 ```
 
@@ -517,17 +311,17 @@ function estimateTokens(text: string): number {
 
 ```typescript
 const COST_TABLE: Record<string, { input: number; output: number }> = {
-  'gpt-4o': { input: 2.50, output: 10.00 },
-  'gpt-4o-mini': { input: 0.15, output: 0.60 },
-  'gpt-4-turbo': { input: 10.00, output: 30.00 },
-  'claude-sonnet-4-20250514': { input: 3.00, output: 15.00 },
-  'claude-haiku-4-5-20251001': { input: 0.80, output: 4.00 },
-  'claude-opus-4-6': { input: 15.00, output: 75.00 },
+  'gpt-4o': { input: 2.5, output: 10.0 },
+  'gpt-4o-mini': { input: 0.15, output: 0.6 },
+  'gpt-4-turbo': { input: 10.0, output: 30.0 },
+  'claude-sonnet-4-20250514': { input: 3.0, output: 15.0 },
+  'claude-haiku-4-5-20251001': { input: 0.8, output: 4.0 },
+  'claude-opus-4-6': { input: 15.0, output: 75.0 },
   'deepseek-r1': { input: 0.55, output: 2.19 },
-  'llama3': { input: 0, output: 0 },          // Local = free
+  llama3: { input: 0, output: 0 }, // Local = free
   'deepseek-r1:local': { input: 0, output: 0 },
-  'default_local': { input: 0, output: 0 },
-  'default_cloud': { input: 1.00, output: 5.00 },
+  default_local: { input: 0, output: 0 },
+  default_cloud: { input: 1.0, output: 5.0 },
 };
 ```
 
@@ -551,7 +345,7 @@ export const AGENT_SIGNATURES = [
   { pattern: /continue.*dev/i, name: 'continue-dev', type: 'process' },
   { pattern: /cline/i, name: 'cline', type: 'process' },
   { pattern: /copilot/i, name: 'github-copilot', type: 'process' },
-  
+
   // Python patterns (check command line args and imported modules)
   { pattern: /python.*langchain/i, name: 'python-langchain', type: 'process' },
   { pattern: /python.*crewai/i, name: 'python-crewai', type: 'process' },
@@ -600,28 +394,30 @@ import { DiscoveredAgent } from '../types';
 
 export function scanProcesses(): DiscoveredAgent[] {
   const agents: DiscoveredAgent[] = [];
-  
+
   try {
     // Get process list
     const platform = process.platform;
     let output: string;
-    
+
     if (platform === 'win32') {
-      output = execSync('wmic process get ProcessId,CommandLine /format:csv', { encoding: 'utf-8' });
+      output = execSync('wmic process get ProcessId,CommandLine /format:csv', {
+        encoding: 'utf-8',
+      });
     } else {
       output = execSync('ps aux', { encoding: 'utf-8' });
     }
-    
+
     const lines = output.split('\n');
-    
+
     for (const line of lines) {
       for (const sig of AGENT_SIGNATURES) {
         if (sig.pattern.test(line)) {
           // Extract PID
           const parts = line.trim().split(/\s+/);
           const pid = parseInt(platform === 'win32' ? parts[0] : parts[1]);
-          
-          if (!isNaN(pid) && !agents.some(a => a.pid === pid)) {
+
+          if (!isNaN(pid) && !agents.some((a) => a.pid === pid)) {
             agents.push({
               name: sig.name,
               pid,
@@ -637,7 +433,7 @@ export function scanProcesses(): DiscoveredAgent[] {
     // Process scanning failed — log but don't crash
     console.error('[🐡 PUFFER] Process scan error:', (err as Error).message);
   }
-  
+
   return agents;
 }
 ```
@@ -664,23 +460,23 @@ interface PortScanResult {
 
 export async function scanPorts(): Promise<PortScanResult[]> {
   const results: PortScanResult[] = [];
-  
+
   for (const sig of PORT_SIGNATURES) {
     try {
       const response = await probePort(sig.port, sig.probe);
       if (response) {
         const warnings: string[] = [];
-        
+
         // Check if bound to 0.0.0.0 (exposed to network)
         const bindCheck = await checkBinding(sig.port);
         if (bindCheck === '0.0.0.0') {
           warnings.push(
             `⚠️  ${sig.name} is bound to 0.0.0.0 on port ${sig.port} — ` +
-            `EXPOSED TO YOUR ENTIRE NETWORK! Anyone on your network can access this LLM. ` +
-            `Puffer will add authentication, but you should also bind to 127.0.0.1.`
+              `EXPOSED TO YOUR ENTIRE NETWORK! Anyone on your network can access this LLM. ` +
+              `Puffer will add authentication, but you should also bind to 127.0.0.1.`,
           );
         }
-        
+
         // Extract models if available
         let models: string[] = [];
         try {
@@ -688,7 +484,7 @@ export async function scanPorts(): Promise<PortScanResult[]> {
           if (data.models) models = data.models.map((m: any) => m.name || m.id);
           if (data.data) models = data.data.map((m: any) => m.id);
         } catch {}
-        
+
         results.push({
           agent: {
             name: sig.name,
@@ -715,7 +511,7 @@ export async function scanPorts(): Promise<PortScanResult[]> {
       // Port not responding — service not running, skip
     }
   }
-  
+
   return results;
 }
 
@@ -723,11 +519,14 @@ function probePort(port: number, path: string): Promise<string | null> {
   return new Promise((resolve) => {
     const req = http.get(`http://127.0.0.1:${port}${path}`, { timeout: 2000 }, (res) => {
       let data = '';
-      res.on('data', (chunk) => data += chunk);
+      res.on('data', (chunk) => (data += chunk));
       res.on('end', () => resolve(data));
     });
     req.on('error', () => resolve(null));
-    req.on('timeout', () => { req.destroy(); resolve(null); });
+    req.on('timeout', () => {
+      req.destroy();
+      resolve(null);
+    });
   });
 }
 
@@ -738,7 +537,7 @@ async function checkBinding(port: number): Promise<string> {
       process.platform === 'win32'
         ? `netstat -an | findstr :${port}`
         : `ss -tlnp | grep :${port} || netstat -tlnp 2>/dev/null | grep :${port}`,
-      { encoding: 'utf-8' }
+      { encoding: 'utf-8' },
     );
     if (output.includes('0.0.0.0:') || output.includes(':::')) return '0.0.0.0';
     return '127.0.0.1';
@@ -774,34 +573,34 @@ export class DiscoveryEngine {
   private interval: NodeJS.Timeout | null = null;
   private knownAgents: Map<string, DiscoveredAgent> = new Map();
   private knownProviders: Map<string, ProviderConfig> = new Map();
-  
+
   async scan(): Promise<DiscoveryResult> {
     const processAgents = scanProcesses();
     const portResults = await scanPorts();
     const networkAgents = await scanNetworkConnections();
-    
+
     // Merge and deduplicate
     // Update known agents map
     // Detect new agents since last scan
     // Detect removed agents since last scan
     // Emit events for new/removed agents
-    
+
     return {
       agents: [...this.knownAgents.values()],
       providers: [...this.knownProviders.values()],
-      securityWarnings: portResults.flatMap(r => r.securityWarnings),
+      securityWarnings: portResults.flatMap((r) => r.securityWarnings),
       newSinceLastScan: [], // Agents detected for the first time
       removedSinceLastScan: [], // Agents no longer running
     };
   }
-  
+
   start(intervalMs: number = 30000) {
     // Run initial scan
     this.scan();
     // Start periodic scanning
     this.interval = setInterval(() => this.scan(), intervalMs);
   }
-  
+
   stop() {
     if (this.interval) clearInterval(this.interval);
   }
@@ -822,36 +621,36 @@ export type LayerFunction = (event: PufferEvent, config: any) => Promise<LayerRe
 
 export class DefensePipeline {
   private layers: { name: string; fn: LayerFunction; config: any }[] = [];
-  
+
   registerLayer(name: string, fn: LayerFunction, config: any) {
     this.layers.push({ name, fn, config });
   }
-  
+
   async evaluate(event: PufferEvent): Promise<PufferEvent> {
     for (const layer of this.layers) {
       if (!layer.config.enabled) continue;
-      
+
       const start = Date.now();
       const result = await layer.fn(event, layer.config);
       result.durationMs = Date.now() - start;
-      
+
       event.layers.push(result);
-      
+
       // SHORT CIRCUIT: If any layer says BLOCK, stop immediately
       if (result.verdict === 'block') {
         event.decision = 'BLOCK';
         return event;
       }
     }
-    
+
     // If no layer blocked, check for escalations or audits
-    const hasEscalate = event.layers.some(l => l.verdict === 'escalate');
-    const hasAudit = event.layers.some(l => l.verdict === 'audit');
-    
+    const hasEscalate = event.layers.some((l) => l.verdict === 'escalate');
+    const hasAudit = event.layers.some((l) => l.verdict === 'audit');
+
     if (hasEscalate) event.decision = 'ESCALATE';
     else if (hasAudit) event.decision = 'AUDIT';
     else event.decision = 'ALLOW';
-    
+
     return event;
   }
 }
@@ -875,18 +674,19 @@ export const PII_PATTERNS: PIIPattern[] = [
       // Luhn-like validation: check range validity
       const parts = match.split('-').map(Number);
       return parts[0] >= 1 && parts[0] <= 899 && parts[0] !== 666;
-    }
+    },
   },
-  
+
   // Credit Card Numbers (Visa, MC, Amex, Discover)
   {
     name: 'credit_card',
-    pattern: /\b(?:4[0-9]{12}(?:[0-9]{3})?|5[1-5][0-9]{14}|3[47][0-9]{13}|6(?:011|5[0-9]{2})[0-9]{12})\b/g,
+    pattern:
+      /\b(?:4[0-9]{12}(?:[0-9]{3})?|5[1-5][0-9]{14}|3[47][0-9]{13}|6(?:011|5[0-9]{2})[0-9]{12})\b/g,
     severity: 'critical',
     region: 'global',
     validate: (match: string) => luhnCheck(match),
   },
-  
+
   // Email addresses
   {
     name: 'email',
@@ -894,7 +694,7 @@ export const PII_PATTERNS: PIIPattern[] = [
     severity: 'medium',
     region: 'global',
   },
-  
+
   // Phone numbers (US)
   {
     name: 'phone_us',
@@ -902,7 +702,7 @@ export const PII_PATTERNS: PIIPattern[] = [
     severity: 'medium',
     region: 'us',
   },
-  
+
   // AWS Access Keys
   {
     name: 'aws_access_key',
@@ -910,7 +710,7 @@ export const PII_PATTERNS: PIIPattern[] = [
     severity: 'critical',
     region: 'global',
   },
-  
+
   // OpenAI API Keys
   {
     name: 'openai_api_key',
@@ -918,7 +718,7 @@ export const PII_PATTERNS: PIIPattern[] = [
     severity: 'critical',
     region: 'global',
   },
-  
+
   // GitHub Personal Access Tokens
   {
     name: 'github_pat',
@@ -926,7 +726,7 @@ export const PII_PATTERNS: PIIPattern[] = [
     severity: 'critical',
     region: 'global',
   },
-  
+
   // Anthropic API Keys
   {
     name: 'anthropic_api_key',
@@ -934,7 +734,7 @@ export const PII_PATTERNS: PIIPattern[] = [
     severity: 'critical',
     region: 'global',
   },
-  
+
   // Private keys (PEM format)
   {
     name: 'private_key',
@@ -942,7 +742,7 @@ export const PII_PATTERNS: PIIPattern[] = [
     severity: 'critical',
     region: 'global',
   },
-  
+
   // JWT tokens
   {
     name: 'jwt_token',
@@ -950,15 +750,16 @@ export const PII_PATTERNS: PIIPattern[] = [
     severity: 'high',
     region: 'global',
   },
-  
+
   // IP Addresses (private ranges — flag when being sent externally)
   {
     name: 'private_ip',
-    pattern: /\b(?:10\.\d{1,3}\.\d{1,3}\.\d{1,3}|172\.(?:1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3}|192\.168\.\d{1,3}\.\d{1,3})\b/g,
+    pattern:
+      /\b(?:10\.\d{1,3}\.\d{1,3}\.\d{1,3}|172\.(?:1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3}|192\.168\.\d{1,3}\.\d{1,3})\b/g,
     severity: 'low',
     region: 'global',
   },
-  
+
   // Mexican CURP
   {
     name: 'curp_mx',
@@ -966,7 +767,7 @@ export const PII_PATTERNS: PIIPattern[] = [
     severity: 'high',
     region: 'mx',
   },
-  
+
   // Mexican RFC
   {
     name: 'rfc_mx',
@@ -974,7 +775,7 @@ export const PII_PATTERNS: PIIPattern[] = [
     severity: 'high',
     region: 'mx',
   },
-  
+
   // IBAN
   {
     name: 'iban',
@@ -983,7 +784,7 @@ export const PII_PATTERNS: PIIPattern[] = [
     region: 'eu',
     validate: (match: string) => validateIBAN(match),
   },
-  
+
   // Passwords in common formats
   {
     name: 'password_field',
@@ -999,30 +800,30 @@ export const PII_PATTERNS: PIIPattern[] = [
 ```typescript
 export async function piiScanner(event: PufferEvent, config: PIIConfig): Promise<LayerResult> {
   const findings: Finding[] = [];
-  
+
   // Extract all text content from the event
   const textContent = extractTextFromEvent(event);
-  
+
   // Run each pattern
   for (const piiPattern of PII_PATTERNS) {
     // Skip if region not enabled
     if (piiPattern.region !== 'global' && !config.regions.includes(piiPattern.region)) continue;
-    
+
     const matches = textContent.matchAll(piiPattern.pattern);
     for (const match of matches) {
       // Run validation if available
       if (piiPattern.validate && !piiPattern.validate(match[0])) continue;
-      
+
       findings.push({
         type: piiPattern.name,
         severity: piiPattern.severity as any,
         location: `offset:${match.index}`,
-        value: redactValue(match[0]),  // Never log the actual PII
+        value: redactValue(match[0]), // Never log the actual PII
         suggestion: `Detected ${piiPattern.name}. Consider redacting before sending to LLM.`,
       });
     }
   }
-  
+
   // Also run custom patterns from config
   for (const custom of config.customPatterns) {
     const regex = new RegExp(custom.pattern, 'g');
@@ -1036,19 +837,20 @@ export async function piiScanner(event: PufferEvent, config: PIIConfig): Promise
       });
     }
   }
-  
+
   // Determine verdict based on highest severity finding
   const maxSeverity = getMaxSeverity(findings);
-  const verdict = maxSeverity ? (config.actionBySeverity[maxSeverity] || 'audit') : 'allow';
-  
+  const verdict = maxSeverity ? config.actionBySeverity[maxSeverity] || 'audit' : 'allow';
+
   return {
     layer: 1,
     name: 'pii_scanner',
     verdict,
     confidence: findings.length > 0 ? 0.95 : 1.0,
-    details: findings.length > 0
-      ? `Found ${findings.length} PII items (highest severity: ${maxSeverity})`
-      : 'No PII detected',
+    details:
+      findings.length > 0
+        ? `Found ${findings.length} PII items (highest severity: ${maxSeverity})`
+        : 'No PII detected',
     findings,
     durationMs: 0,
   };
@@ -1069,25 +871,29 @@ function redactValue(value: string): string {
 const INJECTION_HEURISTICS = [
   {
     name: 'role_switching',
-    pattern: /(?:you are now|act as|pretend to be|forget (?:your|all|previous)|ignore (?:previous|above|all)|disregard (?:your|all|previous)|override (?:your|all)|new instructions?:)/gi,
+    pattern:
+      /(?:you are now|act as|pretend to be|forget (?:your|all|previous)|ignore (?:previous|above|all)|disregard (?:your|all|previous)|override (?:your|all)|new instructions?:)/gi,
     weight: 0.8,
     severity: 'high',
   },
   {
     name: 'system_delimiters',
-    pattern: /(?:\[INST\]|\[\/INST\]|<\|system\|>|<\|user\|>|<\|assistant\|>|###\s*(?:system|instruction|human|assistant)|<\/?(?:system|instruction)>)/gi,
+    pattern:
+      /(?:\[INST\]|\[\/INST\]|<\|system\|>|<\|user\|>|<\|assistant\|>|###\s*(?:system|instruction|human|assistant)|<\/?(?:system|instruction)>)/gi,
     weight: 0.9,
     severity: 'high',
   },
   {
     name: 'imperative_override',
-    pattern: /(?:instead,?\s+(?:do|say|output|print|write|execute|run)|do not (?:follow|obey|listen)|stop (?:following|obeying)|(?:always|never) (?:respond|answer|say|output) with)/gi,
+    pattern:
+      /(?:instead,?\s+(?:do|say|output|print|write|execute|run)|do not (?:follow|obey|listen)|stop (?:following|obeying)|(?:always|never) (?:respond|answer|say|output) with)/gi,
     weight: 0.7,
     severity: 'high',
   },
   {
     name: 'data_exfil_instruction',
-    pattern: /(?:send (?:all|this|the) (?:data|info|content|text|conversation|history) to|forward (?:everything|all|this) to|(?:curl|wget|fetch|post)\s+https?:\/\/)/gi,
+    pattern:
+      /(?:send (?:all|this|the) (?:data|info|content|text|conversation|history) to|forward (?:everything|all|this) to|(?:curl|wget|fetch|post)\s+https?:\/\/)/gi,
     weight: 0.95,
     severity: 'critical',
   },
@@ -1107,31 +913,36 @@ const INJECTION_HEURISTICS = [
   },
   {
     name: 'prompt_leaking',
-    pattern: /(?:(?:show|reveal|print|output|display|repeat|echo)\s+(?:your|the|system)\s+(?:prompt|instructions?|rules?|guidelines?|system\s*message))/gi,
+    pattern:
+      /(?:(?:show|reveal|print|output|display|repeat|echo)\s+(?:your|the|system)\s+(?:prompt|instructions?|rules?|guidelines?|system\s*message))/gi,
     weight: 0.5,
     severity: 'medium',
   },
   {
     name: 'tool_abuse',
-    pattern: /(?:(?:call|invoke|use|execute|run)\s+(?:the\s+)?(?:tool|function|bash|shell|terminal|command)|execute\s+(?:system|shell)\s+command)/gi,
+    pattern:
+      /(?:(?:call|invoke|use|execute|run)\s+(?:the\s+)?(?:tool|function|bash|shell|terminal|command)|execute\s+(?:system|shell)\s+command)/gi,
     weight: 0.7,
     severity: 'high',
   },
 ];
 
-export async function injectionDetector(event: PufferEvent, config: InjectionConfig): Promise<LayerResult> {
+export async function injectionDetector(
+  event: PufferEvent,
+  config: InjectionConfig,
+): Promise<LayerResult> {
   const findings: Finding[] = [];
   const textContent = extractTextFromEvent(event);
-  
+
   let totalScore = 0;
   let maxWeight = 0;
-  
+
   for (const heuristic of INJECTION_HEURISTICS) {
     const matches = textContent.match(heuristic.pattern);
     if (matches && matches.length > 0) {
       totalScore += heuristic.weight * matches.length;
       maxWeight = Math.max(maxWeight, heuristic.weight);
-      
+
       findings.push({
         type: `injection_${heuristic.name}`,
         severity: heuristic.severity as any,
@@ -1141,7 +952,7 @@ export async function injectionDetector(event: PufferEvent, config: InjectionCon
       });
     }
   }
-  
+
   // Entropy check — high entropy in short strings suggests obfuscation
   const entropy = calculateEntropy(textContent);
   if (entropy > 5.5 && textContent.length < 500) {
@@ -1153,29 +964,28 @@ export async function injectionDetector(event: PufferEvent, config: InjectionCon
       suggestion: 'Unusually high entropy — possible obfuscated injection',
     });
   }
-  
+
   // Normalize score to 0-1 range
   const normalizedScore = Math.min(totalScore / 3.0, 1.0);
-  
+
   // Determine thresholds based on whether this is direct input or external content
-  const isExternal = event.action.type === 'mcp_tool_result' || 
-                     event.action.type === 'llm_response';
-  const thresholds = isExternal 
-    ? config.thresholds.externalContent 
-    : config.thresholds.directInput;
-  
+  const isExternal =
+    event.action.type === 'mcp_tool_result' || event.action.type === 'llm_response';
+  const thresholds = isExternal ? config.thresholds.externalContent : config.thresholds.directInput;
+
   let verdict: Verdict = 'allow';
   if (normalizedScore >= thresholds.block) verdict = 'block';
   else if (normalizedScore >= thresholds.audit) verdict = 'audit';
-  
+
   return {
     layer: 2,
     name: 'injection_detector',
     verdict,
     confidence: normalizedScore,
-    details: findings.length > 0
-      ? `Injection score: ${(normalizedScore * 100).toFixed(1)}% (threshold: ${thresholds.block * 100}% for block)`
-      : 'No injection patterns detected',
+    details:
+      findings.length > 0
+        ? `Injection score: ${(normalizedScore * 100).toFixed(1)}% (threshold: ${thresholds.block * 100}% for block)`
+        : 'No injection patterns detected',
     findings,
     durationMs: 0,
   };
@@ -1198,16 +1008,119 @@ function calculateEntropy(text: string): number {
 
 ```typescript
 const BINARY_CLASSIFICATIONS = {
-  safe: ['ls', 'cat', 'echo', 'pwd', 'whoami', 'date', 'head', 'tail', 'wc', 'grep', 'find', 'which', 'env', 'printenv', 'uname', 'hostname', 'id', 'df', 'du', 'free', 'uptime', 'ps', 'top'],
-  caution: ['git', 'npm', 'npx', 'yarn', 'pnpm', 'pip', 'pip3', 'python', 'python3', 'node', 'docker', 'docker-compose', 'make', 'cargo', 'go', 'rustc', 'gcc', 'cc', 'sed', 'awk', 'sort', 'uniq', 'cut', 'tr', 'tee', 'xargs', 'mkdir', 'cp', 'mv', 'touch'],
-  dangerous: ['rm', 'chmod', 'chown', 'chgrp', 'kill', 'killall', 'pkill', 'shutdown', 'reboot', 'mkfs', 'dd', 'mount', 'umount', 'fdisk', 'format', 'systemctl', 'service', 'iptables', 'ufw'],
-  critical: ['sudo', 'su', 'eval', 'exec', 'nc', 'netcat', 'ncat', 'socat', 'ssh', 'scp', 'sftp', 'rsync', 'curl', 'wget', 'aria2c'],
+  safe: [
+    'ls',
+    'cat',
+    'echo',
+    'pwd',
+    'whoami',
+    'date',
+    'head',
+    'tail',
+    'wc',
+    'grep',
+    'find',
+    'which',
+    'env',
+    'printenv',
+    'uname',
+    'hostname',
+    'id',
+    'df',
+    'du',
+    'free',
+    'uptime',
+    'ps',
+    'top',
+  ],
+  caution: [
+    'git',
+    'npm',
+    'npx',
+    'yarn',
+    'pnpm',
+    'pip',
+    'pip3',
+    'python',
+    'python3',
+    'node',
+    'docker',
+    'docker-compose',
+    'make',
+    'cargo',
+    'go',
+    'rustc',
+    'gcc',
+    'cc',
+    'sed',
+    'awk',
+    'sort',
+    'uniq',
+    'cut',
+    'tr',
+    'tee',
+    'xargs',
+    'mkdir',
+    'cp',
+    'mv',
+    'touch',
+  ],
+  dangerous: [
+    'rm',
+    'chmod',
+    'chown',
+    'chgrp',
+    'kill',
+    'killall',
+    'pkill',
+    'shutdown',
+    'reboot',
+    'mkfs',
+    'dd',
+    'mount',
+    'umount',
+    'fdisk',
+    'format',
+    'systemctl',
+    'service',
+    'iptables',
+    'ufw',
+  ],
+  critical: [
+    'sudo',
+    'su',
+    'eval',
+    'exec',
+    'nc',
+    'netcat',
+    'ncat',
+    'socat',
+    'ssh',
+    'scp',
+    'sftp',
+    'rsync',
+    'curl',
+    'wget',
+    'aria2c',
+  ],
 };
 
 const DANGEROUS_PATTERNS = [
-  { pattern: /rm\s+(-[a-zA-Z]*r[a-zA-Z]*f|--recursive\s+--force|-[a-zA-Z]*f[a-zA-Z]*r)\s+[\/~]/, reason: 'Recursive force delete of root or home', severity: 'critical' },
-  { pattern: /curl\s+.*\|\s*(ba)?sh/, reason: 'Download and execute pattern', severity: 'critical' },
-  { pattern: /wget\s+.*\|\s*(ba)?sh/, reason: 'Download and execute pattern', severity: 'critical' },
+  {
+    pattern: /rm\s+(-[a-zA-Z]*r[a-zA-Z]*f|--recursive\s+--force|-[a-zA-Z]*f[a-zA-Z]*r)\s+[\/~]/,
+    reason: 'Recursive force delete of root or home',
+    severity: 'critical',
+  },
+  {
+    pattern: /curl\s+.*\|\s*(ba)?sh/,
+    reason: 'Download and execute pattern',
+    severity: 'critical',
+  },
+  {
+    pattern: /wget\s+.*\|\s*(ba)?sh/,
+    reason: 'Download and execute pattern',
+    severity: 'critical',
+  },
   { pattern: /chmod\s+777/, reason: 'World-writable permissions', severity: 'high' },
   { pattern: /chmod\s+\+s/, reason: 'SUID bit set', severity: 'critical' },
   { pattern: />\s*\/dev\/sd/, reason: 'Direct write to block device', severity: 'critical' },
@@ -1216,10 +1129,26 @@ const DANGEROUS_PATTERNS = [
   { pattern: /dd\s+.*of=\/dev\//, reason: 'Direct disk write', severity: 'critical' },
   { pattern: /:(){ :\|:& };:/, reason: 'Fork bomb', severity: 'critical' },
   { pattern: /npm\s+publish/, reason: 'Publish package — requires approval', severity: 'high' },
-  { pattern: /git\s+push\s+.*(?:main|master|prod)/, reason: 'Push to protected branch', severity: 'medium' },
-  { pattern: /pip\s+install\s+--break-system-packages/, reason: 'System-level pip install', severity: 'medium' },
-  { pattern: /docker\s+run\s+.*--privileged/, reason: 'Privileged Docker container', severity: 'high' },
-  { pattern: /\.\.\/\.\.\/(\.\.\/)*etc\/passwd/, reason: 'Path traversal to sensitive file', severity: 'critical' },
+  {
+    pattern: /git\s+push\s+.*(?:main|master|prod)/,
+    reason: 'Push to protected branch',
+    severity: 'medium',
+  },
+  {
+    pattern: /pip\s+install\s+--break-system-packages/,
+    reason: 'System-level pip install',
+    severity: 'medium',
+  },
+  {
+    pattern: /docker\s+run\s+.*--privileged/,
+    reason: 'Privileged Docker container',
+    severity: 'high',
+  },
+  {
+    pattern: /\.\.\/\.\.\/(\.\.\/)*etc\/passwd/,
+    reason: 'Path traversal to sensitive file',
+    severity: 'critical',
+  },
 ];
 
 const SENSITIVE_PATHS = [
@@ -1237,15 +1166,26 @@ const SENSITIVE_PATHS = [
   /~\/\.netrc/,
 ];
 
-export async function commandAnalyzer(event: PufferEvent, config: CommandsConfig): Promise<LayerResult> {
+export async function commandAnalyzer(
+  event: PufferEvent,
+  config: CommandsConfig,
+): Promise<LayerResult> {
   if (event.action.type !== 'command_execute') {
-    return { layer: 3, name: 'command_analyzer', verdict: 'allow', confidence: 1.0, details: 'Not a command event', findings: [], durationMs: 0 };
+    return {
+      layer: 3,
+      name: 'command_analyzer',
+      verdict: 'allow',
+      confidence: 1.0,
+      details: 'Not a command event',
+      findings: [],
+      durationMs: 0,
+    };
   }
-  
+
   const command = event.action.command;
   const fullCommand = `${command} ${(event.action.args || []).join(' ')}`;
   const findings: Finding[] = [];
-  
+
   // 1. Check against explicit blocklist from config
   for (const blocked of config.blockedPatterns) {
     const blockRegex = new RegExp(blocked.replace(/\*/g, '.*'), 'i');
@@ -1258,12 +1198,17 @@ export async function commandAnalyzer(event: PufferEvent, config: CommandsConfig
         suggestion: `Command matches blocklist pattern: ${blocked}`,
       });
       return {
-        layer: 3, name: 'command_analyzer', verdict: 'block', confidence: 1.0,
-        details: `Command blocked: matches pattern "${blocked}"`, findings, durationMs: 0,
+        layer: 3,
+        name: 'command_analyzer',
+        verdict: 'block',
+        confidence: 1.0,
+        details: `Command blocked: matches pattern "${blocked}"`,
+        findings,
+        durationMs: 0,
       };
     }
   }
-  
+
   // 2. Check dangerous patterns
   for (const dp of DANGEROUS_PATTERNS) {
     if (dp.pattern.test(fullCommand)) {
@@ -1276,7 +1221,7 @@ export async function commandAnalyzer(event: PufferEvent, config: CommandsConfig
       });
     }
   }
-  
+
   // 3. Check sensitive paths
   for (const sp of SENSITIVE_PATHS) {
     if (sp.test(fullCommand)) {
@@ -1289,41 +1234,53 @@ export async function commandAnalyzer(event: PufferEvent, config: CommandsConfig
       });
     }
   }
-  
+
   // 4. Classify the binary
   const binary = command.split('/').pop()?.split(' ')[0] || '';
   let binaryClass = 'unknown';
   for (const [cls, bins] of Object.entries(BINARY_CLASSIFICATIONS)) {
-    if (bins.includes(binary)) { binaryClass = cls; break; }
+    if (bins.includes(binary)) {
+      binaryClass = cls;
+      break;
+    }
   }
-  
+
   // 5. Check require_approval list
   for (const approvalPattern of config.requireApproval) {
     const regex = new RegExp(approvalPattern.replace(/\*/g, '.*'), 'i');
     if (regex.test(fullCommand)) {
       return {
-        layer: 3, name: 'command_analyzer', verdict: 'escalate', confidence: 0.9,
-        details: `Command requires approval: ${approvalPattern}`, findings, durationMs: 0,
+        layer: 3,
+        name: 'command_analyzer',
+        verdict: 'escalate',
+        confidence: 0.9,
+        details: `Command requires approval: ${approvalPattern}`,
+        findings,
+        durationMs: 0,
       };
     }
   }
-  
+
   // 6. Determine verdict
-  const hasCritical = findings.some(f => f.severity === 'critical');
-  const hasHigh = findings.some(f => f.severity === 'high');
-  
+  const hasCritical = findings.some((f) => f.severity === 'critical');
+  const hasHigh = findings.some((f) => f.severity === 'high');
+
   let verdict: Verdict = 'allow';
   if (hasCritical || binaryClass === 'critical') verdict = 'block';
   else if (hasHigh || binaryClass === 'dangerous') verdict = 'block';
   else if (binaryClass === 'caution') verdict = 'audit';
-  
+
   return {
-    layer: 3, name: 'command_analyzer', verdict,
+    layer: 3,
+    name: 'command_analyzer',
+    verdict,
     confidence: hasCritical ? 1.0 : hasHigh ? 0.9 : 0.7,
-    details: findings.length > 0
-      ? `Command analysis: binary="${binary}" class="${binaryClass}", ${findings.length} issues found`
-      : `Command analysis: binary="${binary}" class="${binaryClass}", clean`,
-    findings, durationMs: 0,
+    details:
+      findings.length > 0
+        ? `Command analysis: binary="${binary}" class="${binaryClass}", ${findings.length} issues found`
+        : `Command analysis: binary="${binary}" class="${binaryClass}", clean`,
+    findings,
+    durationMs: 0,
   };
 }
 ```
@@ -1346,28 +1303,31 @@ const PRIVATE_IP_RANGES = [
   /^::1$/,
 ];
 
-export async function networkEgressGuard(event: PufferEvent, config: NetworkConfig): Promise<LayerResult> {
+export async function networkEgressGuard(
+  event: PufferEvent,
+  config: NetworkConfig,
+): Promise<LayerResult> {
   // Only applies to network requests and LLM requests going to external endpoints
   if (event.action.type !== 'network_request' && event.action.type !== 'llm_request') {
     return allowResult(4, 'network_egress');
   }
-  
+
   const findings: Finding[] = [];
   let targetUrl: string;
-  
+
   if (event.action.type === 'network_request') {
     targetUrl = event.action.url;
   } else {
     targetUrl = event.action.endpoint;
   }
-  
+
   try {
     const parsed = new URL(targetUrl);
     const hostname = parsed.hostname;
-    
+
     // 1. Block private IPs (anti-SSRF)
     if (config.blockPrivateIPs) {
-      const isPrivate = PRIVATE_IP_RANGES.some(r => r.test(hostname));
+      const isPrivate = PRIVATE_IP_RANGES.some((r) => r.test(hostname));
       if (isPrivate && !event.source.provider.includes('local')) {
         findings.push({
           type: 'ssrf_attempt',
@@ -1379,10 +1339,10 @@ export async function networkEgressGuard(event: PufferEvent, config: NetworkConf
         return blockResult(4, 'network_egress', 'SSRF attempt: request to private IP', findings);
       }
     }
-    
+
     // 2. Whitelist/blacklist check
     if (config.mode === 'whitelist') {
-      const allowed = config.allowedDomains.some(d => {
+      const allowed = config.allowedDomains.some((d) => {
         if (d.startsWith('*.')) return hostname.endsWith(d.substring(1));
         return hostname === d;
       });
@@ -1396,8 +1356,9 @@ export async function networkEgressGuard(event: PufferEvent, config: NetworkConf
         });
         return blockResult(4, 'network_egress', `Domain not whitelisted: ${hostname}`, findings);
       }
-    } else { // blacklist mode
-      const blocked = config.blockedDomains.some(d => {
+    } else {
+      // blacklist mode
+      const blocked = config.blockedDomains.some((d) => {
         if (d.startsWith('*.')) return hostname.endsWith(d.substring(1));
         return hostname === d;
       });
@@ -1411,7 +1372,7 @@ export async function networkEgressGuard(event: PufferEvent, config: NetworkConf
         return blockResult(4, 'network_egress', `Blocked domain: ${hostname}`, findings);
       }
     }
-    
+
     // 3. DGA detection (Domain Generation Algorithm — random-looking domains)
     if (isDGADomain(hostname)) {
       findings.push({
@@ -1422,7 +1383,7 @@ export async function networkEgressGuard(event: PufferEvent, config: NetworkConf
         suggestion: 'Domain appears algorithmically generated — possible C2 server',
       });
     }
-    
+
     // 4. Payload size check
     if (event.action.type === 'network_request' && event.action.body) {
       const payloadSize = JSON.stringify(event.action.body).length;
@@ -1437,7 +1398,6 @@ export async function networkEgressGuard(event: PufferEvent, config: NetworkConf
         });
       }
     }
-    
   } catch (err) {
     findings.push({
       type: 'invalid_url',
@@ -1446,16 +1406,18 @@ export async function networkEgressGuard(event: PufferEvent, config: NetworkConf
       value: targetUrl.substring(0, 100),
     });
   }
-  
-  const hasCritical = findings.some(f => f.severity === 'critical');
-  const hasHigh = findings.some(f => f.severity === 'high');
-  
+
+  const hasCritical = findings.some((f) => f.severity === 'critical');
+  const hasHigh = findings.some((f) => f.severity === 'high');
+
   return {
-    layer: 4, name: 'network_egress', 
+    layer: 4,
+    name: 'network_egress',
     verdict: hasCritical ? 'block' : hasHigh ? 'audit' : 'allow',
     confidence: 0.9,
     details: findings.length > 0 ? `${findings.length} network concerns` : 'Network request OK',
-    findings, durationMs: 0,
+    findings,
+    durationMs: 0,
   };
 }
 
@@ -1464,11 +1426,11 @@ function isDGADomain(hostname: string): boolean {
   const parts = hostname.split('.');
   const domain = parts[0];
   if (domain.length < 8) return false;
-  
+
   const entropy = calculateEntropy(domain);
   const hasNumbers = /\d/.test(domain);
   const consonantRatio = (domain.match(/[bcdfghjklmnpqrstvwxyz]/gi)?.length || 0) / domain.length;
-  
+
   return entropy > 3.5 && hasNumbers && consonantRatio > 0.65;
 }
 ```
@@ -1485,15 +1447,18 @@ function expandPath(p: string): string {
   return p.replace(/^~/, HOME);
 }
 
-export async function filesystemSentinel(event: PufferEvent, config: FilesystemConfig): Promise<LayerResult> {
+export async function filesystemSentinel(
+  event: PufferEvent,
+  config: FilesystemConfig,
+): Promise<LayerResult> {
   if (event.action.type !== 'file_read' && event.action.type !== 'file_write') {
     return allowResult(5, 'filesystem_sentinel');
   }
-  
+
   const filePath = path.resolve(expandPath(event.action.path));
   const isWrite = event.action.type === 'file_write';
   const findings: Finding[] = [];
-  
+
   // 1. Check forbidden paths
   for (const forbidden of config.forbidden) {
     const expandedForbidden = expandPath(forbidden);
@@ -1508,7 +1473,7 @@ export async function filesystemSentinel(event: PufferEvent, config: FilesystemC
       return blockResult(5, 'filesystem_sentinel', `Forbidden path: ${forbidden}`, findings);
     }
   }
-  
+
   // 2. Check restricted paths (read OK, write needs escalation)
   for (const restricted of config.restricted) {
     const expandedRestricted = expandPath(restricted);
@@ -1522,13 +1487,18 @@ export async function filesystemSentinel(event: PufferEvent, config: FilesystemC
           suggestion: `Writing to restricted path requires approval`,
         });
         return {
-          layer: 5, name: 'filesystem_sentinel', verdict: 'escalate',
-          confidence: 1.0, details: `Write to restricted path: ${restricted}`, findings, durationMs: 0,
+          layer: 5,
+          name: 'filesystem_sentinel',
+          verdict: 'escalate',
+          confidence: 1.0,
+          details: `Write to restricted path: ${restricted}`,
+          findings,
+          durationMs: 0,
         };
       }
     }
   }
-  
+
   // 3. Check for path traversal
   if (event.action.path.includes('..')) {
     const resolved = path.resolve(event.action.path);
@@ -1540,7 +1510,7 @@ export async function filesystemSentinel(event: PufferEvent, config: FilesystemC
       suggestion: `Path contains ".." — resolved to ${resolved}`,
     });
   }
-  
+
   // 4. Scan file content for secrets (on write operations, check what's being written)
   if (isWrite && event.action.content) {
     for (const secretPattern of config.secretPatterns) {
@@ -1555,16 +1525,19 @@ export async function filesystemSentinel(event: PufferEvent, config: FilesystemC
       }
     }
   }
-  
-  const hasCritical = findings.some(f => f.severity === 'critical');
-  const hasHigh = findings.some(f => f.severity === 'high');
-  
+
+  const hasCritical = findings.some((f) => f.severity === 'critical');
+  const hasHigh = findings.some((f) => f.severity === 'high');
+
   return {
-    layer: 5, name: 'filesystem_sentinel',
+    layer: 5,
+    name: 'filesystem_sentinel',
     verdict: hasCritical ? 'block' : hasHigh ? 'audit' : 'allow',
     confidence: 0.95,
-    details: findings.length > 0 ? `${findings.length} filesystem concerns` : 'Filesystem access OK',
-    findings, durationMs: 0,
+    details:
+      findings.length > 0 ? `${findings.length} filesystem concerns` : 'Filesystem access OK',
+    findings,
+    durationMs: 0,
   };
 }
 ```
@@ -1579,17 +1552,20 @@ interface SessionState {
   eventCount: number;
   totalTokens: number;
   totalCost: number;
-  recentActions: string[];       // Sliding window for loop detection
-  commandHistory: string[];      // For privilege escalation detection
+  recentActions: string[]; // Sliding window for loop detection
+  commandHistory: string[]; // For privilege escalation detection
   blockedCount: number;
 }
 
 const sessions = new Map<string, SessionState>();
 
-export async function behaviorAnalyzer(event: PufferEvent, config: BehaviorConfig): Promise<LayerResult> {
+export async function behaviorAnalyzer(
+  event: PufferEvent,
+  config: BehaviorConfig,
+): Promise<LayerResult> {
   const sessionId = event.metadata.sessionId;
   const findings: Finding[] = [];
-  
+
   // Get or create session state
   if (!sessions.has(sessionId)) {
     sessions.set(sessionId, {
@@ -1605,11 +1581,11 @@ export async function behaviorAnalyzer(event: PufferEvent, config: BehaviorConfi
   }
   const session = sessions.get(sessionId)!;
   session.eventCount++;
-  
+
   // 1. Cost tracking
   if (event.metadata.costEstimate) {
     session.totalCost += event.metadata.costEstimate;
-    
+
     if (session.totalCost > config.maxCostPerSessionUsd) {
       findings.push({
         type: 'cost_exceeded',
@@ -1620,7 +1596,7 @@ export async function behaviorAnalyzer(event: PufferEvent, config: BehaviorConfi
       });
       return blockResult(6, 'behavior_analyzer', 'Cost limit exceeded', findings);
     }
-    
+
     // Hourly rate check
     const hoursSinceStart = (Date.now() - session.startTime) / 3600000;
     if (hoursSinceStart > 0) {
@@ -1636,18 +1612,20 @@ export async function behaviorAnalyzer(event: PufferEvent, config: BehaviorConfi
       }
     }
   }
-  
+
   // 2. Loop detection
   const actionString = JSON.stringify(event.action).substring(0, 200);
   session.recentActions.push(actionString);
   if (session.recentActions.length > config.loopDetection.windowSize) {
     session.recentActions.shift();
   }
-  
+
   // Check for repeated similar actions
   const recent = session.recentActions.slice(-config.loopDetection.consecutiveMatches);
   if (recent.length >= config.loopDetection.consecutiveMatches) {
-    const allSimilar = recent.every(a => stringSimilarity(a, recent[0]) > config.loopDetection.similarityThreshold);
+    const allSimilar = recent.every(
+      (a) => stringSimilarity(a, recent[0]) > config.loopDetection.similarityThreshold,
+    );
     if (allSimilar) {
       findings.push({
         type: 'loop_detected',
@@ -1659,9 +1637,9 @@ export async function behaviorAnalyzer(event: PufferEvent, config: BehaviorConfi
       return blockResult(6, 'behavior_analyzer', 'Loop detected', findings);
     }
   }
-  
+
   // 3. Consecutive block detection (agent trying to bypass restrictions)
-  if (event.layers.some(l => l.verdict === 'block')) {
+  if (event.layers.some((l) => l.verdict === 'block')) {
     session.blockedCount++;
     if (session.blockedCount >= 3) {
       findings.push({
@@ -1675,14 +1653,16 @@ export async function behaviorAnalyzer(event: PufferEvent, config: BehaviorConfi
   } else {
     session.blockedCount = 0; // Reset on successful action
   }
-  
-  const hasHigh = findings.some(f => f.severity === 'high');
+
+  const hasHigh = findings.some((f) => f.severity === 'high');
   return {
-    layer: 6, name: 'behavior_analyzer',
+    layer: 6,
+    name: 'behavior_analyzer',
     verdict: hasHigh ? 'block' : findings.length > 0 ? 'audit' : 'allow',
     confidence: 0.8,
     details: findings.length > 0 ? `${findings.length} behavioral concerns` : 'Behavior normal',
-    findings, durationMs: 0,
+    findings,
+    durationMs: 0,
   };
 }
 
@@ -1702,20 +1682,23 @@ function stringSimilarity(a: string, b: string): number {
 ### 6.8 Layer 7: MCP Poisoning Detector — `src/layers/layer-7-mcp.ts`
 
 ```typescript
-export async function mcpPoisoningDetector(event: PufferEvent, config: MCPConfig): Promise<LayerResult> {
+export async function mcpPoisoningDetector(
+  event: PufferEvent,
+  config: MCPConfig,
+): Promise<LayerResult> {
   if (event.action.type !== 'mcp_tool_call' && event.action.type !== 'mcp_tool_result') {
     return allowResult(7, 'mcp_detector');
   }
-  
+
   const findings: Finding[] = [];
-  
+
   if (event.action.type === 'mcp_tool_call') {
     // Check if server is authorized
     const server = event.action.server;
     const tool = event.action.tool;
-    
+
     if (config.blockUnauthorized) {
-      const authorized = config.authorizedServers.find(s => s.url === server);
+      const authorized = config.authorizedServers.find((s) => s.url === server);
       if (!authorized) {
         findings.push({
           type: 'unauthorized_mcp_server',
@@ -1726,7 +1709,7 @@ export async function mcpPoisoningDetector(event: PufferEvent, config: MCPConfig
         });
         return blockResult(7, 'mcp_detector', `Unauthorized MCP server: ${server}`, findings);
       }
-      
+
       // Check if tool is allowed for this server
       if (authorized.allowedTools.length > 0 && !authorized.allowedTools.includes(tool)) {
         findings.push({
@@ -1740,20 +1723,29 @@ export async function mcpPoisoningDetector(event: PufferEvent, config: MCPConfig
       }
     }
   }
-  
+
   if (event.action.type === 'mcp_tool_result') {
     // Scan tool results for prompt injection
     const resultText = JSON.stringify(event.action.result);
-    
+
     if (config.scanToolResults) {
       // Reuse injection detector on tool results
       // (The pipeline already does this if injection detector is enabled,
       //  but we do an extra check with lower thresholds here)
       const injectionResult = await injectionDetector(
-        { ...event, action: { type: 'llm_request', method: '', endpoint: '', body: { content: resultText } } } as any,
-        { ...defaultInjectionConfig, thresholds: { directInput: { block: 0.5, audit: 0.3 }, externalContent: { block: 0.4, audit: 0.2 } } }
+        {
+          ...event,
+          action: { type: 'llm_request', method: '', endpoint: '', body: { content: resultText } },
+        } as any,
+        {
+          ...defaultInjectionConfig,
+          thresholds: {
+            directInput: { block: 0.5, audit: 0.3 },
+            externalContent: { block: 0.4, audit: 0.2 },
+          },
+        },
       );
-      
+
       if (injectionResult.findings.length > 0) {
         findings.push({
           type: 'mcp_result_injection',
@@ -1765,14 +1757,17 @@ export async function mcpPoisoningDetector(event: PufferEvent, config: MCPConfig
       }
     }
   }
-  
-  const hasCritical = findings.some(f => f.severity === 'critical');
+
+  const hasCritical = findings.some((f) => f.severity === 'critical');
   return {
-    layer: 7, name: 'mcp_detector',
+    layer: 7,
+    name: 'mcp_detector',
     verdict: hasCritical ? 'block' : findings.length > 0 ? 'audit' : 'allow',
     confidence: 0.9,
-    details: findings.length > 0 ? `${findings.length} MCP security concerns` : 'MCP interaction OK',
-    findings, durationMs: 0,
+    details:
+      findings.length > 0 ? `${findings.length} MCP security concerns` : 'MCP interaction OK',
+    findings,
+    durationMs: 0,
   };
 }
 ```
@@ -1909,300 +1904,3 @@ OpenClaw supports a skill system. Puffer installs as a "security middleware" ski
 For agents without native hook support, Puffer can wrap the agent's process using `LD_PRELOAD` (Linux) or similar techniques to intercept system calls. This is complex and not needed for MVP.
 
 ---
-
-## 10. Configuration System
-
-### 10.1 Default Configuration — `config/default-policy.yaml`
-
-```yaml
-# Puffer Default Configuration
-# https://github.com/puffer-fish/puffer
-
-version: "0.1.0"
-mode: enforce  # monitor | enforce | paranoid | interactive
-
-auto_discovery:
-  enabled: true
-  scan_interval_ms: 30000
-  process_scanner: true
-  port_scanner: true
-  network_scanner: true
-
-layers:
-  pii:
-    enabled: true
-    regions: ["us", "eu", "global"]
-    action_by_severity:
-      critical: block
-      high: block
-      medium: audit
-      low: log
-    custom_patterns: []
-    exclude_contexts: []
-
-  injection:
-    enabled: true
-    mode: heuristic
-    thresholds:
-      direct_input:
-        block: 0.65
-        audit: 0.40
-      external_content:
-        block: 0.50
-        audit: 0.30
-    heuristics:
-      - role_switching
-      - system_delimiters
-      - imperative_override
-      - data_exfil_instruction
-      - encoding_detection
-      - hidden_text
-      - prompt_leaking
-      - tool_abuse
-
-  commands:
-    enabled: true
-    blocked_patterns:
-      - "rm -rf /"
-      - "rm -rf ~"
-      - "curl * | bash"
-      - "curl * | sh"
-      - "wget * | bash"
-      - "wget * | sh"
-      - "chmod 777 *"
-      - ":(){ :|:& };:"
-      - "> /dev/sd*"
-      - "mkfs *"
-      - "dd * of=/dev/*"
-    require_approval:
-      - "sudo *"
-      - "npm publish *"
-      - "git push * main"
-      - "git push * master"
-      - "docker run * --privileged *"
-    max_commands_per_minute: 60
-    consecutive_block_threshold: 3
-
-  network:
-    enabled: true
-    mode: blacklist
-    allowed_domains: []
-    blocked_domains: []
-    block_private_ips: true
-    max_payload_size_mb: 50
-    scan_payload_for_pii: true
-
-  filesystem:
-    enabled: true
-    forbidden:
-      - "~/.ssh/"
-      - "~/.aws/"
-      - "~/.gnupg/"
-      - "~/.env"
-      - "~/.config/gcloud/"
-      - "~/.kube/config"
-      - "~/.docker/config.json"
-      - "~/.npmrc"
-      - "~/.pypirc"
-      - "~/.netrc"
-      - "/etc/shadow"
-    restricted:
-      - "~/.gitconfig"
-      - "~/.bashrc"
-      - "~/.zshrc"
-      - ".github/workflows/"
-    workspace:
-      - "~/workspace/"
-      - "~/projects/"
-      - "~/code/"
-      - "/tmp/"
-    secret_patterns:
-      - "sk-[a-zA-Z0-9]{20,}"
-      - "ghp_[a-zA-Z0-9]{36}"
-      - "AKIA[A-Z0-9]{16}"
-      - "-----BEGIN.*PRIVATE KEY"
-      - "sk-ant-[a-zA-Z0-9-]{20,}"
-
-  behavior:
-    enabled: true
-    max_cost_per_session_usd: 10.00
-    max_cost_per_hour_usd: 20.00
-    loop_detection:
-      window_size: 20
-      similarity_threshold: 0.85
-      consecutive_matches: 5
-    sensitivity: medium
-
-  mcp:
-    enabled: true
-    authorized_servers: []
-    block_unauthorized: false
-    scan_tool_results: true
-
-dashboard:
-  enabled: true
-  port: 8788
-
-audit:
-  log_path: "~/.puffer/audit.jsonl"
-  retention_days: 30
-
-alerts:
-  desktop: true
-  webhook: null
-```
-
----
-
-## 11. Audit Logging
-
-### 11.1 Log Format
-
-Every event is logged as a single JSON line (JSONL) in `~/.puffer/audit.jsonl`.
-
-```json
-{
-  "id": "550e8400-e29b-41d4-a716-446655440000",
-  "timestamp": "2026-03-12T14:30:00.000Z",
-  "source": { "type": "proxy", "agent": "openclaw", "provider": "ollama", "model": "llama3" },
-  "action": { "type": "llm_request", "method": "POST", "endpoint": "/api/chat" },
-  "decision": "BLOCK",
-  "layers": [
-    { "layer": 1, "name": "pii_scanner", "verdict": "block", "confidence": 0.95, "details": "SSN detected", "durationMs": 1 },
-    { "layer": 2, "name": "injection_detector", "verdict": "allow", "confidence": 0.1, "durationMs": 3 }
-  ],
-  "metadata": { "sessionId": "abc123", "sequenceNumber": 42, "costEstimate": 0 }
-}
-```
-
-Note: The actual request/response bodies are NOT logged by default (privacy). Only metadata, decisions, and findings are logged. Bodies can be optionally logged for debugging.
-
----
-
-## 12. Testing Strategy
-
-### 12.1 Test Framework
-
-Use `vitest` for all tests. Fast, TypeScript-native, compatible with Jest API.
-
-### 12.2 Test Categories
-
-**Unit tests** for each layer:
-- PII Scanner: Test each regex pattern with positive and negative examples
-- Injection Detector: Test each heuristic with real and synthetic attacks
-- Command Analyzer: Test dangerous/safe commands, path traversal, blocklist
-- Network Egress: Test whitelist/blacklist, DGA detection, SSRF blocking
-- Filesystem: Test forbidden/restricted/workspace paths, secret detection
-- Behavior: Test cost limits, loop detection, consecutive blocks
-- MCP: Test unauthorized servers, tool injection
-
-**Integration tests:**
-- Full proxy flow: Request → Layers → Decision → Forward/Block
-- Auto-discovery: Mock processes, ports, network connections
-- Config loading and validation
-
-### 12.3 Test Data
-
-Create a `tests/fixtures/` directory with:
-- `injection-attacks.json`: 50+ real prompt injection examples
-- `safe-prompts.json`: 50+ normal prompts that should NOT be blocked
-- `pii-samples.json`: Examples of each PII type
-- `commands-dangerous.json`: Dangerous commands
-- `commands-safe.json`: Safe commands
-
----
-
-## 13. Packaging and Distribution
-
-### 13.1 npm Package
-
-```json
-{
-  "name": "puffer-agent-firewall",
-  "version": "0.1.0",
-  "description": "🐡 The autonomous immune system for AI agents",
-  "bin": {
-    "puffer": "./dist/cli/index.js"
-  },
-  "main": "./dist/index.js",
-  "keywords": ["ai", "security", "firewall", "agent", "llm", "openai", "anthropic", "ollama", "prompt-injection", "pii"],
-  "license": "Apache-2.0",
-  "repository": "https://github.com/puffer-fish/puffer"
-}
-```
-
-### 13.2 Installation Methods
-
-```bash
-# npx (zero install)
-npx puffer-agent-firewall init
-
-# Global install
-npm install -g puffer-agent-firewall
-puffer init
-
-# From source
-git clone https://github.com/puffer-fish/puffer.git
-cd puffer
-npm install
-npm run build
-npm link
-puffer init
-```
-
----
-
-## 14. README and Documentation
-
-The README must include:
-1. Puffer ASCII logo and tagline
-2. One-line install command
-3. Animated GIF showing auto-discovery and a blocked attack
-4. Feature list (7 layers, auto-discovery, multi-provider support)
-5. Supported agents and providers table
-6. Quick configuration example
-7. How it works section (the subconscious analogy)
-8. Comparison with alternatives (LlamaFirewall, Sage, Sentinel)
-9. Contributing guide
-10. License
-
----
-
-## Build Order (for Claude Code)
-
-Execute in this exact order:
-
-1. **Initialize project**: package.json, tsconfig.json, install dependencies
-2. **Types**: `src/types.ts` — all interfaces
-3. **Utils**: `src/utils/` — config loader, logger, constants
-4. **Proxy**: `src/proxy/` — the HTTP proxy server
-5. **Layer 1 (PII)**: `src/layers/layer-1-pii.ts` + tests
-6. **Layer 2 (Injection)**: `src/layers/layer-2-injection.ts` + tests
-7. **Layer 3 (Commands)**: `src/layers/layer-3-commands.ts` + tests
-8. **Layer 4 (Network)**: `src/layers/layer-4-network.ts` + tests
-9. **Layer 5 (Filesystem)**: `src/layers/layer-5-filesystem.ts` + tests
-10. **Layer 6 (Behavior)**: `src/layers/layer-6-behavior.ts` + tests
-11. **Layer 7 (MCP)**: `src/layers/layer-7-mcp.ts` + tests
-12. **Pipeline**: `src/layers/index.ts` — orchestrator
-13. **Discovery**: `src/discovery/` — all scanners
-14. **Decision Engine**: `src/engine/`
-15. **Audit**: `src/audit/`
-16. **CLI**: `src/cli/` — all commands
-17. **Main**: `src/index.ts` — ties everything together
-18. **Integration tests**
-19. **Dashboard** (can be built in parallel)
-20. **README**
-21. **Package and publish**
-
----
-
-## Final Notes
-
-- Every console output should be prefixed with `🐡` or `[PUFFER]`
-- Use chalk for colored terminal output
-- The log format for blocked actions: `[🐡 PUFFER] BLOCKED: <reason> | Layer: <name> | Agent: <agent>`
-- The log format for allowed actions (verbose mode only): `[🐡 PUFFER] ALLOW: <action> | 7 layers passed in <X>ms`
-- When in doubt about a security decision, BLOCK and log. False positives are better than false negatives.
-- The proxy should add a header to forwarded requests: `X-Puffer-Scanned: true` so downstream can verify Puffer is active
-- Never log actual PII values — always redact
-- The daemon should handle SIGTERM gracefully and flush audit logs before exit

@@ -49,7 +49,10 @@ export function backupConfigValue(filePath: string, dotPath: string, originalVal
  * Returns the original value, or `undefined` if no backup exists.
  * `null` means the key should be deleted (it didn't exist before).
  */
-export function restoreConfigValue(filePath: string, dotPath: string): { exists: boolean; value: unknown } {
+export function restoreConfigValue(
+  filePath: string,
+  dotPath: string,
+): { exists: boolean; value: unknown } {
   const store = loadBackups();
   const key = makeKey(filePath, dotPath);
   if (key in store) {

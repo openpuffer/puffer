@@ -11,20 +11,19 @@ import { logger } from '../utils/logger.js';
  */
 function probePort(port: number, path: string, timeoutMs = 2000): Promise<unknown | null> {
   return new Promise((resolve) => {
-    const req = http.get(
-      { hostname: '127.0.0.1', port, path, timeout: timeoutMs },
-      (res) => {
-        let data = '';
-        res.on('data', (chunk: Buffer) => { data += chunk.toString(); });
-        res.on('end', () => {
-          try {
-            resolve(JSON.parse(data));
-          } catch {
-            resolve(data);
-          }
-        });
-      },
-    );
+    const req = http.get({ hostname: '127.0.0.1', port, path, timeout: timeoutMs }, (res) => {
+      let data = '';
+      res.on('data', (chunk: Buffer) => {
+        data += chunk.toString();
+      });
+      res.on('end', () => {
+        try {
+          resolve(JSON.parse(data));
+        } catch {
+          resolve(data);
+        }
+      });
+    });
 
     req.on('error', () => resolve(null));
     req.on('timeout', () => {
@@ -87,11 +86,15 @@ export async function scanPorts(): Promise<PortScanResult[]> {
         const resp = response as Record<string, unknown>;
         if (Array.isArray(resp.models)) {
           models = resp.models.map((m: unknown) =>
-            typeof m === 'string' ? m : (m as Record<string, string>).name || (m as Record<string, string>).id || String(m)
+            typeof m === 'string'
+              ? m
+              : (m as Record<string, string>).name || (m as Record<string, string>).id || String(m),
           );
         } else if (Array.isArray(resp.data)) {
           models = resp.data.map((m: unknown) =>
-            typeof m === 'string' ? m : (m as Record<string, string>).id || (m as Record<string, string>).name || String(m)
+            typeof m === 'string'
+              ? m
+              : (m as Record<string, string>).id || (m as Record<string, string>).name || String(m),
           );
         }
       }
@@ -100,7 +103,7 @@ export async function scanPorts(): Promise<PortScanResult[]> {
       const isExposed = checkBinding(sig.port);
       if (isExposed) {
         securityWarnings.push(
-          `${sig.name} on port ${sig.port} is bound to 0.0.0.0 — accessible from the network`
+          `${sig.name} on port ${sig.port} is bound to 0.0.0.0 — accessible from the network`,
         );
         logger.warn(`Security: ${sig.name} on port ${sig.port} is exposed to the network`);
       }
@@ -114,7 +117,7 @@ export async function scanPorts(): Promise<PortScanResult[]> {
         protectionStatus: 'unprotected',
       };
 
-      const apiFormat = sig.name === 'ollama' ? 'ollama' as const : 'openai' as const;
+      const apiFormat = sig.name === 'ollama' ? ('ollama' as const) : ('openai' as const);
 
       const provider: ProviderConfig = {
         name: sig.name,

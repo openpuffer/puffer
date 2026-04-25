@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
-import { HookHandler } from './index.js';
+import type { HookHandler } from './index.js';
 import { logger } from '../utils/logger.js';
 import { backupConfigValue, restoreConfigValue, clearBackupsForFile } from './config-backup.js';
 import { DEFAULT_PROXY_PORT } from '../utils/constants.js';
@@ -59,11 +59,17 @@ export class ContinueDevHook implements HookHandler {
         }
 
         // Backup original headers
-        backupConfigValue(CONTINUE_CONFIG_PATH, `models.${i}.requestOptions.headers`, { ...(reqOpts.headers as object) });
+        backupConfigValue(CONTINUE_CONFIG_PATH, `models.${i}.requestOptions.headers`, {
+          ...(reqOpts.headers as object),
+        });
 
         const headers = reqOpts.headers as Record<string, string>;
         headers['x-puffer-agent'] = PUFFER_AGENT_HEADER;
-        if (typeof model.apiBase === 'string' && model.apiBase !== PROXY_BASE && !model.apiBase.startsWith(PROXY_BASE)) {
+        if (
+          typeof model.apiBase === 'string' &&
+          model.apiBase !== PROXY_BASE &&
+          !model.apiBase.startsWith(PROXY_BASE)
+        ) {
           headers['x-puffer-original-host'] = String(model.apiBase);
         }
       }
@@ -71,7 +77,11 @@ export class ContinueDevHook implements HookHandler {
       // Also handle tabAutocompleteModel if present
       if (config.tabAutocompleteModel && typeof config.tabAutocompleteModel === 'object') {
         const tabModel = config.tabAutocompleteModel as Record<string, unknown>;
-        backupConfigValue(CONTINUE_CONFIG_PATH, 'tabAutocompleteModel.apiBase', tabModel.apiBase ?? null);
+        backupConfigValue(
+          CONTINUE_CONFIG_PATH,
+          'tabAutocompleteModel.apiBase',
+          tabModel.apiBase ?? null,
+        );
         tabModel.apiBase = `${PROXY_BASE}/v1`;
       }
 
@@ -110,10 +120,20 @@ export class ContinueDevHook implements HookHandler {
           }
 
           // Restore headers
-          const originalHeaders = restoreConfigValue(CONTINUE_CONFIG_PATH, `models.${i}.requestOptions.headers`);
-          if (originalHeaders.exists && model.requestOptions && typeof model.requestOptions === 'object') {
+          const originalHeaders = restoreConfigValue(
+            CONTINUE_CONFIG_PATH,
+            `models.${i}.requestOptions.headers`,
+          );
+          if (
+            originalHeaders.exists &&
+            model.requestOptions &&
+            typeof model.requestOptions === 'object'
+          ) {
             const reqOpts = model.requestOptions as Record<string, unknown>;
-            if (originalHeaders.value === null || Object.keys(originalHeaders.value as object).length === 0) {
+            if (
+              originalHeaders.value === null ||
+              Object.keys(originalHeaders.value as object).length === 0
+            ) {
               delete reqOpts.headers;
             } else {
               reqOpts.headers = originalHeaders.value;
@@ -128,7 +148,11 @@ export class ContinueDevHook implements HookHandler {
 
       // Restore tabAutocompleteModel
       const originalTab = restoreConfigValue(CONTINUE_CONFIG_PATH, 'tabAutocompleteModel.apiBase');
-      if (originalTab.exists && config.tabAutocompleteModel && typeof config.tabAutocompleteModel === 'object') {
+      if (
+        originalTab.exists &&
+        config.tabAutocompleteModel &&
+        typeof config.tabAutocompleteModel === 'object'
+      ) {
         const tabModel = config.tabAutocompleteModel as Record<string, unknown>;
         if (originalTab.value === null) {
           delete tabModel.apiBase;

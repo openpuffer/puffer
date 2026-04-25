@@ -34,7 +34,9 @@ describe('PII Scanner - Adversarial Bypass Tests', () => {
   describe('Unicode homoglyph bypass', () => {
     it('GAP: should miss SSN with fullwidth digits', async () => {
       // Fullwidth digits: \uFF11\uFF12\uFF13 etc.
-      const event = makeLLMRequestEvent('SSN: \uFF11\uFF12\uFF13-\uFF14\uFF15-\uFF16\uFF17\uFF18\uFF19');
+      const event = makeLLMRequestEvent(
+        'SSN: \uFF11\uFF12\uFF13-\uFF14\uFF15-\uFF16\uFF17\uFF18\uFF19',
+      );
       const result = await piiScanner(event, DEFAULT_PII_CONFIG);
       expect(result.findings.some((f) => f.type === 'ssn_us')).toBe(false);
     });

@@ -4,7 +4,10 @@ import type { DiscoveredAgent } from '../../src/types.js';
 // Import the resolveProtectionStatus function by testing its behavior through DiscoveryEngine
 // Since the function is module-private, we test it indirectly via its effects
 
-function makeAgent(name: string, detectedVia: 'process' | 'port' | 'network' = 'process'): DiscoveredAgent {
+function makeAgent(
+  name: string,
+  detectedVia: 'process' | 'port' | 'network' = 'process',
+): DiscoveredAgent {
   return {
     name,
     pid: 1234,
@@ -22,7 +25,13 @@ function resolveProtectionStatus(
   const hookInstalled = installedHookNames.some((hookName) => {
     if (hookName === 'claude-code' && agent.name === 'claude-code') return true;
     if (hookName === 'openclaw' && agent.name === 'openclaw') return true;
-    if (hookName === 'vscode-extension' && ['github-copilot', 'cursor', 'cline', 'continue-dev', 'windsurf', 'codeium'].includes(agent.name)) return true;
+    if (
+      hookName === 'vscode-extension' &&
+      ['github-copilot', 'cursor', 'cline', 'continue-dev', 'windsurf', 'codeium'].includes(
+        agent.name,
+      )
+    )
+      return true;
     if (hookName === agent.name) return true;
     return false;
   });
@@ -99,7 +108,9 @@ describe('Protection Status Resolution', () => {
   describe('Unknown agents', () => {
     it('should be "unprotected" for unknown agents', () => {
       const agent = makeAgent('some-new-agent');
-      expect(resolveProtectionStatus(agent, ['claude-code', 'vscode-extension'])).toBe('unprotected');
+      expect(resolveProtectionStatus(agent, ['claude-code', 'vscode-extension'])).toBe(
+        'unprotected',
+      );
     });
   });
 

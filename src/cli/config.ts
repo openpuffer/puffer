@@ -1,4 +1,4 @@
-import { Command } from 'commander';
+import type { Command } from 'commander';
 import fs from 'node:fs';
 import { execSync } from 'node:child_process';
 import chalk from 'chalk';
@@ -6,9 +6,7 @@ import { CONFIG_PATH } from '../utils/constants.js';
 import { logger } from '../utils/logger.js';
 
 export function registerConfigCommand(program: Command): void {
-  const configCmd = program
-    .command('config')
-    .description('Manage Puffer configuration');
+  const configCmd = program.command('config').description('Manage Puffer configuration');
 
   configCmd
     .command('show')

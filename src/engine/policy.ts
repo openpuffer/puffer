@@ -1,4 +1,4 @@
-import { PufferConfig } from '../types.js';
+import type { PufferConfig } from '../types.js';
 import { loadConfig } from '../utils/config.js';
 import { logger } from '../utils/logger.js';
 

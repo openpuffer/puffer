@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import http from 'node:http';
 import path from 'node:path';
 import os from 'node:os';
-import { HookHandler } from './index.js';
+import type { HookHandler } from './index.js';
 import { logger } from '../utils/logger.js';
 import { DEFAULT_DASHBOARD_PORT, DEFAULT_PROXY_PORT } from '../utils/constants.js';
 
@@ -26,7 +26,7 @@ function isPufferEntry(entry: Record<string, unknown>): boolean {
   // New nested format: { matcher, hooks: [{ command: "curl ... /hooks/claude-code ..." }] }
   if (Array.isArray(entry.hooks)) {
     return (entry.hooks as Record<string, unknown>[]).some(
-      (h) => typeof h.command === 'string' && h.command.includes(PUFFER_MARKER)
+      (h) => typeof h.command === 'string' && h.command.includes(PUFFER_MARKER),
     );
   }
   return false;
@@ -45,7 +45,10 @@ export class ClaudeCodeHook implements HookHandler {
   private dashboardPort: number;
   private proxyPort: number;
 
-  constructor(dashboardPort: number = DEFAULT_DASHBOARD_PORT, proxyPort: number = DEFAULT_PROXY_PORT) {
+  constructor(
+    dashboardPort: number = DEFAULT_DASHBOARD_PORT,
+    proxyPort: number = DEFAULT_PROXY_PORT,
+  ) {
     this.dashboardPort = dashboardPort;
     this.proxyPort = proxyPort;
   }
@@ -72,7 +75,10 @@ export class ClaudeCodeHook implements HookHandler {
         resolve(res.statusCode === 200);
       });
       req.on('error', () => resolve(false));
-      req.setTimeout(1000, () => { req.destroy(); resolve(false); });
+      req.setTimeout(1000, () => {
+        req.destroy();
+        resolve(false);
+      });
     });
   }
 
@@ -142,7 +148,9 @@ export class ClaudeCodeHook implements HookHandler {
       settings.env = env;
 
       fs.writeFileSync(CLAUDE_SETTINGS_PATH, JSON.stringify(settings, null, 2));
-      logger.info('Claude Code hooks installed (PreToolUse + PostToolUse + Notification, proxy auto-config)');
+      logger.info(
+        'Claude Code hooks installed (PreToolUse + PostToolUse + Notification, proxy auto-config)',
+      );
 
       this.installed = true;
     } catch (err) {
@@ -160,7 +168,7 @@ export class ClaudeCodeHook implements HookHandler {
         for (const hookType of ['PreToolUse', 'PostToolUse', 'Notification']) {
           if (hooks[hookType]) {
             hooks[hookType] = (hooks[hookType] as Record<string, unknown>[]).filter(
-              (entry) => !isPufferEntry(entry)
+              (entry) => !isPufferEntry(entry),
             );
           }
         }

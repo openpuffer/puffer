@@ -13,15 +13,12 @@ import { logger } from '../utils/logger.js';
 import fs from 'node:fs';
 import { fork } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import path from 'node:path';
 import { PID_FILE_PATH, DAEMON_LOG_PATH, PUFFER_DIR } from '../utils/constants.js';
+import { isDaemonReadyMessage } from '../types/ipc.js';
 
 const program = new Command();
 
-program
-  .name('puffer')
-  .description('The autonomous immune system for AI agents')
-  .version(VERSION);
+program.name('puffer').description('The autonomous immune system for AI agents').version(VERSION);
 
 // Register subcommands
 registerInitCommand(program);
@@ -67,11 +64,14 @@ program
 
       child.once('message', (msg: unknown) => {
         clearTimeout(timeout);
+        // Legacy: pre-typed daemons sent the string 'ready'. New daemons
+        // send a `DaemonReadyMessage` object with port info. We honor both.
         if (msg === 'ready') {
-          // Backwards compatibility with old daemon format
           resolve(true);
-        } else if (typeof msg === 'object' && msg !== null && (msg as any).type === 'ready') {
-          dashboardPort = (msg as any).dashboardPort ?? dashboardPort;
+          return;
+        }
+        if (isDaemonReadyMessage(msg)) {
+          dashboardPort = msg.dashboardPort;
           resolve(true);
         }
       });
@@ -94,18 +94,26 @@ program
       const { exec } = await import('node:child_process');
       const platform = process.platform;
       const openCmd = platform === 'darwin' ? 'open' : platform === 'win32' ? 'start' : 'xdg-open';
-      exec(`${openCmd} ${dashUrl}`, () => { /* ignore errors */ });
+      exec(`${openCmd} ${dashUrl}`, () => {
+        /* ignore errors */
+      });
 
       process.exit(0);
     } else {
       // Child failed to become ready
-      try { child.kill(); } catch { /* already dead */ }
+      try {
+        child.kill();
+      } catch {
+        /* already dead */
+      }
       fs.closeSync(logFd);
       // Clean up any stale config the child might have partially written
       try {
         const { cleanupStaleConfig } = await import('../index.js');
         await cleanupStaleConfig();
-      } catch { /* best effort */ }
+      } catch {
+        /* best effort */
+      }
       logger.error('Daemon failed to start. Check logs: ' + DAEMON_LOG_PATH);
       process.exit(1);
     }
@@ -121,7 +129,9 @@ program
     try {
       const { forceCleanupHooks } = await import('../index.js');
       await forceCleanupHooks();
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
 
     if (!fs.existsSync(PID_FILE_PATH)) {
       logger.warn('No PID file found — hooks cleaned up.');
@@ -138,28 +148,53 @@ program
           let elapsed = 0;
           const interval = setInterval(() => {
             elapsed += 200;
-            try { process.kill(pid, 0); } catch { clearInterval(interval); resolve(true); return; }
-            if (elapsed >= 5000) { clearInterval(interval); resolve(false); }
+            try {
+              process.kill(pid, 0);
+            } catch {
+              clearInterval(interval);
+              resolve(true);
+              return;
+            }
+            if (elapsed >= 5000) {
+              clearInterval(interval);
+              resolve(false);
+            }
           }, 200);
         });
         if (!dead) {
           logger.warn(`Process ${pid} did not exit gracefully, sending SIGKILL`);
-          try { process.kill(pid, 'SIGKILL'); } catch { /* already dead */ }
+          try {
+            process.kill(pid, 'SIGKILL');
+          } catch {
+            /* already dead */
+          }
         }
-      } catch { /* already dead */ }
-      try { fs.unlinkSync(PID_FILE_PATH); } catch { /* ignore */ }
+      } catch {
+        /* already dead */
+      }
+      try {
+        fs.unlinkSync(PID_FILE_PATH);
+      } catch {
+        /* ignore */
+      }
       logger.info(`Daemon force-stopped (PID ${pid})`);
     } else {
       // Graceful stop: send SIGUSR1 → daemon enters passthrough drain mode
       // Proxy stays alive for 2 min so existing sessions keep working
       try {
         process.kill(pid, 'SIGUSR1');
-        logger.info(`Settings cleaned. Proxy entering drain mode (PID ${pid}) — will auto-exit in 2 minutes.`);
+        logger.info(
+          `Settings cleaned. Proxy entering drain mode (PID ${pid}) — will auto-exit in 2 minutes.`,
+        );
         logger.info('Existing sessions will continue working. New sessions go direct to API.');
         logger.info('Use "puffer stop --force" to kill immediately.');
       } catch {
         // Process already dead — clean up PID file
-        try { fs.unlinkSync(PID_FILE_PATH); } catch { /* ignore */ }
+        try {
+          fs.unlinkSync(PID_FILE_PATH);
+        } catch {
+          /* ignore */
+        }
         logger.info('Daemon already stopped. Settings cleaned.');
       }
     }
@@ -198,7 +233,8 @@ program
     const { AuditLogger } = await import('../audit/logger.js');
     const { DiscoveryEngine } = await import('../discovery/index.js');
     const { calculateScore } = await import('../score/calculator.js');
-    const { generateWeeklyReport, formatWeeklyMarkdown, formatWeeklyHTML } = await import('../reports/weekly.js');
+    const { generateWeeklyReport, formatWeeklyMarkdown, formatWeeklyHTML } =
+      await import('../reports/weekly.js');
 
     console.log('\n  Generating weekly threat report...\n');
 
@@ -210,9 +246,8 @@ program
 
     const report = generateWeeklyReport(auditLogger, { current: score.total, grade: score.grade });
 
-    const formatted = opts.format === 'html'
-      ? formatWeeklyHTML(report)
-      : formatWeeklyMarkdown(report);
+    const formatted =
+      opts.format === 'html' ? formatWeeklyHTML(report) : formatWeeklyMarkdown(report);
 
     if (opts.output) {
       const fs = await import('node:fs');

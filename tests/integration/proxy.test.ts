@@ -1,14 +1,16 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { handleRequest, ProxyDependencies } from '../../src/proxy/handler.js';
 import { detectProvider } from '../../src/proxy/providers.js';
-import { PufferEvent, Decision } from '../../src/types.js';
+import { PufferEvent } from '../../src/types.js';
 import { IncomingMessage, ServerResponse } from 'node:http';
 
-function makeMockRequest(overrides: {
-  url?: string;
-  method?: string;
-  headers?: Record<string, string>;
-} = {}): IncomingMessage {
+function makeMockRequest(
+  overrides: {
+    url?: string;
+    method?: string;
+    headers?: Record<string, string>;
+  } = {},
+): IncomingMessage {
   return {
     url: overrides.url ?? '/v1/chat/completions',
     method: overrides.method ?? 'POST',
@@ -25,7 +27,11 @@ function makeMockResponse(): ServerResponse & {
     _statusCode: null as number | null,
     _headers: {} as Record<string, string>,
     _body: '',
-    writeHead: vi.fn(function (this: typeof res, statusCode: number, headers?: Record<string, string>) {
+    writeHead: vi.fn(function (
+      this: typeof res,
+      statusCode: number,
+      headers?: Record<string, string>,
+    ) {
       this._statusCode = statusCode;
       if (headers) Object.assign(this._headers, headers);
       return this;
@@ -62,10 +68,12 @@ describe('Proxy Request Handling', () => {
     it('should forward a clean request', async () => {
       const req = makeMockRequest();
       const res = makeMockResponse();
-      const body = Buffer.from(JSON.stringify({
-        model: 'gpt-4o',
-        messages: [{ role: 'user', content: 'Hello' }],
-      }));
+      const body = Buffer.from(
+        JSON.stringify({
+          model: 'gpt-4o',
+          messages: [{ role: 'user', content: 'Hello' }],
+        }),
+      );
       const deps = makeMockDeps();
 
       await handleRequest(req, res, body, deps);
@@ -81,10 +89,12 @@ describe('Proxy Request Handling', () => {
     it('should return 403 for blocked request in enforce mode', async () => {
       const req = makeMockRequest();
       const res = makeMockResponse();
-      const body = Buffer.from(JSON.stringify({
-        model: 'gpt-4o',
-        messages: [{ role: 'user', content: 'blocked content' }],
-      }));
+      const body = Buffer.from(
+        JSON.stringify({
+          model: 'gpt-4o',
+          messages: [{ role: 'user', content: 'blocked content' }],
+        }),
+      );
       const deps = makeMockDeps({
         evaluatePipeline: vi.fn(async (event: PufferEvent) => {
           event.decision = 'BLOCK';
@@ -116,10 +126,12 @@ describe('Proxy Request Handling', () => {
     it('should forward blocked request in monitor mode (not return 403)', async () => {
       const req = makeMockRequest();
       const res = makeMockResponse();
-      const body = Buffer.from(JSON.stringify({
-        model: 'gpt-4o',
-        messages: [{ role: 'user', content: 'blocked content' }],
-      }));
+      const body = Buffer.from(
+        JSON.stringify({
+          model: 'gpt-4o',
+          messages: [{ role: 'user', content: 'blocked content' }],
+        }),
+      );
       const deps = makeMockDeps({
         evaluatePipeline: vi.fn(async (event: PufferEvent) => {
           event.decision = 'BLOCK';
@@ -147,10 +159,12 @@ describe('Proxy Request Handling', () => {
     it('should return 502 when no target URL is configured', async () => {
       const req = makeMockRequest();
       const res = makeMockResponse();
-      const body = Buffer.from(JSON.stringify({
-        model: 'gpt-4o',
-        messages: [{ role: 'user', content: 'Hello' }],
-      }));
+      const body = Buffer.from(
+        JSON.stringify({
+          model: 'gpt-4o',
+          messages: [{ role: 'user', content: 'Hello' }],
+        }),
+      );
       const deps = makeMockDeps({
         resolveTarget: vi.fn(() => null),
       });
@@ -273,10 +287,14 @@ describe('Proxy Request Handling', () => {
 
   describe('detectProvider from body heuristics', () => {
     it('should detect Anthropic from body with system and messages but no tools', () => {
-      const provider = detectProvider('/some/unknown/path', {}, {
-        system: 'You are helpful',
-        messages: [{ role: 'user', content: 'Hi' }],
-      });
+      const provider = detectProvider(
+        '/some/unknown/path',
+        {},
+        {
+          system: 'You are helpful',
+          messages: [{ role: 'user', content: 'Hi' }],
+        },
+      );
       expect(provider).toBe('anthropic');
     });
 

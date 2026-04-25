@@ -40,7 +40,7 @@ function getProcessName(pid: number, os: string): string | undefined {
     if (os === 'win32') {
       const out = execSync(
         `powershell -NoProfile -Command "(Get-Process -Id ${pid} -ErrorAction SilentlyContinue).ProcessName"`,
-        { encoding: 'utf-8', timeout: 5_000 }
+        { encoding: 'utf-8', timeout: 5_000 },
       ).trim();
       return out || undefined;
     } else {
@@ -63,7 +63,7 @@ function getParentPid(pid: number, os: string): number | undefined {
     if (os === 'win32') {
       const out = execSync(
         `powershell -NoProfile -Command "(Get-CimInstance Win32_Process -Filter 'ProcessId=${pid}').ParentProcessId"`,
-        { encoding: 'utf-8', timeout: 5_000 }
+        { encoding: 'utf-8', timeout: 5_000 },
       ).trim();
       const ppid = parseInt(out, 10);
       return isNaN(ppid) ? undefined : ppid;
@@ -88,7 +88,7 @@ function getParentPid(pid: number, os: string): number | undefined {
 function resolveHostProgram(
   pid: number,
   os: string,
-  cache: Map<number, string | undefined>
+  cache: Map<number, string | undefined>,
 ): string | undefined {
   let currentPid = pid;
   const maxDepth = 4;
@@ -140,7 +140,7 @@ export function scanProcesses(): DiscoveredAgent[] {
       try {
         rawOutput = execSync(
           'powershell -NoProfile -Command "Get-CimInstance Win32_Process | Select-Object ProcessId,ParentProcessId,CommandLine | ConvertTo-Csv -NoTypeInformation"',
-          { encoding: 'utf-8', timeout: 15_000 }
+          { encoding: 'utf-8', timeout: 15_000 },
         );
       } catch {
         // Fallback to wmic if PowerShell fails
@@ -202,9 +202,7 @@ export function scanProcesses(): DiscoveredAgent[] {
         if (sig.pattern.test(command)) {
           if (!seen.has(pid)) {
             // Resolve host program by walking the process tree
-            const hostProgram = ppid
-              ? resolveHostProgram(ppid, os, hostCache)
-              : undefined;
+            const hostProgram = ppid ? resolveHostProgram(ppid, os, hostCache) : undefined;
 
             seen.set(pid, {
               name: sig.name,
@@ -216,7 +214,7 @@ export function scanProcesses(): DiscoveredAgent[] {
               protectionStatus: 'unprotected',
             });
             logger.debug(
-              `Process scan: found ${sig.name} (PID ${pid}${hostProgram ? `, host: ${hostProgram}` : ''})`
+              `Process scan: found ${sig.name} (PID ${pid}${hostProgram ? `, host: ${hostProgram}` : ''})`,
             );
           }
           break;

@@ -25,17 +25,17 @@ export const MAX_REQUEST_BODY_BYTES = 50 * 1024 * 1024;
 
 // Cost table (USD per 1M tokens, input/output)
 export const COST_TABLE: Record<string, { input: number; output: number }> = {
-  'gpt-4o': { input: 2.50, output: 10.00 },
-  'gpt-4o-mini': { input: 0.15, output: 0.60 },
-  'gpt-4-turbo': { input: 10.00, output: 30.00 },
-  'claude-sonnet-4-20250514': { input: 3.00, output: 15.00 },
-  'claude-haiku-4-5-20251001': { input: 0.80, output: 4.00 },
-  'claude-opus-4-6': { input: 15.00, output: 75.00 },
+  'gpt-4o': { input: 2.5, output: 10.0 },
+  'gpt-4o-mini': { input: 0.15, output: 0.6 },
+  'gpt-4-turbo': { input: 10.0, output: 30.0 },
+  'claude-sonnet-4-20250514': { input: 3.0, output: 15.0 },
+  'claude-haiku-4-5-20251001': { input: 0.8, output: 4.0 },
+  'claude-opus-4-6': { input: 15.0, output: 75.0 },
   'deepseek-r1': { input: 0.55, output: 2.19 },
-  'llama3': { input: 0, output: 0 },
+  llama3: { input: 0, output: 0 },
   'deepseek-r1:local': { input: 0, output: 0 },
-  'default_local': { input: 0, output: 0 },
-  'default_cloud': { input: 1.00, output: 5.00 },
+  default_local: { input: 0, output: 0 },
+  default_cloud: { input: 1.0, output: 5.0 },
 };
 
 // ASCII banner

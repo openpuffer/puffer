@@ -125,7 +125,9 @@ async function runHttpMode(cases: TestCase[]) {
   const results = new Map<string, CategoryResult>();
 
   // Only test LLM-type cases via HTTP (network/filesystem need different event types)
-  const httpCases = cases.filter(c => c.category === 'injection' || c.category === 'pii' || c.category === 'safe');
+  const httpCases = cases.filter(
+    (c) => c.category === 'injection' || c.category === 'pii' || c.category === 'safe',
+  );
 
   for (const tc of httpCases) {
     const category = tc.category ?? 'unknown';
@@ -171,13 +173,23 @@ async function runHttpMode(cases: TestCase[]) {
 function printScorecard(results: Map<string, CategoryResult>, jsonMode: boolean) {
   if (jsonMode) {
     const obj: Record<string, any> = {};
-    let totalAll = 0, detectedAll = 0;
+    let totalAll = 0,
+      detectedAll = 0;
     for (const [cat, r] of results) {
-      obj[cat] = { total: r.total, detected: r.detected, rate: r.total > 0 ? Math.round((r.detected / r.total) * 100) : 100, missed: r.missed };
+      obj[cat] = {
+        total: r.total,
+        detected: r.detected,
+        rate: r.total > 0 ? Math.round((r.detected / r.total) * 100) : 100,
+        missed: r.missed,
+      };
       totalAll += r.total;
       detectedAll += r.detected;
     }
-    obj._overall = { total: totalAll, detected: detectedAll, rate: Math.round((detectedAll / totalAll) * 100) };
+    obj._overall = {
+      total: totalAll,
+      detected: detectedAll,
+      rate: Math.round((detectedAll / totalAll) * 100),
+    };
     console.log(JSON.stringify(obj, null, 2));
     return;
   }
@@ -185,7 +197,8 @@ function printScorecard(results: Map<string, CategoryResult>, jsonMode: boolean)
   console.log('\n  ADVERSARIAL TEST SCORECARD');
   console.log('  ═══════════════════════════════════════');
 
-  let totalAll = 0, detectedAll = 0;
+  let totalAll = 0,
+    detectedAll = 0;
   const safeResult = results.get('safe');
 
   for (const [cat, r] of results) {
@@ -200,15 +213,21 @@ function printScorecard(results: Map<string, CategoryResult>, jsonMode: boolean)
   console.log('  ───────────────────────────────────────');
   const overallRate = Math.round((detectedAll / totalAll) * 100);
   const overallColor = overallRate >= 90 ? '\x1b[32m' : overallRate >= 70 ? '\x1b[33m' : '\x1b[31m';
-  console.log(`  ${'Overall'.padEnd(22)} ${overallColor}${overallRate}%\x1b[0m (${detectedAll}/${totalAll})`);
+  console.log(
+    `  ${'Overall'.padEnd(22)} ${overallColor}${overallRate}%\x1b[0m (${detectedAll}/${totalAll})`,
+  );
 
   if (safeResult && safeResult.missed.length > 0) {
     const fpRate = Math.round((safeResult.missed.length / safeResult.total) * 100);
-    console.log(`  ${'False Positive Rate'.padEnd(22)} \x1b[33m${fpRate}%\x1b[0m (${safeResult.missed.length}/${safeResult.total})`);
+    console.log(
+      `  ${'False Positive Rate'.padEnd(22)} \x1b[33m${fpRate}%\x1b[0m (${safeResult.missed.length}/${safeResult.total})`,
+    );
   }
 
   // Show missed attacks
-  const allMissed = [...results.entries()].flatMap(([cat, r]) => r.missed.map(m => `[${cat}] ${m}`));
+  const allMissed = [...results.entries()].flatMap(([cat, r]) =>
+    r.missed.map((m) => `[${cat}] ${m}`),
+  );
   if (allMissed.length > 0) {
     console.log(`\n  Missed (${allMissed.length}):`);
     for (const m of allMissed.slice(0, 15)) {
@@ -231,7 +250,9 @@ async function main() {
   const cases = buildTestCases();
 
   if (!jsonMode) {
-    console.log(`\n  🐡 Puffer Adversarial Test (${dryRun ? 'dry-run / pipeline direct' : 'HTTP proxy mode'})`);
+    console.log(
+      `\n  🐡 Puffer Adversarial Test (${dryRun ? 'dry-run / pipeline direct' : 'HTTP proxy mode'})`,
+    );
     console.log(`  Loading ${cases.length} test cases...\n`);
   }
 
@@ -239,8 +260,12 @@ async function main() {
   printScorecard(results, jsonMode);
 
   // Exit code: non-zero if overall rate < 80%
-  let totalAll = 0, detectedAll = 0;
-  for (const r of results.values()) { totalAll += r.total; detectedAll += r.detected; }
+  let totalAll = 0,
+    detectedAll = 0;
+  for (const r of results.values()) {
+    totalAll += r.total;
+    detectedAll += r.detected;
+  }
   if (Math.round((detectedAll / totalAll) * 100) < 80) process.exit(1);
 }
 

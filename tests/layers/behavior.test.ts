@@ -2,12 +2,20 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { behaviorAnalyzer, resetSessions } from '../../src/layers/layer-6-behavior.js';
 import { PufferEvent, BehaviorConfig } from '../../src/types.js';
 
-function makeEvent(overrides: Partial<PufferEvent['metadata']> = {}, decision: PufferEvent['decision'] = null): PufferEvent {
+function makeEvent(
+  overrides: Partial<PufferEvent['metadata']> = {},
+  decision: PufferEvent['decision'] = null,
+): PufferEvent {
   return {
     id: 'test-1',
     timestamp: new Date().toISOString(),
     source: { type: 'proxy', agent: 'test-agent', provider: 'openai' },
-    action: { type: 'llm_request', method: 'POST', endpoint: '/v1/chat/completions', body: { message: 'hello' } },
+    action: {
+      type: 'llm_request',
+      method: 'POST',
+      endpoint: '/v1/chat/completions',
+      body: { message: 'hello' },
+    },
     metadata: {
       sessionId: 'sess-1',
       sequenceNumber: 1,
@@ -91,7 +99,10 @@ describe('Behavior Analyzer', () => {
       // Send events with BLOCK decisions
       await behaviorAnalyzer(makeEvent({ costEstimate: 0, sequenceNumber: 1 }, 'BLOCK'), config);
       await behaviorAnalyzer(makeEvent({ costEstimate: 0, sequenceNumber: 2 }, 'BLOCK'), config);
-      const result = await behaviorAnalyzer(makeEvent({ costEstimate: 0, sequenceNumber: 3 }, 'BLOCK'), config);
+      const result = await behaviorAnalyzer(
+        makeEvent({ costEstimate: 0, sequenceNumber: 3 }, 'BLOCK'),
+        config,
+      );
 
       expect(result.findings.some((f) => f.type === 'consecutive_blocks')).toBe(true);
     });

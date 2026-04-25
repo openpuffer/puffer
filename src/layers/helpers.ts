@@ -1,4 +1,4 @@
-import { LayerResult, Verdict, PufferEvent, Finding } from '../types.js';
+import type { LayerResult, PufferEvent, Finding } from '../types.js';
 
 export function allowResult(layer: number, name: string): LayerResult {
   return {
@@ -12,7 +12,12 @@ export function allowResult(layer: number, name: string): LayerResult {
   };
 }
 
-export function blockResult(layer: number, name: string, details: string, findings: Finding[]): LayerResult {
+export function blockResult(
+  layer: number,
+  name: string,
+  details: string,
+  findings: Finding[],
+): LayerResult {
   return {
     layer,
     name,

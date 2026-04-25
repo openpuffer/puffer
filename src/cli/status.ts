@@ -1,4 +1,4 @@
-import { Command } from 'commander';
+import type { Command } from 'commander';
 import fs from 'node:fs';
 import chalk from 'chalk';
 import { PID_FILE_PATH } from '../utils/constants.js';
@@ -39,16 +39,29 @@ export function registerStatusCommand(program: Command): void {
         const config = loadConfig();
 
         // Mode
-        const modeColor = config.mode === 'paranoid' ? 'red' : config.mode === 'enforce' ? 'green' : 'yellow';
+        const modeColor =
+          config.mode === 'paranoid' ? 'red' : config.mode === 'enforce' ? 'green' : 'yellow';
         logger.status('Mode', config.mode, modeColor);
 
         // Active layers
-        const layerNames = ['pii', 'injection', 'commands', 'network', 'filesystem', 'behavior', 'mcp'] as const;
+        const layerNames = [
+          'pii',
+          'injection',
+          'commands',
+          'network',
+          'filesystem',
+          'behavior',
+          'mcp',
+        ] as const;
         const activeLayers = layerNames.filter((name) => {
           const layer = config.layers[name];
           return layer?.enabled !== false;
         });
-        logger.status('Active layers', `${activeLayers.length}/7 (${activeLayers.join(', ')})`, 'green');
+        logger.status(
+          'Active layers',
+          `${activeLayers.length}/7 (${activeLayers.join(', ')})`,
+          'green',
+        );
 
         // Providers
         logger.status('Providers', `${config.providers.length} configured`, 'green');
@@ -73,7 +86,11 @@ export function registerStatusCommand(program: Command): void {
           logger.status('Blocked', String(stats.blocked), stats.blocked > 0 ? 'red' : 'green');
           logger.status('Allowed', String(stats.allowed), 'green');
           logger.status('Audit', String(stats.audit), stats.audit > 0 ? 'yellow' : 'green');
-          logger.status('Escalated', String(stats.escalated), stats.escalated > 0 ? 'red' : 'green');
+          logger.status(
+            'Escalated',
+            String(stats.escalated),
+            stats.escalated > 0 ? 'red' : 'green',
+          );
         } else {
           logger.status('Audit log', 'no events recorded', 'yellow');
         }

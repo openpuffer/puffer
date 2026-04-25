@@ -1,11 +1,11 @@
-import { PufferEvent, LayerResult, Finding, MCPConfig } from '../types.js';
+import type { PufferEvent, LayerResult, Finding, MCPConfig } from '../types.js';
 import { allowResult } from './helpers.js';
 import { HEURISTICS } from './layer-2-injection.js';
 
 // Reuse injection heuristics from Layer 2 for MCP tool result scanning
-const MCP_INJECTION_PATTERNS: RegExp[] = HEURISTICS
-  .filter((h) => ['role_switching', 'system_delimiters', 'data_exfil_instruction', 'tool_abuse'].includes(h.name))
-  .map((h) => h.pattern);
+const MCP_INJECTION_PATTERNS: RegExp[] = HEURISTICS.filter((h) =>
+  ['role_switching', 'system_delimiters', 'data_exfil_instruction', 'tool_abuse'].includes(h.name),
+).map((h) => h.pattern);
 
 function scanForInjection(text: string): string[] {
   const matches: string[] = [];

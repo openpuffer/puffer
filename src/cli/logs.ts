@@ -1,4 +1,4 @@
-import { Command } from 'commander';
+import type { Command } from 'commander';
 import fs from 'node:fs';
 import chalk from 'chalk';
 import { AuditLogger } from '../audit/logger.js';

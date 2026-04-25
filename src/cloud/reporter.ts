@@ -8,9 +8,9 @@ import os from 'node:os';
 
 export interface CloudConfig {
   enabled: boolean;
-  url: string;     // e.g., https://puffer-server.example.com
-  apiKey: string;   // Agent API key
-  batchSize?: number;     // Events per batch (default 50)
+  url: string; // e.g., https://puffer-server.example.com
+  apiKey: string; // Agent API key
+  batchSize?: number; // Events per batch (default 50)
   flushIntervalMs?: number; // Flush interval (default 60s)
 }
 
@@ -30,8 +30,12 @@ export class CloudReporter {
     const interval = this.config.flushIntervalMs ?? 60_000;
     this.flushTimer = setInterval(() => this.flush(), interval);
 
-    // Send initial heartbeat
-    this.sendHeartbeat().catch(() => {});
+    // Send initial heartbeat. Failures here are non-fatal — the heartbeat
+    // path uses the same offline-flag pattern as flush(), so a noisy log on
+    // every retry would spam the daemon log. Log once at debug detail.
+    this.sendHeartbeat().catch((err: unknown) => {
+      logger.warn(`Cloud reporter: initial heartbeat failed: ${(err as Error).message}`);
+    });
     logger.info(`Cloud reporter started → ${this.config.url}`);
   }
 
@@ -40,8 +44,14 @@ export class CloudReporter {
       clearInterval(this.flushTimer);
       this.flushTimer = null;
     }
-    // Final flush
-    this.flush().catch(() => {});
+    // Final flush — daemon is shutting down, so we log but do not retry.
+    // Anything still in the queue is intentionally lost; flush() already
+    // re-queues on transient failure but here we have no second chance.
+    this.flush().catch((err: unknown) => {
+      logger.warn(
+        `Cloud reporter: final flush dropped ${this.queue.length} event(s): ${(err as Error).message}`,
+      );
+    });
   }
 
   enqueue(event: PufferEvent): void {
@@ -53,20 +63,25 @@ export class CloudReporter {
       source_agent: event.source.agent,
       action_type: event.action.type,
       decision: event.decision ?? 'ALLOW',
-      severity: event.layers.flatMap(l => l.findings).reduce<string | null>(
-        (max, f) => (!max || ['low', 'medium', 'high', 'critical'].indexOf(f.severity) > ['low', 'medium', 'high', 'critical'].indexOf(max) ? f.severity : max),
-        null
-      ),
-      layer: event.layers.find(l => l.verdict === 'block')?.name,
-      details: event.layers.find(l => l.verdict === 'block')?.details,
+      severity: event.layers
+        .flatMap((l) => l.findings)
+        .reduce<
+          string | null
+        >((max, f) => (!max || ['low', 'medium', 'high', 'critical'].indexOf(f.severity) > ['low', 'medium', 'high', 'critical'].indexOf(max) ? f.severity : max), null),
+      layer: event.layers.find((l) => l.verdict === 'block')?.name,
+      details: event.layers.find((l) => l.verdict === 'block')?.details,
       cost: event.metadata.costEstimate ?? 0,
       tokens: event.metadata.totalTokens ?? 0,
     });
 
-    // Auto-flush if batch is full
+    // Auto-flush if batch is full. flush() already handles network errors
+    // by re-queuing and toggling the offline flag, so an unhandled rejection
+    // here would only happen for a genuine bug — surface it loudly.
     const batchSize = this.config.batchSize ?? 50;
     if (this.queue.length >= batchSize) {
-      this.flush().catch(() => {});
+      this.flush().catch((err: unknown) => {
+        logger.error(`Cloud reporter: auto-flush bug: ${(err as Error).message}`);
+      });
     }
   }
 
@@ -99,11 +114,15 @@ export class CloudReporter {
           this.offline = false;
         }
       }
-    } catch {
-      // Network error — put events back for retry
+    } catch (err) {
+      // Network error — put events back for retry. We only log on the
+      // transition to offline; subsequent failures are silent until the
+      // server is reachable again to avoid a flood.
       this.queue.unshift(...batch);
       if (!this.offline) {
-        logger.warn('Cloud reporter: server unreachable, queuing events');
+        logger.warn(
+          `Cloud reporter: server unreachable, queuing events: ${(err as Error).message}`,
+        );
         this.offline = true;
       }
     }
@@ -114,7 +133,13 @@ export class CloudReporter {
     }
   }
 
-  async sendHeartbeat(score?: number, activeAgents?: number, totalEvents?: number, blockedEvents?: number, mode?: string): Promise<void> {
+  async sendHeartbeat(
+    score?: number,
+    activeAgents?: number,
+    totalEvents?: number,
+    blockedEvents?: number,
+    mode?: string,
+  ): Promise<void> {
     if (!this.config.enabled) return;
 
     try {
@@ -135,8 +160,14 @@ export class CloudReporter {
         }),
         signal: AbortSignal.timeout(5_000),
       });
-    } catch {
-      // Best effort
+    } catch (err) {
+      // Heartbeats are best-effort — they re-fire on every interval, so a
+      // permanent failure would create log noise. Demote to debug-style
+      // single warn the first time it fails and nothing thereafter.
+      if (!this.offline) {
+        logger.warn(`Cloud reporter: heartbeat failed: ${(err as Error).message}`);
+        this.offline = true;
+      }
     }
   }
 }

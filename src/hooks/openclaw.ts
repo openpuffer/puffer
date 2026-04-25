@@ -1,4 +1,4 @@
-import { HookHandler } from './index.js';
+import type { HookHandler } from './index.js';
 import { logger } from '../utils/logger.js';
 import { DEFAULT_DASHBOARD_PORT } from '../utils/constants.js';
 
@@ -51,7 +51,8 @@ export class OpenClawHook implements HookHandler {
             preAction: `http://127.0.0.1:${this.dashboardPort}/hooks/openclaw`,
             postAction: `http://127.0.0.1:${this.dashboardPort}/hooks/openclaw-response`,
           },
-          description: 'Puffer AI security middleware - monitors and blocks dangerous agent actions',
+          description:
+            'Puffer AI security middleware - monitors and blocks dangerous agent actions',
           version: '0.1.0',
         }),
       });
@@ -80,7 +81,14 @@ export class OpenClawHook implements HookHandler {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: 'puffer-security' }),
         signal: controller.signal,
-      }).catch(() => {});
+      }).catch((err: unknown) => {
+        // Gateway may be down on uninstall — that's fine, the skill is
+        // effectively gone. Log so an operator running `puffer stop` knows
+        // why the unregister silently no-op'd.
+        logger.warn(
+          `OpenClaw unregister: gateway unreachable: ${(err as Error).message}. Skipping.`,
+        );
+      });
 
       clearTimeout(timeout);
       this.installed = false;

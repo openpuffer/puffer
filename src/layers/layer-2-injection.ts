@@ -1,5 +1,10 @@
-import { PufferEvent, LayerResult, Finding, InjectionConfig } from '../types.js';
-import { extractTextFromEvent, extractUserContentFromEvent, calculateEntropy, allowResult } from './helpers.js';
+import type { PufferEvent, LayerResult, Finding, InjectionConfig } from '../types.js';
+import {
+  extractTextFromEvent,
+  extractUserContentFromEvent,
+  calculateEntropy,
+  allowResult,
+} from './helpers.js';
 
 interface Heuristic {
   name: string;
@@ -45,6 +50,11 @@ export const HEURISTICS: Heuristic[] = [
   },
   {
     name: 'hidden_text',
+    // The character class enumerates zero-width / invisible Unicode points
+    // (ZWSP, ZWNJ, ZWJ, BOM, word joiner) commonly used to hide injection
+    // payloads. Each is a single BMP code point — the linter false-positives
+    // on visual ambiguity, not on actual misleading surrogate behavior.
+    // eslint-disable-next-line no-misleading-character-class
     pattern: /(?:<!--[\s\S]*?-->|[\u200B\u200C\u200D\uFEFF\u2060]|\\u200[bcd])/gi,
     weight: 0.85,
     severity: 'high',
@@ -150,8 +160,7 @@ export async function injectionDetector(
 
   // Choose thresholds based on event type
   const isExternalContent =
-    event.action.type === 'llm_response' ||
-    event.action.type === 'mcp_tool_result';
+    event.action.type === 'llm_response' || event.action.type === 'mcp_tool_result';
   const thresholds = isExternalContent
     ? config.thresholds.externalContent
     : config.thresholds.directInput;

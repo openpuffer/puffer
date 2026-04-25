@@ -1,4 +1,4 @@
-import { PufferEvent } from '../types.js';
+import type { PufferEvent } from '../types.js';
 import { logger } from '../utils/logger.js';
 
 export interface HookHandler {

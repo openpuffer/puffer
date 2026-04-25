@@ -2,7 +2,7 @@ import * as os from 'os';
 import * as path from 'path';
 import * as fs from 'fs';
 import { minimatch } from 'minimatch';
-import { PufferEvent, LayerResult, Finding, FilesystemConfig } from '../types.js';
+import type { PufferEvent, LayerResult, Finding, FilesystemConfig } from '../types.js';
 import { allowResult } from './helpers.js';
 
 function expandPath(filePath: string): string {
@@ -22,12 +22,20 @@ function detectPathTraversal(rawPath: string): string | null {
 
   // Decode URL encoding and check for traversal
   let decoded = rawPath;
-  try { decoded = decodeURIComponent(rawPath); } catch { /* use raw if malformed */ }
+  try {
+    decoded = decodeURIComponent(rawPath);
+  } catch {
+    /* use raw if malformed */
+  }
 
   if (decoded.includes('..')) return 'path traversal (..)';
 
   // Check double-encoded variants (e.g. %252e%252e)
-  if (rawPath.toLowerCase().includes('%2e%2e') || rawPath.toLowerCase().includes('%2e.') || rawPath.toLowerCase().includes('.%2e')) {
+  if (
+    rawPath.toLowerCase().includes('%2e%2e') ||
+    rawPath.toLowerCase().includes('%2e.') ||
+    rawPath.toLowerCase().includes('.%2e')
+  ) {
     return 'encoded path traversal';
   }
 
@@ -62,7 +70,10 @@ export async function filesystemSentinel(
   // Check forbidden paths
   for (const forbidden of config.forbidden) {
     const expandedForbidden = expandPath(forbidden);
-    if (resolvedPath.startsWith(path.resolve(expandedForbidden)) || minimatch(resolvedPath, expandPath(forbidden))) {
+    if (
+      resolvedPath.startsWith(path.resolve(expandedForbidden)) ||
+      minimatch(resolvedPath, expandPath(forbidden))
+    ) {
       findings.push({
         type: 'forbidden_path',
         severity: 'critical',
@@ -87,7 +98,10 @@ export async function filesystemSentinel(
   // Check restricted paths
   for (const restricted of config.restricted) {
     const expandedRestricted = expandPath(restricted);
-    if (resolvedPath.startsWith(path.resolve(expandedRestricted)) || minimatch(resolvedPath, expandPath(restricted))) {
+    if (
+      resolvedPath.startsWith(path.resolve(expandedRestricted)) ||
+      minimatch(resolvedPath, expandPath(restricted))
+    ) {
       if (event.action.type === 'file_write') {
         findings.push({
           type: 'restricted_path_write',

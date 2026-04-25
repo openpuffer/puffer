@@ -1,4 +1,4 @@
-import { Message, ProviderAdapter, ToolCall } from '../types.js';
+import type { Message, ProviderAdapter, ToolCall } from '../types.js';
 import { COST_TABLE } from '../utils/constants.js';
 
 function estimateTokensFromText(text: string): number {
@@ -13,7 +13,11 @@ function estimateCostForModel(model: string, tokens: number): number {
 /**
  * Compute accurate cost using real input + output token counts and per-million pricing.
  */
-export function estimateCostWithOutput(model: string, inputTokens: number, outputTokens: number): number {
+export function estimateCostWithOutput(
+  model: string,
+  inputTokens: number,
+  outputTokens: number,
+): number {
   const entry = COST_TABLE[model] ?? COST_TABLE['default_cloud'];
   return (inputTokens / 1_000_000) * entry.input + (outputTokens / 1_000_000) * entry.output;
 }
@@ -207,14 +211,19 @@ export function getAdapter(provider: string): ProviderAdapter {
   return adapters[provider] ?? genericAdapter;
 }
 
-export function detectProvider(url: string, headers: Record<string, string | string[] | undefined>, body: unknown): string {
+export function detectProvider(
+  url: string,
+  headers: Record<string, string | string[] | undefined>,
+  body: unknown,
+): string {
   // 1. Explicit header
   const target = headers['x-puffer-target'];
   if (typeof target === 'string' && target) return target;
 
   // 2. URL path patterns
   if (url.includes('/v1/messages')) return 'anthropic';
-  if (url.includes('/api/generate') || url.includes('/api/chat') || url.includes('/api/tags')) return 'ollama';
+  if (url.includes('/api/generate') || url.includes('/api/chat') || url.includes('/api/tags'))
+    return 'ollama';
 
   if (url.includes('/v1/chat/completions') || url.includes('/v1/embeddings')) {
     const originalHost = headers['x-puffer-original-host'];
