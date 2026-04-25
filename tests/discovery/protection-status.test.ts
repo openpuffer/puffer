@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import type { DiscoveredAgent } from '../../src/types.js';
+import type { DiscoveredAgent } from '@puffer/core';
 
 // Import the resolveProtectionStatus function by testing its behavior through DiscoveryEngine
 // Since the function is module-private, we test it indirectly via its effects

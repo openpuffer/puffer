@@ -1,4 +1,4 @@
-import type { PufferEvent } from '../types.js';
+import type { PufferEvent } from '@puffer/core';
 import { logger } from '../utils/logger.js';
 
 export interface AlertChannel {

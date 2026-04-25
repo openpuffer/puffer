@@ -1,4 +1,4 @@
-import type { PufferEvent, LayerResult, Finding, Verdict, PIIConfig } from '../types.js';
+import type { PufferEvent, LayerResult, Finding, Verdict, PIIConfig } from '@puffer/core';
 import { extractUserContentFromEvent, getMaxSeverity, allowResult } from './helpers.js';
 
 export interface PIIPattern {

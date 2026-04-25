@@ -1,7 +1,7 @@
 import http from 'http';
 import { execSync } from 'child_process';
 import { platform } from 'os';
-import type { PortScanResult, DiscoveredAgent, ProviderConfig } from '../types.js';
+import type { PortScanResult, DiscoveredAgent, ProviderConfig } from '@puffer/core';
 import { PORT_SIGNATURES } from './signatures.js';
 import { logger } from '../utils/logger.js';
 

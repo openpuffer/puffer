@@ -14,7 +14,7 @@ import fs from 'node:fs';
 import { fork } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { PID_FILE_PATH, DAEMON_LOG_PATH, PUFFER_DIR } from '../utils/constants.js';
-import { isDaemonReadyMessage } from '../types/ipc.js';
+import { isDaemonReadyMessage } from '@puffer/core';
 
 const program = new Command();
 

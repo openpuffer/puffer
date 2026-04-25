@@ -1,6 +1,6 @@
 import { execSync } from 'child_process';
 import { platform } from 'os';
-import type { DiscoveredAgent } from '../types.js';
+import type { DiscoveredAgent } from '@puffer/core';
 import { AGENT_SIGNATURES } from './signatures.js';
 import { logger } from '../utils/logger.js';
 

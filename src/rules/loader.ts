@@ -2,8 +2,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import YAML from 'yaml';
 import { fromZodError } from 'zod-validation-error';
-import type { PufferRule } from './types.js';
-import { PufferRuleSchema } from '../schemas/rule.js';
+import type { PufferRule } from '@puffer/core';
+import { PufferRuleSchema } from '@puffer/core';
 import { logger } from '../utils/logger.js';
 
 const RULES_DIR = path.join(process.cwd(), 'rules');

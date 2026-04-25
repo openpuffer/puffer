@@ -1,4 +1,4 @@
-import type { PufferConfig, DiscoveryResult } from '../types.js';
+import type { PufferConfig, DiscoveryResult } from '@puffer/core';
 
 export interface ScoreBreakdown {
   coverage: { score: number; max: 30; details: string };

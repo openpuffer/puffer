@@ -1,6 +1,6 @@
 import { createDefaultPipeline } from '../layers/index.js';
 import { makeDecision } from '../engine/decision.js';
-import type { PufferConfig, PufferEvent } from '../types.js';
+import type { PufferConfig, PufferEvent } from '@puffer/core';
 import { SCENARIOS, type Scenario } from './scenarios.js';
 import chalk from 'chalk';
 

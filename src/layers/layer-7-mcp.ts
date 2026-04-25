@@ -1,4 +1,4 @@
-import type { PufferEvent, LayerResult, Finding, MCPConfig } from '../types.js';
+import type { PufferEvent, LayerResult, Finding, MCPConfig } from '@puffer/core';
 import { allowResult } from './helpers.js';
 import { HEURISTICS } from './layer-2-injection.js';
 

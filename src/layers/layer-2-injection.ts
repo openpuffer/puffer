@@ -1,4 +1,4 @@
-import type { PufferEvent, LayerResult, Finding, InjectionConfig } from '../types.js';
+import type { PufferEvent, LayerResult, Finding, InjectionConfig } from '@puffer/core';
 import {
   extractTextFromEvent,
   extractUserContentFromEvent,

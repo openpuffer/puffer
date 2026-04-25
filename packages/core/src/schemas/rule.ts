@@ -6,7 +6,7 @@
 // make a layer detect nothing while looking healthy.
 
 import { z } from 'zod';
-import type { PufferRule } from '../rules/types.js';
+import type { PufferRule } from '../rule-types.js';
 
 export const RuleSeveritySchema = z.enum(['critical', 'high', 'medium', 'low']);
 export const RuleLayerSchema = z.enum([

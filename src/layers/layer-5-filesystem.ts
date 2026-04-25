@@ -2,7 +2,7 @@ import * as os from 'os';
 import * as path from 'path';
 import * as fs from 'fs';
 import { minimatch } from 'minimatch';
-import type { PufferEvent, LayerResult, Finding, FilesystemConfig } from '../types.js';
+import type { PufferEvent, LayerResult, Finding, FilesystemConfig } from '@puffer/core';
 import { allowResult } from './helpers.js';
 
 function expandPath(filePath: string): string {

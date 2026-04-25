@@ -2,7 +2,7 @@ import { execSync } from 'child_process';
 import { platform } from 'os';
 import dns from 'node:dns';
 import { promisify } from 'node:util';
-import type { DiscoveredAgent } from '../types.js';
+import type { DiscoveredAgent } from '@puffer/core';
 import { NETWORK_SIGNATURES } from './signatures.js';
 import { logger } from '../utils/logger.js';
 

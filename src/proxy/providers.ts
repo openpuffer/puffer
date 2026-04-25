@@ -1,4 +1,4 @@
-import type { Message, ProviderAdapter, ToolCall } from '../types.js';
+import type { Message, ProviderAdapter, ToolCall } from '@puffer/core';
 import { COST_TABLE } from '../utils/constants.js';
 
 const FALLBACK_COST = { input: 0, output: 0 };

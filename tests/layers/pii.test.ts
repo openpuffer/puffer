@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { piiScanner, luhnCheck, validateIBAN, redactValue } from '../../src/layers/layer-1-pii.js';
-import { PufferEvent, PIIConfig } from '../../src/types.js';
+import { PufferEvent, PIIConfig } from '@puffer/core';
 
 function makeEvent(text: string, type: 'llm_request' | 'file_write' = 'llm_request'): PufferEvent {
   if (type === 'file_write') {

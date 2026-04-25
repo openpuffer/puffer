@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { injectionDetector } from '../../src/layers/layer-2-injection.js';
-import { PufferEvent, InjectionConfig } from '../../src/types.js';
+import { PufferEvent, InjectionConfig } from '@puffer/core';
 
 function makeEvent(
   text: string,

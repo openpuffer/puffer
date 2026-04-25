@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { calculateScore, type AuditStats } from '../../src/score/calculator.js';
-import type { PufferConfig, DiscoveryResult, DiscoveredAgent } from '../../src/types.js';
+import type { PufferConfig, DiscoveryResult, DiscoveredAgent } from '@puffer/core';
 
 function makeConfig(overrides: Partial<PufferConfig> = {}): PufferConfig {
   return {

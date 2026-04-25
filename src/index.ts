@@ -1,8 +1,8 @@
 import fs from 'node:fs';
 import http from 'node:http';
 import { v4 as uuidv4 } from 'uuid';
-import type { PufferConfig, PufferEvent, Decision } from './types.js';
-import type { DaemonReadyMessage } from './types/ipc.js';
+import type { PufferConfig, PufferEvent, Decision } from '@puffer/core';
+import type { DaemonReadyMessage } from '@puffer/core';
 import { loadConfig, ensurePufferDir } from './utils/config.js';
 import { DEFAULT_PROXY_PORT, PID_FILE_PATH } from './utils/constants.js';
 import { logger } from './utils/logger.js';

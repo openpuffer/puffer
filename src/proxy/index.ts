@@ -3,7 +3,7 @@ import http from 'node:http';
 import { Readable } from 'node:stream';
 import httpProxy from 'http-proxy';
 import { v4 as uuidv4 } from 'uuid';
-import type { PufferConfig, PufferEvent } from '../types.js';
+import type { PufferConfig, PufferEvent } from '@puffer/core';
 import { DEFAULT_PROXY_PORT, MAX_REQUEST_BODY_BYTES } from '../utils/constants.js';
 import { logger } from '../utils/logger.js';
 import type { ProxyDependencies } from './handler.js';

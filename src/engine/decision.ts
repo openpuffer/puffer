@@ -1,4 +1,4 @@
-import type { PufferEvent, Decision, LayerResult } from '../types.js';
+import type { PufferEvent, Decision, LayerResult } from '@puffer/core';
 import { logger } from '../utils/logger.js';
 
 export interface DecisionContext {

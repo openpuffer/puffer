@@ -1,4 +1,4 @@
-import type { PufferEvent, LayerResult, Finding, CommandsConfig } from '../types.js';
+import type { PufferEvent, LayerResult, Finding, CommandsConfig } from '@puffer/core';
 import { allowResult } from './helpers.js';
 
 type BinaryClass = 'safe' | 'caution' | 'dangerous' | 'critical';

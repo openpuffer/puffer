@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { mcpPoisoningDetector } from '../../src/layers/layer-7-mcp.js';
-import { PufferEvent, MCPConfig } from '../../src/types.js';
+import { PufferEvent, MCPConfig } from '@puffer/core';
 
 function makeEvent(
   type: 'mcp_tool_call' | 'mcp_tool_result',

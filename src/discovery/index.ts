@@ -1,4 +1,4 @@
-import type { DiscoveredAgent, ProviderConfig, DiscoveryResult } from '../types.js';
+import type { DiscoveredAgent, ProviderConfig, DiscoveryResult } from '@puffer/core';
 import { scanProcesses } from './process-scanner.js';
 import { scanPorts } from './port-scanner.js';
 import { scanNetworkConnections } from './network-scanner.js';

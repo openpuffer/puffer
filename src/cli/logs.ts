@@ -4,7 +4,7 @@ import chalk from 'chalk';
 import { AuditLogger } from '../audit/logger.js';
 import { generateReport, formatReport } from '../audit/reporter.js';
 import { AUDIT_LOG_PATH } from '../utils/constants.js';
-import type { AuditLogEntry } from '../types.js';
+import type { AuditLogEntry } from '@puffer/core';
 
 function formatEntry(entry: AuditLogEntry): string {
   const time = new Date(entry.timestamp).toLocaleString();

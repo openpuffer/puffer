@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { behaviorAnalyzer, resetSessions } from '../../src/layers/layer-6-behavior.js';
 import { makeLLMRequestEvent, DEFAULT_BEHAVIOR_CONFIG } from './helpers.js';
-import { PufferEvent } from '../../src/types.js';
+import { PufferEvent } from '@puffer/core';
 
 describe('Behavior Analyzer - Adversarial Bypass Tests', () => {
   beforeEach(() => {

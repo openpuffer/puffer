@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import YAML from 'yaml';
-import type { RuleManifest } from './types.js';
+import type { RuleManifest } from '@puffer/core';
 import { loadRules } from './loader.js';
 import { logger } from '../utils/logger.js';
 

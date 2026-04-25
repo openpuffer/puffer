@@ -1,4 +1,4 @@
-import type { LayerResult, PufferEvent, Finding } from '../types.js';
+import type { LayerResult, PufferEvent, Finding } from '@puffer/core';
 
 export function allowResult(layer: number, name: string): LayerResult {
   return {

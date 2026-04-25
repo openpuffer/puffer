@@ -1,4 +1,4 @@
-import type { PufferEvent, LayerResult, Finding, NetworkConfig } from '../types.js';
+import type { PufferEvent, LayerResult, Finding, NetworkConfig } from '@puffer/core';
 import { allowResult } from './helpers.js';
 import { PII_PATTERNS } from './layer-1-pii.js';
 

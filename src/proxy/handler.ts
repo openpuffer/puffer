@@ -1,6 +1,6 @@
 import type { IncomingMessage, IncomingHttpHeaders, ServerResponse } from 'node:http';
 import { v4 as uuidv4 } from 'uuid';
-import type { PufferEvent, EventAction, Decision, RateLimitInfo } from '../types.js';
+import type { PufferEvent, EventAction, Decision, RateLimitInfo } from '@puffer/core';
 import { detectProvider, getAdapter, estimateCostWithOutput } from './providers.js';
 import { VERSION } from '../utils/constants.js';
 import { logger } from '../utils/logger.js';

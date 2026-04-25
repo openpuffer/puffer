@@ -1,4 +1,4 @@
-import { PufferEvent } from '../../src/types.js';
+import { PufferEvent } from '@puffer/core';
 
 export function makeLLMRequestEvent(body: unknown, sessionId = 'adv-sess-1'): PufferEvent {
   const resolvedBody =

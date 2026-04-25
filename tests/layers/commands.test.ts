@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { commandAnalyzer } from '../../src/layers/layer-3-commands.js';
-import { PufferEvent, CommandsConfig } from '../../src/types.js';
+import { PufferEvent, CommandsConfig } from '@puffer/core';
 
 function makeEvent(command: string, args: string[] = []): PufferEvent {
   return {

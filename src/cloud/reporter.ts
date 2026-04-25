@@ -1,7 +1,7 @@
 // Cloud reporter — sends events and heartbeats to Puffer Server
 // 100% optional. Only activates if config.cloud.enabled is true.
 
-import type { PufferEvent } from '../types.js';
+import type { PufferEvent } from '@puffer/core';
 import { logger } from '../utils/logger.js';
 import { VERSION } from '../utils/constants.js';
 import os from 'node:os';

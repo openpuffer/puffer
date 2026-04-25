@@ -6,7 +6,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { WebSocketServer, WebSocket } from 'ws';
 import { v4 as uuidv4 } from 'uuid';
-import type { PufferEvent, PufferConfig, AuditLogEntry } from '../types.js';
+import type { PufferEvent, PufferConfig, AuditLogEntry } from '@puffer/core';
 import type { AuditLogger } from '../audit/logger.js';
 import type { DiscoveryEngine } from '../discovery/index.js';
 import { makeDecision } from '../engine/decision.js';

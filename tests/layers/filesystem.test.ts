@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { filesystemSentinel } from '../../src/layers/layer-5-filesystem.js';
-import { PufferEvent, FilesystemConfig } from '../../src/types.js';
+import { PufferEvent, FilesystemConfig } from '@puffer/core';
 
 function makeEvent(
   type: 'file_read' | 'file_write',

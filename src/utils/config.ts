@@ -3,8 +3,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import YAML from 'yaml';
 import { fromZodError } from 'zod-validation-error';
-import type { PufferConfig } from '../types.js';
-import { PufferConfigSchema } from '../schemas/config.js';
+import type { PufferConfig } from '@puffer/core';
+import { PufferConfigSchema } from '@puffer/core';
 import { CONFIG_PATH, PUFFER_DIR } from './constants.js';
 import { logger } from './logger.js';
 
