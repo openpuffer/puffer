@@ -4,7 +4,7 @@ import chalk from 'chalk';
 import { PID_FILE_PATH } from '../utils/constants.js';
 import { loadConfig } from '../utils/config.js';
 import { AuditLogger } from '../audit/logger.js';
-import { logger } from '../utils/logger.js';
+import { logger } from '@puffer/core';
 
 export function registerStatusCommand(program: Command): void {
   program

@@ -3,7 +3,7 @@ import path from 'node:path';
 import YAML from 'yaml';
 import type { RuleManifest } from '@puffer/core';
 import { loadRules } from './loader.js';
-import { logger } from '../utils/logger.js';
+import { logger } from '@puffer/core';
 
 const USER_RULES_DIR = path.join(process.env.HOME ?? '~', '.puffer', 'rules');
 const LAST_CHECK_FILE = path.join(USER_RULES_DIR, '.last-check');

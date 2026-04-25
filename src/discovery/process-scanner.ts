@@ -2,7 +2,7 @@ import { execSync } from 'child_process';
 import { platform } from 'os';
 import type { DiscoveredAgent } from '@puffer/core';
 import { AGENT_SIGNATURES } from './signatures.js';
-import { logger } from '../utils/logger.js';
+import { logger } from '@puffer/core';
 
 // Pattern table to resolve parent process names to friendly host program labels
 const HOST_PROGRAMS: { pattern: RegExp; name: string }[] = [

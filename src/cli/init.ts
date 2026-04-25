@@ -6,7 +6,7 @@ import { DiscoveryEngine } from '../discovery/index.js';
 import { AuditLogger } from '../audit/logger.js';
 import { calculateScore } from '../score/calculator.js';
 import { formatScore } from '../score/display.js';
-import { logger } from '../utils/logger.js';
+import { logger } from '@puffer/core';
 
 export function registerInitCommand(program: Command): void {
   program

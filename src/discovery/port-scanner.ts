@@ -3,7 +3,7 @@ import { execSync } from 'child_process';
 import { platform } from 'os';
 import type { PortScanResult, DiscoveredAgent, ProviderConfig } from '@puffer/core';
 import { PORT_SIGNATURES } from './signatures.js';
-import { logger } from '../utils/logger.js';
+import { logger } from '@puffer/core';
 
 /**
  * Probes a local port with an HTTP GET request.

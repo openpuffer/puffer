@@ -1,5 +1,5 @@
 import type { PufferEvent } from '@puffer/core';
-import { logger } from '../utils/logger.js';
+import { logger } from '@puffer/core';
 
 export interface HookHandler {
   name: string;

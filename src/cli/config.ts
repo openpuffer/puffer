@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import { execSync } from 'node:child_process';
 import chalk from 'chalk';
 import { CONFIG_PATH } from '../utils/constants.js';
-import { logger } from '../utils/logger.js';
+import { logger } from '@puffer/core';
 
 export function registerConfigCommand(program: Command): void {
   const configCmd = program.command('config').description('Manage Puffer configuration');

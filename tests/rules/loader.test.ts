@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
-import { loadRules, matchRule } from '../../src/rules/loader.js';
+import { loadRules, matchRule } from '@puffer/rules';
 
 describe('loadRules (YAML + zod schema)', () => {
   let tmpDir: string;

@@ -4,7 +4,7 @@ import YAML from 'yaml';
 import { fromZodError } from 'zod-validation-error';
 import type { PufferRule } from '@puffer/core';
 import { PufferRuleSchema } from '@puffer/core';
-import { logger } from '../utils/logger.js';
+import { logger } from '@puffer/core';
 
 const RULES_DIR = path.join(process.cwd(), 'rules');
 const USER_RULES_DIR = path.join(process.env.HOME ?? '~', '.puffer', 'rules');

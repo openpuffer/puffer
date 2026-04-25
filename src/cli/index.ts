@@ -9,7 +9,7 @@ import { registerLogsCommand } from './logs.js';
 import { registerConfigCommand } from './config.js';
 import { loadConfig, saveConfig } from '../utils/config.js';
 import { PolicyEngine } from '../engine/policy.js';
-import { logger } from '../utils/logger.js';
+import { logger } from '@puffer/core';
 import fs from 'node:fs';
 import { fork } from 'node:child_process';
 import { fileURLToPath } from 'node:url';

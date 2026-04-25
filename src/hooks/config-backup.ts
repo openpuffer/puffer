@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { PUFFER_DIR } from '../utils/constants.js';
-import { logger } from '../utils/logger.js';
+import { logger } from '@puffer/core';
 
 const BACKUPS_PATH = path.join(PUFFER_DIR, 'config-backups.json');
 

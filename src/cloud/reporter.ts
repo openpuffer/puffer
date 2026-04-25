@@ -2,7 +2,7 @@
 // 100% optional. Only activates if config.cloud.enabled is true.
 
 import type { PufferEvent } from '@puffer/core';
-import { logger } from '../utils/logger.js';
+import { logger } from '@puffer/core';
 import { VERSION } from '../utils/constants.js';
 import os from 'node:os';
 

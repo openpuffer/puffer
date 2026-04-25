@@ -10,7 +10,7 @@ import type { PufferEvent, PufferConfig, AuditLogEntry } from '@puffer/core';
 import type { AuditLogger } from '../audit/logger.js';
 import type { DiscoveryEngine } from '../discovery/index.js';
 import { makeDecision } from '../engine/decision.js';
-import { logger } from '../utils/logger.js';
+import { logger } from '@puffer/core';
 import { saveConfig } from '../utils/config.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));

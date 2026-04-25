@@ -1,4 +1,4 @@
-import { logger } from '../utils/logger.js';
+import { logger } from '@puffer/core';
 
 /**
  * TLS/Certificate handling for HTTPS interception.

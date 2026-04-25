@@ -1,6 +1,6 @@
 import type { PufferConfig } from '@puffer/core';
 import { loadConfig } from '../utils/config.js';
-import { logger } from '../utils/logger.js';
+import { logger } from '@puffer/core';
 
 /**
  * Policy loader and evaluator.

@@ -1,5 +1,5 @@
 import type { PufferEvent, Decision, LayerResult } from '@puffer/core';
-import { logger } from '../utils/logger.js';
+import { logger } from '@puffer/core';
 
 export interface DecisionContext {
   mode: 'monitor' | 'enforce' | 'paranoid' | 'interactive';

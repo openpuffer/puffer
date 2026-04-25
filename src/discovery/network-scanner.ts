@@ -4,7 +4,7 @@ import dns from 'node:dns';
 import { promisify } from 'node:util';
 import type { DiscoveredAgent } from '@puffer/core';
 import { NETWORK_SIGNATURES } from './signatures.js';
-import { logger } from '../utils/logger.js';
+import { logger } from '@puffer/core';
 
 const dnsResolve4 = promisify(dns.resolve4);
 

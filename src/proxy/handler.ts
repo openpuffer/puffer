@@ -3,7 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import type { PufferEvent, EventAction, Decision, RateLimitInfo } from '@puffer/core';
 import { detectProvider, getAdapter, estimateCostWithOutput } from './providers.js';
 import { VERSION } from '../utils/constants.js';
-import { logger } from '../utils/logger.js';
+import { logger } from '@puffer/core';
 
 export interface ProxyDependencies {
   evaluatePipeline: (event: PufferEvent) => Promise<PufferEvent>;

@@ -2,7 +2,7 @@ import type { DiscoveredAgent, ProviderConfig, DiscoveryResult } from '@puffer/c
 import { scanProcesses } from './process-scanner.js';
 import { scanPorts } from './port-scanner.js';
 import { scanNetworkConnections } from './network-scanner.js';
-import { logger } from '../utils/logger.js';
+import { logger } from '@puffer/core';
 import type { HookManager } from '../hooks/index.js';
 
 /**

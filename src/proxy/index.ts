@@ -5,7 +5,7 @@ import httpProxy from 'http-proxy';
 import { v4 as uuidv4 } from 'uuid';
 import type { PufferConfig, PufferEvent } from '@puffer/core';
 import { DEFAULT_PROXY_PORT, MAX_REQUEST_BODY_BYTES } from '../utils/constants.js';
-import { logger } from '../utils/logger.js';
+import { logger } from '@puffer/core';
 import type { ProxyDependencies } from './handler.js';
 import { handleRequest } from './handler.js';
 import { initTLS } from './tls.js';

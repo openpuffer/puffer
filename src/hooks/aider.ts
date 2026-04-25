@@ -3,7 +3,7 @@ import path from 'node:path';
 import os from 'node:os';
 import YAML from 'yaml';
 import type { HookHandler } from './index.js';
-import { logger } from '../utils/logger.js';
+import { logger } from '@puffer/core';
 import { backupConfigValue, restoreConfigValue } from './config-backup.js';
 import { DEFAULT_PROXY_PORT } from '../utils/constants.js';
 

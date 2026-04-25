@@ -1,0 +1,17 @@
+{
+  "name": "@puffer/rules",
+  "version": "0.0.0",
+  "description": "YAML rule pack loader and registry update client for Puffer",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@puffer/core": "*",
+    "yaml": "^2.5.0",
+    "zod-validation-error": "^5.0.0"
+  }
+}

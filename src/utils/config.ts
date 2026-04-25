@@ -6,7 +6,7 @@ import { fromZodError } from 'zod-validation-error';
 import type { PufferConfig } from '@puffer/core';
 import { PufferConfigSchema } from '@puffer/core';
 import { CONFIG_PATH, PUFFER_DIR } from './constants.js';
-import { logger } from './logger.js';
+import { logger } from '@puffer/core';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DEFAULT_CONFIG_PATH = path.resolve(__dirname, '../../config/default-policy.yaml');

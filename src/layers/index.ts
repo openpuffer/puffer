@@ -1,5 +1,5 @@
 import type { PufferEvent, PufferConfig, LayerFunction, LayerResult } from '@puffer/core';
-import { logger } from '../utils/logger.js';
+import { logger } from '@puffer/core';
 import { piiScanner } from './layer-1-pii.js';
 import { injectionDetector } from './layer-2-injection.js';
 import { commandAnalyzer } from './layer-3-commands.js';
