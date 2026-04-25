@@ -4,7 +4,7 @@ import {
   extractUserContentFromEvent,
   calculateEntropy,
   allowResult,
-} from './helpers.js';
+} from '@puffer/core';
 
 interface Heuristic {
   name: string;

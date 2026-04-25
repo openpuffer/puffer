@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { behaviorAnalyzer, resetSessions } from '../../src/layers/layer-6-behavior.js';
+import { behaviorAnalyzer, resetSessions } from '@puffer/layer-behavior';
 import { makeLLMRequestEvent, DEFAULT_BEHAVIOR_CONFIG } from './helpers.js';
 import { PufferEvent } from '@puffer/core';
 

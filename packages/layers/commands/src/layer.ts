@@ -1,5 +1,5 @@
 import type { PufferEvent, LayerResult, Finding, CommandsConfig } from '@puffer/core';
-import { allowResult } from './helpers.js';
+import { allowResult } from '@puffer/core';
 
 type BinaryClass = 'safe' | 'caution' | 'dangerous' | 'critical';
 

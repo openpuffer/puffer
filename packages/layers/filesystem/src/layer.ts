@@ -3,7 +3,7 @@ import * as path from 'path';
 import * as fs from 'fs';
 import { minimatch } from 'minimatch';
 import type { PufferEvent, LayerResult, Finding, FilesystemConfig } from '@puffer/core';
-import { allowResult } from './helpers.js';
+import { allowResult } from '@puffer/core';
 
 function expandPath(filePath: string): string {
   if (filePath.startsWith('~')) {

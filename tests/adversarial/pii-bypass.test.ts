@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { piiScanner } from '../../src/layers/layer-1-pii.js';
+import { piiScanner } from '@puffer/layer-pii';
 import { makeLLMRequestEvent, DEFAULT_PII_CONFIG } from './helpers.js';
 
 describe('PII Scanner - Adversarial Bypass Tests', () => {

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { injectionDetector } from '../../src/layers/layer-2-injection.js';
+import { injectionDetector } from '@puffer/layer-injection';
 import { makeLLMRequestEvent, makeLLMResponseEvent, DEFAULT_INJECTION_CONFIG } from './helpers.js';
 
 describe('Injection Detector - Adversarial Bypass Tests', () => {

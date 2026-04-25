@@ -1,6 +1,6 @@
 import type { PufferEvent, LayerResult, Finding, NetworkConfig } from '@puffer/core';
-import { allowResult } from './helpers.js';
-import { PII_PATTERNS } from './layer-1-pii.js';
+import { allowResult } from '@puffer/core';
+import { PII_PATTERNS } from '@puffer/layer-pii';
 
 const PRIVATE_IP_RANGES: RegExp[] = [
   /^10\.\d{1,3}\.\d{1,3}\.\d{1,3}$/,

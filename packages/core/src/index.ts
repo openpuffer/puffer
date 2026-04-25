@@ -8,3 +8,4 @@ export * from './rule-types.js';
 export * from './schemas/index.js';
 export * from './ipc.js';
 export { logger } from './logger.js';
+export * from './layer-helpers.js';

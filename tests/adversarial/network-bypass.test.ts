@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { networkEgressGuard } from '../../src/layers/layer-4-network.js';
+import { networkEgressGuard } from '@puffer/layer-network';
 import { makeNetworkEvent, DEFAULT_NETWORK_CONFIG } from './helpers.js';
 
 describe('Network Egress Guard - Adversarial Bypass Tests', () => {

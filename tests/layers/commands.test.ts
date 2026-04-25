@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { commandAnalyzer } from '../../src/layers/layer-3-commands.js';
+import { commandAnalyzer } from '@puffer/layer-commands';
 import { PufferEvent, CommandsConfig } from '@puffer/core';
 
 function makeEvent(command: string, args: string[] = []): PufferEvent {

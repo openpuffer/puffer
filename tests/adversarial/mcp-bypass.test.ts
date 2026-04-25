@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { mcpPoisoningDetector } from '../../src/layers/layer-7-mcp.js';
+import { mcpPoisoningDetector } from '@puffer/layer-mcp';
 import { makeMCPToolCallEvent, makeMCPToolResultEvent, DEFAULT_MCP_CONFIG } from './helpers.js';
 
 describe('MCP Poisoning Detector - Adversarial Bypass Tests', () => {

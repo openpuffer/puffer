@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { piiScanner, luhnCheck, validateIBAN, redactValue } from '../../src/layers/layer-1-pii.js';
+import { piiScanner, luhnCheck, validateIBAN, redactValue } from '@puffer/layer-pii';
 import { PufferEvent, PIIConfig } from '@puffer/core';
 
 function makeEvent(text: string, type: 'llm_request' | 'file_write' = 'llm_request'): PufferEvent {

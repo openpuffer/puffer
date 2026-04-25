@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { filesystemSentinel } from '../../src/layers/layer-5-filesystem.js';
+import { filesystemSentinel } from '@puffer/layer-filesystem';
 import { makeFileEvent, DEFAULT_FILESYSTEM_CONFIG } from './helpers.js';
 
 describe('Filesystem Sentinel - Adversarial Bypass Tests', () => {

@@ -1,6 +1,6 @@
 import type { PufferEvent, LayerResult, Finding, MCPConfig } from '@puffer/core';
-import { allowResult } from './helpers.js';
-import { HEURISTICS } from './layer-2-injection.js';
+import { allowResult } from '@puffer/core';
+import { HEURISTICS } from '@puffer/layer-injection';
 
 // Reuse injection heuristics from Layer 2 for MCP tool result scanning
 const MCP_INJECTION_PATTERNS: RegExp[] = HEURISTICS.filter((h) =>

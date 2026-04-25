@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { commandAnalyzer, resetCommandState } from '../../src/layers/layer-3-commands.js';
+import { commandAnalyzer, resetCommandState } from '@puffer/layer-commands';
 import { makeCommandEvent, DEFAULT_COMMANDS_CONFIG } from './helpers.js';
 
 describe('Command Analyzer - Adversarial Bypass Tests', () => {

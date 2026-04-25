@@ -1,12 +1,12 @@
 import type { PufferEvent, PufferConfig, LayerFunction, LayerResult } from '@puffer/core';
 import { logger } from '@puffer/core';
-import { piiScanner } from './layer-1-pii.js';
-import { injectionDetector } from './layer-2-injection.js';
-import { commandAnalyzer } from './layer-3-commands.js';
-import { networkEgressGuard } from './layer-4-network.js';
-import { filesystemSentinel } from './layer-5-filesystem.js';
-import { behaviorAnalyzer } from './layer-6-behavior.js';
-import { mcpPoisoningDetector } from './layer-7-mcp.js';
+import { piiScanner } from '@puffer/layer-pii';
+import { injectionDetector } from '@puffer/layer-injection';
+import { commandAnalyzer } from '@puffer/layer-commands';
+import { networkEgressGuard } from '@puffer/layer-network';
+import { filesystemSentinel } from '@puffer/layer-filesystem';
+import { behaviorAnalyzer } from '@puffer/layer-behavior';
+import { mcpPoisoningDetector } from '@puffer/layer-mcp';
 
 interface RegisteredLayer {
   name: string;

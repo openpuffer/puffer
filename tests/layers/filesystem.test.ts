@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { filesystemSentinel } from '../../src/layers/layer-5-filesystem.js';
+import { filesystemSentinel } from '@puffer/layer-filesystem';
 import { PufferEvent, FilesystemConfig } from '@puffer/core';
 
 function makeEvent(

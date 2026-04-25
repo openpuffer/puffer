@@ -39,7 +39,8 @@
   },
   "workspaces": [
     "apps/*",
-    "packages/*"
+    "packages/*",
+    "packages/layers/*"
   ],
   "dependencies": {
     "chalk": "^5.3.0",

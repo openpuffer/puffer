@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { networkEgressGuard } from '../../src/layers/layer-4-network.js';
+import { networkEgressGuard } from '@puffer/layer-network';
 import { PufferEvent, NetworkConfig } from '@puffer/core';
 
 function makeEvent(

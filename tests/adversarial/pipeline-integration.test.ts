@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { DefensePipeline } from '../../src/layers/index.js';
-import { piiScanner } from '../../src/layers/layer-1-pii.js';
-import { injectionDetector } from '../../src/layers/layer-2-injection.js';
+import { piiScanner } from '@puffer/layer-pii';
+import { injectionDetector } from '@puffer/layer-injection';
 import { LayerFunction } from '@puffer/core';
 import {
   makeLLMRequestEvent,

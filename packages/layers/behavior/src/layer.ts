@@ -1,5 +1,5 @@
 import type { PufferEvent, LayerResult, Finding, BehaviorConfig } from '@puffer/core';
-import { allowResult } from './helpers.js';
+import { allowResult } from '@puffer/core';
 
 interface SessionState {
   startTime: number;
