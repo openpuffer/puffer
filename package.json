@@ -3,14 +3,14 @@
   "version": "0.1.0",
   "description": "The autonomous immune system for AI agents",
   "bin": {
-    "puffer": "./dist/cli/index.js"
+    "puffer": "./apps/cli/dist/index.js"
   },
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
+  "main": "./apps/daemon/dist/index.js",
+  "types": "./apps/daemon/dist/index.d.ts",
   "scripts": {
-    "build": "tsc",
-    "dev": "tsc --watch",
-    "start": "node dist/index.js",
+    "build": "tsc -b apps/cli apps/daemon",
+    "dev": "tsc -b apps/cli apps/daemon --watch",
+    "start": "node apps/daemon/dist/index.js",
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",

@@ -19,7 +19,7 @@ updates:
           - "@types/*"
 
   - package-ecosystem: npm
-    directory: /dashboard
+    directory: /apps/dashboard
     schedule:
       interval: weekly
     open-pull-requests-limit: 3

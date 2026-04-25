@@ -122,7 +122,9 @@ export function createDashboardServer(
   app.use(express.json());
 
   // Serve static dashboard files
-  const publicDir = path.resolve(__dirname, '../../dashboard/dist');
+  // From packages/dashboard/src/, three levels up reaches the repo root,
+  // and the frontend builds to apps/dashboard/dist/.
+  const publicDir = path.resolve(__dirname, '../../../apps/dashboard/dist');
   app.use(express.static(publicDir));
 
   // === Event rate & cost tracking ===

@@ -59,6 +59,7 @@ function makeMockDeps(overrides: Partial<ProxyDependencies> = {}): ProxyDependen
     sessionId: 'test-session-1',
     sequenceCounter: { value: 0 },
     mode: 'enforce',
+    passthrough: false,
     ...overrides,
   };
 }

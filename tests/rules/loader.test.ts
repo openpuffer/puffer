@@ -44,7 +44,7 @@ patterns:
     );
     const rules = loadRules([tmpDir]);
     expect(rules).toHaveLength(1);
-    expect(rules[0].id).toBe('TEST-001');
+    expect(rules[0]?.id).toBe('TEST-001');
   });
 
   it('rejects rule with no detection criterion (zod refinement)', () => {

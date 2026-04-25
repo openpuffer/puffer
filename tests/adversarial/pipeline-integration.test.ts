@@ -163,7 +163,7 @@ describe('Pipeline Integration - Adversarial Tests', () => {
       // L1 blocks, L2 never runs
       expect(result.decision).toBe('BLOCK');
       expect(result.layers.length).toBe(1); // only L1 ran
-      expect(result.layers[0].name).toBe('pii-scanner');
+      expect(result.layers[0]?.name).toBe('pii-scanner');
       // Injection evidence is lost
     });
   });

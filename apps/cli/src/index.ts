@@ -35,7 +35,7 @@ program
   .action(async (opts) => {
     if (opts.foreground) {
       // Foreground mode: run the daemon directly (called by the forked child)
-      const { startDaemon } = await import('../index.js');
+      const { startDaemon } = await import('@puffer/daemon');
       await startDaemon();
       return;
     }
@@ -109,7 +109,7 @@ program
       fs.closeSync(logFd);
       // Clean up any stale config the child might have partially written
       try {
-        const { cleanupStaleConfig } = await import('../index.js');
+        const { cleanupStaleConfig } = await import('@puffer/daemon');
         await cleanupStaleConfig();
       } catch {
         /* best effort */
@@ -127,7 +127,7 @@ program
   .action(async (opts) => {
     // Always clean up hooks/settings first, regardless of mode
     try {
-      const { forceCleanupHooks } = await import('../index.js');
+      const { forceCleanupHooks } = await import('@puffer/daemon');
       await forceCleanupHooks();
     } catch {
       /* ignore */

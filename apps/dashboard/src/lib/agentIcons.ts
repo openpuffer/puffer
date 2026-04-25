@@ -14,7 +14,9 @@ type DrawFn = (ctx: CanvasRenderingContext2D, s: number, color?: string) => void
 
 // Claude — sparkle/asterisk
 const drawClaude: DrawFn = (ctx, s, color = DEFAULT_ICON_COLOR) => {
-  const cx = s / 2, cy = s / 2, r = s * 0.35;
+  const cx = s / 2,
+    cy = s / 2,
+    r = s * 0.35;
   ctx.strokeStyle = color;
   ctx.lineWidth = s * 0.04;
   ctx.lineCap = 'round';
@@ -36,7 +38,8 @@ const drawClaude: DrawFn = (ctx, s, color = DEFAULT_ICON_COLOR) => {
 
 // GitHub Copilot — glasses/visor
 const drawCopilot: DrawFn = (ctx, s, color = DEFAULT_ICON_COLOR) => {
-  const cx = s / 2, cy = s / 2;
+  const cx = s / 2,
+    cy = s / 2;
   ctx.strokeStyle = color;
   ctx.lineWidth = s * 0.035;
   ctx.lineCap = 'round';
@@ -64,7 +67,8 @@ const drawCopilot: DrawFn = (ctx, s, color = DEFAULT_ICON_COLOR) => {
 
 // Cursor — cursor arrow
 const drawCursor: DrawFn = (ctx, s, color = DEFAULT_ICON_COLOR) => {
-  const cx = s / 2, cy = s / 2;
+  const cx = s / 2,
+    cy = s / 2;
   ctx.fillStyle = color;
   ctx.beginPath();
   ctx.moveTo(cx - s * 0.15, cy - s * 0.25);
@@ -84,7 +88,8 @@ const drawAider: DrawFn = (ctx, s, color = DEFAULT_ICON_COLOR) => {
   ctx.lineWidth = s * 0.04;
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
-  const cx = s / 2, cy = s / 2;
+  const cx = s / 2,
+    cy = s / 2;
   // >
   ctx.beginPath();
   ctx.moveTo(cx - s * 0.15, cy - s * 0.12);
@@ -100,7 +105,9 @@ const drawAider: DrawFn = (ctx, s, color = DEFAULT_ICON_COLOR) => {
 
 // OpenAI — hexagon with inner lines
 const drawOpenAI: DrawFn = (ctx, s, color = DEFAULT_ICON_COLOR) => {
-  const cx = s / 2, cy = s / 2, r = s * 0.3;
+  const cx = s / 2,
+    cy = s / 2,
+    r = s * 0.3;
   ctx.strokeStyle = color;
   ctx.lineWidth = s * 0.03;
   ctx.lineJoin = 'round';
@@ -110,7 +117,8 @@ const drawOpenAI: DrawFn = (ctx, s, color = DEFAULT_ICON_COLOR) => {
     const angle = (Math.PI * 2 * i) / 6 - Math.PI / 2;
     const x = cx + Math.cos(angle) * r;
     const y = cy + Math.sin(angle) * r;
-    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    if (i === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
   }
   ctx.closePath();
   ctx.stroke();
@@ -136,7 +144,8 @@ const drawAnthropic: DrawFn = (ctx, s, color = DEFAULT_ICON_COLOR) => {
 
 // Ollama — circle with "O" and ears
 const drawOllama: DrawFn = (ctx, s, color = DEFAULT_ICON_COLOR) => {
-  const cx = s / 2, cy = s / 2;
+  const cx = s / 2,
+    cy = s / 2;
   ctx.strokeStyle = color;
   ctx.lineWidth = s * 0.035;
   // head circle
@@ -162,7 +171,8 @@ const drawOllama: DrawFn = (ctx, s, color = DEFAULT_ICON_COLOR) => {
 
 // DeepSeek — magnifying glass
 const drawDeepSeek: DrawFn = (ctx, s, color = DEFAULT_ICON_COLOR) => {
-  const cx = s / 2 - s * 0.04, cy = s / 2 - s * 0.04;
+  const cx = s / 2 - s * 0.04,
+    cy = s / 2 - s * 0.04;
   ctx.strokeStyle = color;
   ctx.lineWidth = s * 0.035;
   ctx.beginPath();
@@ -179,13 +189,15 @@ const drawDeepSeek: DrawFn = (ctx, s, color = DEFAULT_ICON_COLOR) => {
 
 // Puffer — shield with check
 const drawPuffer: DrawFn = (ctx, s, color = DEFAULT_ICON_COLOR) => {
-  const cx = s / 2, cy = s / 2;
+  const cx = s / 2,
+    cy = s / 2;
   ctx.strokeStyle = color;
   ctx.lineWidth = s * 0.03;
   ctx.lineJoin = 'round';
   ctx.lineCap = 'round';
   // shield path
-  const sh = s * 0.32, sw = s * 0.25;
+  const sh = s * 0.32,
+    sw = s * 0.25;
   ctx.beginPath();
   ctx.moveTo(cx, cy - sh);
   ctx.lineTo(cx + sw, cy - sh * 0.55);
@@ -206,7 +218,8 @@ const drawPuffer: DrawFn = (ctx, s, color = DEFAULT_ICON_COLOR) => {
 
 // Sub-agent — nested circles (agent spawning agent)
 const drawSubagent: DrawFn = (ctx, s, color = DEFAULT_ICON_COLOR) => {
-  const cx = s / 2, cy = s / 2;
+  const cx = s / 2,
+    cy = s / 2;
   ctx.strokeStyle = color;
   ctx.lineWidth = s * 0.03;
   // Outer circle
@@ -234,13 +247,15 @@ const drawSubagent: DrawFn = (ctx, s, color = DEFAULT_ICON_COLOR) => {
 
 // MCP — plug/connector icon
 const drawMCP: DrawFn = (ctx, s, color = DEFAULT_ICON_COLOR) => {
-  const cx = s / 2, cy = s / 2;
+  const cx = s / 2,
+    cy = s / 2;
   ctx.strokeStyle = color;
   ctx.lineWidth = s * 0.035;
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
   // Plug body (rectangle)
-  const w = s * 0.22, h = s * 0.3;
+  const w = s * 0.22,
+    h = s * 0.3;
   ctx.strokeRect(cx - w / 2, cy - h / 2, w, h);
   // Prongs (two lines going up from top)
   ctx.beginPath();
@@ -260,7 +275,8 @@ const drawMCP: DrawFn = (ctx, s, color = DEFAULT_ICON_COLOR) => {
 
 // Generic — crosshair
 const drawGeneric: DrawFn = (ctx, s, color = DEFAULT_ICON_COLOR) => {
-  const cx = s / 2, cy = s / 2;
+  const cx = s / 2,
+    cy = s / 2;
   ctx.strokeStyle = color;
   ctx.lineWidth = s * 0.025;
   ctx.lineCap = 'round';
@@ -269,20 +285,32 @@ const drawGeneric: DrawFn = (ctx, s, color = DEFAULT_ICON_COLOR) => {
   ctx.arc(cx, cy, s * 0.18, 0, Math.PI * 2);
   ctx.stroke();
   // crosshair lines
-  const inner = s * 0.1, outer = s * 0.28;
+  const inner = s * 0.1,
+    outer = s * 0.28;
   ctx.beginPath();
-  ctx.moveTo(cx, cy - outer); ctx.lineTo(cx, cy - inner); ctx.stroke();
+  ctx.moveTo(cx, cy - outer);
+  ctx.lineTo(cx, cy - inner);
+  ctx.stroke();
   ctx.beginPath();
-  ctx.moveTo(cx, cy + inner); ctx.lineTo(cx, cy + outer); ctx.stroke();
+  ctx.moveTo(cx, cy + inner);
+  ctx.lineTo(cx, cy + outer);
+  ctx.stroke();
   ctx.beginPath();
-  ctx.moveTo(cx - outer, cy); ctx.lineTo(cx - inner, cy); ctx.stroke();
+  ctx.moveTo(cx - outer, cy);
+  ctx.lineTo(cx - inner, cy);
+  ctx.stroke();
   ctx.beginPath();
-  ctx.moveTo(cx + inner, cy); ctx.lineTo(cx + outer, cy); ctx.stroke();
+  ctx.moveTo(cx + inner, cy);
+  ctx.lineTo(cx + outer, cy);
+  ctx.stroke();
 };
 
 // ── Matching ──────────────────────────────────────────────
 
-interface IconEntry { draw: DrawFn; keywords: string[] }
+interface IconEntry {
+  draw: DrawFn;
+  keywords: string[];
+}
 
 const ICON_DB: IconEntry[] = [
   { draw: drawClaude, keywords: ['claude', 'claude-code'] },
@@ -335,10 +363,13 @@ export function getIconSprite(name: string, scale: number, color?: string): THRE
   const tex = makeIconTexture(name, drawFn, color);
   const sprite = new THREE.Sprite(
     new THREE.SpriteMaterial({
-      map: tex, transparent: true, opacity: 0.92,
-      depthWrite: false, depthTest: false,
+      map: tex,
+      transparent: true,
+      opacity: 0.92,
+      depthWrite: false,
+      depthTest: false,
       blending: THREE.AdditiveBlending,
-    })
+    }),
   );
   sprite.scale.set(scale, scale, 1);
   return sprite;
@@ -348,10 +379,13 @@ export function getPufferIconSprite(scale: number, color?: string): THREE.Sprite
   const tex = makeIconTexture('__puffer__', drawPuffer, color);
   const sprite = new THREE.Sprite(
     new THREE.SpriteMaterial({
-      map: tex, transparent: true, opacity: 0.85,
-      depthWrite: false, depthTest: false,
+      map: tex,
+      transparent: true,
+      opacity: 0.85,
+      depthWrite: false,
+      depthTest: false,
       blending: THREE.AdditiveBlending,
-    })
+    }),
   );
   sprite.scale.set(scale, scale, 1);
   return sprite;

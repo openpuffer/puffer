@@ -74,7 +74,7 @@ const DECISION_PARTICLE_LIGHT: Record<string, string> = {
 export function useGraphData(
   liveEvents: LiveEvent[],
   agents: AgentInfo[],
-  theme: 'dark' | 'light' = 'dark'
+  theme: 'dark' | 'light' = 'dark',
 ): GraphData & { recentBlocks: Set<string> } {
   const DECISION_COLORS = theme === 'dark' ? DECISION_COLORS_DARK : DECISION_COLORS_LIGHT;
   const DECISION_PARTICLE = theme === 'dark' ? DECISION_PARTICLE_DARK : DECISION_PARTICLE_LIGHT;
@@ -159,13 +159,21 @@ export function useGraphData(
 
     // Central node — fixed at origin
     ensureNode('puffer', {
-      name: 'Your Computer', type: 'puffer', val: 2, color: '#f59e0b',
-      fx: 0, fy: 0, fz: 0,
+      name: 'Your Computer',
+      type: 'puffer',
+      val: 2,
+      color: '#f59e0b',
+      fx: 0,
+      fy: 0,
+      fz: 0,
     });
 
     for (const agent of agents) {
       ensureNode(`agent-${agent.name}`, {
-        name: agent.name, type: 'agent', val: 1, color: '#3b82f6',
+        name: agent.name,
+        type: 'agent',
+        val: 1,
+        color: '#3b82f6',
         hostProgram: agent.hostProgram,
       });
     }
@@ -195,7 +203,8 @@ export function useGraphData(
         ensureNode(nodeId, {
           name: isSubagent ? 'Sub-Agent' : server,
           type: isSubagent ? 'subagent' : 'mcp',
-          val: 1, color: nodeColor,
+          val: 1,
+          color: nodeColor,
           parentAgentId: isSubagent ? agentId : undefined,
         });
 
@@ -203,48 +212,78 @@ export function useGraphData(
           // Sub-agents link directly to their parent agent (not through puffer)
           if (actionType === 'mcp_tool_call') {
             linkList.push({
-              source: agentId, target: nodeId,
-              color: nodeColor + '30', curvature: 0.15,
-              eventId: event.id + '-subagent', decision,
-              particleCount: 1, particleSpeed: 0.012, particleColor: nodeColor,
+              source: agentId,
+              target: nodeId,
+              color: nodeColor + '30',
+              curvature: 0.15,
+              eventId: event.id + '-subagent',
+              decision,
+              particleCount: 1,
+              particleSpeed: 0.012,
+              particleColor: nodeColor,
             });
           } else {
             const lightColor = '#fed7aa';
             linkList.push({
-              source: nodeId, target: agentId,
-              color: lightColor + '25', curvature: 0.15,
-              eventId: event.id + '-subagent-res', decision,
-              particleCount: 1, particleSpeed: 0.010, particleColor: lightColor,
+              source: nodeId,
+              target: agentId,
+              color: lightColor + '25',
+              curvature: 0.15,
+              eventId: event.id + '-subagent-res',
+              decision,
+              particleCount: 1,
+              particleSpeed: 0.01,
+              particleColor: lightColor,
             });
           }
         } else {
           // MCP servers still route through puffer hub
           if (actionType === 'mcp_tool_call') {
             linkList.push({
-              source: agentId, target: 'puffer',
-              color: nodeColor + '30', curvature: 0.2,
-              eventId: event.id + '-mcp-in', decision,
-              particleCount: 1, particleSpeed: 0.012, particleColor: nodeColor,
+              source: agentId,
+              target: 'puffer',
+              color: nodeColor + '30',
+              curvature: 0.2,
+              eventId: event.id + '-mcp-in',
+              decision,
+              particleCount: 1,
+              particleSpeed: 0.012,
+              particleColor: nodeColor,
             });
             linkList.push({
-              source: 'puffer', target: nodeId,
-              color: nodeColor + '25', curvature: 0.2,
-              eventId: event.id + '-mcp-out', decision,
-              particleCount: 1, particleSpeed: 0.010, particleColor: nodeColor,
+              source: 'puffer',
+              target: nodeId,
+              color: nodeColor + '25',
+              curvature: 0.2,
+              eventId: event.id + '-mcp-out',
+              decision,
+              particleCount: 1,
+              particleSpeed: 0.01,
+              particleColor: nodeColor,
             });
           } else {
             const lightColor = '#a5f3fc';
             linkList.push({
-              source: nodeId, target: 'puffer',
-              color: lightColor + '25', curvature: 0.2,
-              eventId: event.id + '-mcp-res-in', decision,
-              particleCount: 1, particleSpeed: 0.010, particleColor: lightColor,
+              source: nodeId,
+              target: 'puffer',
+              color: lightColor + '25',
+              curvature: 0.2,
+              eventId: event.id + '-mcp-res-in',
+              decision,
+              particleCount: 1,
+              particleSpeed: 0.01,
+              particleColor: lightColor,
             });
             linkList.push({
-              source: 'puffer', target: agentId,
-              color: lightColor + '20', curvature: 0.2,
-              eventId: event.id + '-mcp-res-out', decision,
-              particleCount: 1, particleSpeed: 0.010, particleColor: lightColor,
+              source: 'puffer',
+              target: agentId,
+              color: lightColor + '20',
+              curvature: 0.2,
+              eventId: event.id + '-mcp-res-out',
+              decision,
+              particleCount: 1,
+              particleSpeed: 0.01,
+              particleColor: lightColor,
             });
           }
         }
@@ -255,32 +294,50 @@ export function useGraphData(
 
       if (isResponse) {
         linkList.push({
-          source: providerId, target: 'puffer',
-          color: '#fbbf2425', curvature: 0.2,
-          eventId: event.id + '-resp-in', decision,
-          particleCount: 1, particleSpeed: 0.012, particleColor: '#fcd34d',
+          source: providerId,
+          target: 'puffer',
+          color: '#fbbf2425',
+          curvature: 0.2,
+          eventId: event.id + '-resp-in',
+          decision,
+          particleCount: 1,
+          particleSpeed: 0.012,
+          particleColor: '#fcd34d',
         });
         linkList.push({
-          source: 'puffer', target: agentId,
-          color: '#fbbf2420', curvature: 0.2,
-          eventId: event.id + '-resp-out', decision,
-          particleCount: 1, particleSpeed: 0.010, particleColor: '#fcd34d',
+          source: 'puffer',
+          target: agentId,
+          color: '#fbbf2420',
+          curvature: 0.2,
+          eventId: event.id + '-resp-out',
+          decision,
+          particleCount: 1,
+          particleSpeed: 0.01,
+          particleColor: '#fcd34d',
         });
       } else {
         linkList.push({
-          source: agentId, target: 'puffer',
-          color: linkColor + '30', curvature: 0.2,
-          eventId: event.id, decision,
+          source: agentId,
+          target: 'puffer',
+          color: linkColor + '30',
+          curvature: 0.2,
+          eventId: event.id,
+          decision,
           particleCount: decision === 'BLOCK' ? 4 : 1,
           particleSpeed: decision === 'BLOCK' ? 0.022 : 0.012,
           particleColor,
         });
         if (decision !== 'BLOCK') {
           linkList.push({
-            source: 'puffer', target: providerId,
-            color: linkColor + '25', curvature: 0.2,
-            eventId: event.id + '-out', decision,
-            particleCount: 1, particleSpeed: 0.010, particleColor,
+            source: 'puffer',
+            target: providerId,
+            color: linkColor + '25',
+            curvature: 0.2,
+            eventId: event.id + '-out',
+            decision,
+            particleCount: 1,
+            particleSpeed: 0.01,
+            particleColor,
           });
         }
       }

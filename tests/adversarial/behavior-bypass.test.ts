@@ -26,8 +26,10 @@ describe('Behavior Analyzer - Adversarial Bypass Tests', () => {
         makeLLMRequestEvent('CCCC', 'loop-sess-3'),
       ];
       for (let i = 0; i < events.length; i++) {
-        events[i].metadata.sequenceNumber = i;
-        await behaviorAnalyzer(events[i], config);
+        const ev = events[i];
+        if (!ev) continue;
+        ev.metadata.sequenceNumber = i;
+        await behaviorAnalyzer(ev, config);
       }
 
       const finalEvent = makeLLMRequestEvent('DDDD', 'loop-sess-3');

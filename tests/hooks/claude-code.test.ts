@@ -75,7 +75,7 @@ describe('ClaudeCodeHook', () => {
     expect(settings.env.ANTHROPIC_BASE_URL).toBe('http://127.0.0.1:9998');
 
     const pre = settings.hooks.PreToolUse[settings.hooks.PreToolUse.length - 1];
-    const command = (pre.hooks as Record<string, unknown>[])[0].command as string;
+    const command = (pre.hooks as Record<string, unknown>[])[0]?.command as string;
     expect(command).toContain(':9999');
   });
 

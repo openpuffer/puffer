@@ -5,13 +5,14 @@ import prettierConfig from 'eslint-config-prettier';
 
 export default tseslint.config(
   {
-    // dashboard/ is a separate sub-project with its own toolchain (Vite + React).
-    // It will get its own ESLint config in a later PR.
+    // apps/dashboard/ is a separate Vite + React sub-project with its own
+    // toolchain. It will get its own ESLint config in a later PR.
     ignores: [
       'dist/**',
+      '**/dist/**',
       'node_modules/**',
       'coverage/**',
-      'dashboard/**',
+      'apps/dashboard/**',
       '*.config.{js,cjs,mjs}',
       'prettier.config.cjs',
     ],

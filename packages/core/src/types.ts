@@ -5,7 +5,9 @@ export interface PufferEvent {
   timestamp: string;
   source: EventSource;
   action: EventAction;
-  payload: unknown;
+  /** Original request body or arbitrary side-channel data. Optional because
+   * many call sites construct events from `action` alone. */
+  payload?: unknown;
   metadata: EventMetadata;
   layers: LayerResult[];
   decision: Decision | null;

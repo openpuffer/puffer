@@ -1,0 +1,24 @@
+{
+  "name": "@puffer/cli",
+  "version": "0.0.0",
+  "description": "Thin commander-based CLI that drives the Puffer daemon",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "bin": {
+    "puffer": "./dist/index.js"
+  },
+  "dependencies": {
+    "@puffer/audit": "*",
+    "@puffer/core": "*",
+    "@puffer/daemon": "*",
+    "@puffer/discovery": "*",
+    "@puffer/engine": "*",
+    "@puffer/redteam": "*",
+    "@puffer/reports": "*",
+    "@puffer/score": "*",
+    "chalk": "^5.3.0",
+    "commander": "^12.1.0"
+  }
+}

@@ -1,10 +1,34 @@
 {
   "extends": "./tsconfig.base.json",
   "compilerOptions": {
-    "outDir": "./dist",
-    "rootDir": "./src",
-    "composite": false
+    "noEmit": true,
+    "composite": false,
+    "rootDir": ".",
+    "baseUrl": ".",
+    "paths": {
+      "@puffer/core": ["./packages/core/src/index.ts"],
+      "@puffer/engine": ["./packages/engine/src/index.ts"],
+      "@puffer/rules": ["./packages/rules/src/index.ts"],
+      "@puffer/dashboard": ["./packages/dashboard/src/server.ts"],
+      "@puffer/alerts": ["./packages/alerts/src/index.ts"],
+      "@puffer/audit": ["./packages/audit/src/index.ts"],
+      "@puffer/cloud": ["./packages/cloud/src/index.ts"],
+      "@puffer/discovery": ["./packages/discovery/src/index.ts"],
+      "@puffer/hooks": ["./packages/hooks/src/index.ts"],
+      "@puffer/proxy": ["./packages/proxy/src/index.ts"],
+      "@puffer/score": ["./packages/score/src/index.ts"],
+      "@puffer/reports": ["./packages/reports/src/index.ts"],
+      "@puffer/redteam": ["./packages/redteam/src/index.ts"],
+      "@puffer/layer-pii": ["./packages/layers/pii/src/index.ts"],
+      "@puffer/layer-injection": ["./packages/layers/injection/src/index.ts"],
+      "@puffer/layer-commands": ["./packages/layers/commands/src/index.ts"],
+      "@puffer/layer-network": ["./packages/layers/network/src/index.ts"],
+      "@puffer/layer-filesystem": ["./packages/layers/filesystem/src/index.ts"],
+      "@puffer/layer-behavior": ["./packages/layers/behavior/src/index.ts"],
+      "@puffer/layer-mcp": ["./packages/layers/mcp/src/index.ts"],
+      "@puffer/daemon": ["./apps/daemon/src/index.ts"]
+    }
   },
-  "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist", "tests", "dashboard", "apps", "packages"]
+  "include": ["apps/**/src/**/*.ts", "packages/**/src/**/*.ts", "tests/**/*.ts", "scripts/**/*.ts"],
+  "exclude": ["node_modules", "**/dist", "apps/dashboard/src/**"]
 }

@@ -67,9 +67,8 @@ function buildTestCases(): TestCase[] {
 
 // ── Dry-run mode: test through pipeline directly ──
 async function runDryMode(cases: TestCase[]) {
-  const { createDefaultPipeline } = await import('../src/layers/index.js');
-  const { makeDecision } = await import('../src/engine/decision.js');
-  const { loadConfig } = await import('../src/utils/config.js');
+  const { createDefaultPipeline, makeDecision } = await import('@puffer/engine');
+  const { loadConfig } = await import('@puffer/core');
 
   const config = loadConfig();
   const testConfig = { ...config, mode: 'enforce' as const };
