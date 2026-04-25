@@ -130,9 +130,67 @@ Este documento es el **estado vivo** del refactor de profesionalización de Puff
 - ~~QW2c~~ ✅ cerrado en `ea87783`
 - ~~`npm audit`~~ ✅ parcial cerrado en `513b520` (11→6 vulns; las 6 restantes son no-aplicables al runtime, documentadas)
 - ~~`src/discovery/index.ts:121`~~ ✅ verificado — los catches en discovery son recoveries intencionales documentados, no swallows
-- Fase 3 — npm workspaces (apps/ + packages/), 3-5 días — **siguiente, requiere checkpoint humano**
+- ~~Fase 3 — npm workspaces~~ ✅ **completo** en 7 commits (`00b33ce` → `a4a4baa`). 22 workspace packages, src/ vacío, 230 tests verde.
 - Fase 4 — streaming SSE + decoupling, 1-2 semanas
 - Fase 5 — observabilidad (3 niveles)
+
+### Sesión 3 — Fase 3 / M5 cerrada (2026-04-25 tarde-noche)
+
+| Sub-milestone                      | Commit    | Resumen                                                                                                                                                                                   |
+| ---------------------------------- | --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| M5.1 — Skeleton workspaces         | `00b33ce` | Root package.json `workspaces`, tsconfig.base.json compartido. Sin moves.                                                                                                                 |
+| M5.2 — `@puffer/core`              | `630eb6b` | types + schemas + ipc en un solo package. 38 imports actualizados.                                                                                                                        |
+| M5.3 — `@puffer/rules` + logger    | `686d82b` | rules loader/updater extracted. Logger movido a `@puffer/core` (32 imports).                                                                                                              |
+| M5.4 — 7 layer packages            | `33f1f8e` | `@puffer/layer-{pii,injection,commands,network,filesystem,behavior,mcp}`. helpers en core.                                                                                                |
+| M5.5 — `@puffer/engine`            | `e809280` | DefensePipeline + decision + policy. Constants y config a core. **Hallazgo:** las cláusulas `satisfies` zod en sesiones previas eran falsos positivos (encubiertos por el flag faltante). |
+| M5.6 — 9 supporting packages       | `822dd9c` | alerts, audit, cloud, discovery, hooks, proxy, score, reports, redteam. ESLint scope expandido a packages/\*\*.                                                                           |
+| M5.7-9 — apps/ y dashboard backend | `a4a4baa` | apps/{cli,daemon,dashboard} + packages/dashboard. src/ eliminado. CI workflow + dependabot actualizados. `PufferEvent.payload` ahora opcional (refleja realidad de los call sites).       |
+
+### Estructura final del repo
+
+```
+puffer/
+├── apps/
+│   ├── cli/              @puffer/cli
+│   ├── daemon/           @puffer/daemon
+│   └── dashboard/        @puffer/dashboard-frontend (Vite + React)
+└── packages/
+    ├── core/             @puffer/core
+    ├── engine/           @puffer/engine
+    ├── rules/            @puffer/rules
+    ├── alerts/           @puffer/alerts
+    ├── audit/            @puffer/audit
+    ├── cloud/            @puffer/cloud
+    ├── dashboard/        @puffer/dashboard (Express backend)
+    ├── discovery/        @puffer/discovery
+    ├── hooks/            @puffer/hooks
+    ├── proxy/            @puffer/proxy
+    ├── reports/          @puffer/reports
+    ├── score/            @puffer/score
+    ├── redteam/          @puffer/redteam
+    └── layers/
+        ├── pii/          @puffer/layer-pii
+        ├── injection/    @puffer/layer-injection
+        ├── commands/     @puffer/layer-commands
+        ├── network/      @puffer/layer-network
+        ├── filesystem/   @puffer/layer-filesystem
+        ├── behavior/     @puffer/layer-behavior
+        └── mcp/          @puffer/layer-mcp
+```
+
+22 workspace packages totales. Cada uno con su `package.json`, `tsconfig.json` extiende `tsconfig.base.json`, y `src/index.ts` barrel.
+
+### Métricas acumuladas (sesión 1 + 2 + 3)
+
+| Métrica            | Inicio sesión 1           | Fin sesión 3                                                                                                                             |
+| ------------------ | ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| Tests              | 218 (sin CI)              | **230 en CI matrix Node 18/20/22**                                                                                                       |
+| `tsc --noEmit`     | 4 errores latentes        | **clean en 22 packages**                                                                                                                 |
+| ESLint             | sin configurar            | **0/0**                                                                                                                                  |
+| `npm audit`        | 11 vulns (10 mod, 1 high) | **6 vulns no-aplicables al runtime**                                                                                                     |
+| Workspace packages | 1 (monolito)              | **22**                                                                                                                                   |
+| `src/`             | toda la lógica            | **vacío y eliminado**                                                                                                                    |
+| Commits            | 0                         | **13** (a4f17b7 → fa185ac → e455e51 → ea87783 → 513b520 → ec763e6 → 00b33ce → 630eb6b → 686d82b → 33f1f8e → e809280 → 822dd9c → a4a4baa) |
 
 ### Sesión 2 — milestones M1-M4 (2026-04-25 segunda mitad)
 
