@@ -57,14 +57,21 @@ program
     });
 
     // Wait for 'ready' IPC from child (sent after health check passes)
+    const config = loadConfig();
+    let dashboardPort = config.dashboard?.port ?? 8788;
+
     const ready = await new Promise<boolean>((resolve) => {
       const timeout = setTimeout(() => {
         resolve(false);
       }, 10_000);
 
-      child.once('message', (msg) => {
+      child.once('message', (msg: unknown) => {
+        clearTimeout(timeout);
         if (msg === 'ready') {
-          clearTimeout(timeout);
+          // Backwards compatibility with old daemon format
+          resolve(true);
+        } else if (typeof msg === 'object' && msg !== null && (msg as any).type === 'ready') {
+          dashboardPort = (msg as any).dashboardPort ?? dashboardPort;
           resolve(true);
         }
       });
@@ -80,6 +87,15 @@ program
       child.unref();
       fs.closeSync(logFd);
       logger.info(`Puffer daemon started (PID ${child.pid}). Logs: ${DAEMON_LOG_PATH}`);
+
+      // Auto-open dashboard in browser
+      const dashUrl = `http://127.0.0.1:${dashboardPort}`;
+      logger.info(`Opening dashboard at ${dashUrl}`);
+      const { exec } = await import('node:child_process');
+      const platform = process.platform;
+      const openCmd = platform === 'darwin' ? 'open' : platform === 'win32' ? 'start' : 'xdg-open';
+      exec(`${openCmd} ${dashUrl}`, () => { /* ignore errors */ });
+
       process.exit(0);
     } else {
       // Child failed to become ready

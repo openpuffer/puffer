@@ -187,7 +187,11 @@ export async function startDaemon(configOverride?: PufferConfig): Promise<Puffer
 
   // Signal readiness to parent process (used in daemon fork mode)
   if (typeof process.send === 'function') {
-    process.send('ready');
+    process.send({
+      type: 'ready',
+      dashboardPort: dashboard?.getPort() ?? config.dashboard.port,
+      proxyPort: proxy.port,
+    });
   }
 
   // Initialize hook manager (uses resolved dashboard port + proxy port)
