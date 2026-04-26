@@ -5,5 +5,31 @@
     "rootDir": "./src"
   },
   "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist"]
+  "exclude": ["node_modules", "dist"],
+  "references": [
+    {
+      "path": "../../apps/daemon"
+    },
+    {
+      "path": "../../packages/audit"
+    },
+    {
+      "path": "../../packages/core"
+    },
+    {
+      "path": "../../packages/discovery"
+    },
+    {
+      "path": "../../packages/engine"
+    },
+    {
+      "path": "../../packages/redteam"
+    },
+    {
+      "path": "../../packages/reports"
+    },
+    {
+      "path": "../../packages/score"
+    }
+  ]
 }

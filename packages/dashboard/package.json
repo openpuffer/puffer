@@ -4,10 +4,13 @@
   "description": "Express + WebSocket backend that serves the Puffer dashboard frontend and live event stream",
   "private": true,
   "type": "module",
-  "main": "./src/server.ts",
-  "types": "./src/server.ts",
+  "main": "./dist/server.js",
+  "types": "./dist/server.d.ts",
   "exports": {
-    ".": "./src/server.ts"
+    ".": {
+      "types": "./dist/server.d.ts",
+      "default": "./dist/server.js"
+    }
   },
   "dependencies": {
     "@puffer/audit": "*",
