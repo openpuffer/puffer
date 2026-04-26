@@ -131,8 +131,55 @@ Este documento es el **estado vivo** del refactor de profesionalización de Puff
 - ~~`npm audit`~~ ✅ parcial cerrado en `513b520` (11→6 vulns; las 6 restantes son no-aplicables al runtime, documentadas)
 - ~~`src/discovery/index.ts:121`~~ ✅ verificado — los catches en discovery son recoveries intencionales documentados, no swallows
 - ~~Fase 3 — npm workspaces~~ ✅ **completo** en 7 commits (`00b33ce` → `a4a4baa`). 22 workspace packages, src/ vacío, 230 tests verde.
-- Fase 4 — streaming SSE + decoupling, 1-2 semanas
-- Fase 5 — observabilidad (3 niveles)
+- Fase 4 — streaming SSE + decoupling — **diferido**. Refactor interno sin valor visible al usuario; se hace cuando haya un caso de uso concreto que lo justifique (LLMs con SSE).
+- ~~Fase 5 — observabilidad~~ ✅ **niveles 1+2 completos** en 3 commits (`8ba7504`, `88d8321`, `9c49b7c`). Nivel 3 (OTel) sigue como opcional.
+
+### Sesión 4 — Fase 5 / M7 cerrada (2026-04-25 noche)
+
+| Sub-milestone               | Commit    | Resumen                                                                                                                                                                                                                                                |
+| --------------------------- | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| M7.1 — Prometheus metrics   | `8ba7504` | Nuevo `@puffer/observability` con prom-client. 14 métricas (`puffer_*`) instrumentadas en engine pipeline + proxy handler. Endpoint `GET /metrics` en dashboard server. 5 tests nuevos.                                                                |
+| M7.2 — Structured JSON logs | `88d8321` | `PUFFER_LOG_FORMAT=json` switchea logger de @puffer/core a JSON line. `logEvent(event, level, msg, extra)` + `withTraceContext(event)` para correlación por `trace_id`. 5 tests nuevos.                                                                |
+| M7-extra — Gauges + docs    | `9c49b7c` | `puffer_agents_active{protection_status}` populado por discovery scan. `puffer_score_total` populado por calculateScore. `docs/architecture/observability.md` con catálogo completo, PromQL examples, recetas de integración (Grafana, Loki, Datadog). |
+
+### Catálogo final de métricas Prometheus
+
+```
+# Counters
+puffer_events_total{agent, verdict}
+puffer_blocks_total{layer, severity}
+puffer_audits_total{layer, severity}
+puffer_escalates_total{layer}
+puffer_layer_errors_total{layer, reason=timeout|exception}
+puffer_llm_tokens_total{agent, provider, model, kind=input|output}
+puffer_llm_cost_usd_total{agent, provider, model}
+
+# Histograms
+puffer_layer_duration_seconds{layer}
+puffer_pipeline_duration_seconds
+puffer_llm_request_duration_seconds{provider, model}
+
+# Gauges
+puffer_agents_active{protection_status=protected|partial|unprotected}
+puffer_score_total
+puffer_offline_status{component}
+puffer_queue_depth{queue}
+
+# Plus standard process metrics under puffer_process_*
+```
+
+### Métricas acumuladas finales (sesión 1 → 4)
+
+| Métrica                               | Inicio                    | Fin sesión 4                                                   |
+| ------------------------------------- | ------------------------- | -------------------------------------------------------------- |
+| Tests                                 | 218 (sin CI)              | **240 en CI matrix Node 18/20/22**                             |
+| `tsc --noEmit`                        | 4 errores latentes        | **clean en 23 packages**                                       |
+| ESLint                                | sin configurar            | **0/0**                                                        |
+| `npm audit`                           | 11 vulns (10 mod, 1 high) | **6 vulns no-aplicables al runtime**                           |
+| Workspace packages                    | 1 (monolito)              | **23** (22 + observability)                                    |
+| Bugs latentes destapados y arreglados | 0                         | **3** (anti-SSRF off, rule bypass por regex, alertas tragadas) |
+| Endpoints observabilidad              | ninguno                   | **`/metrics` Prometheus + `PUFFER_LOG_FORMAT=json`**           |
+| Commits totales                       | 0                         | **17**                                                         |
 
 ### Sesión 3 — Fase 3 / M5 cerrada (2026-04-25 tarde-noche)
 
