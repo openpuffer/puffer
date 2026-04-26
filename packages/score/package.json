@@ -10,6 +10,7 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
-    "@puffer/core": "*"
+    "@puffer/core": "*",
+    "@puffer/observability": "*"
   }
 }

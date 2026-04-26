@@ -1,4 +1,5 @@
 import type { PufferConfig, DiscoveryResult } from '@puffer/core';
+import { scoreTotal } from '@puffer/observability';
 
 export interface ScoreBreakdown {
   coverage: { score: number; max: 30; details: string };
@@ -160,6 +161,11 @@ export function calculateScore(
   );
 
   const { grade, label } = gradeFromScore(total);
+
+  // Mirror the latest score on the gauge so `/metrics` reflects the
+  // most recently computed posture without the dashboard having to
+  // poll a separate endpoint.
+  scoreTotal.set(total);
 
   return {
     total,

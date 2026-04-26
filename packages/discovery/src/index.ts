@@ -4,6 +4,7 @@ import { scanPorts } from './port-scanner.js';
 import { scanNetworkConnections } from './network-scanner.js';
 import { logger } from '@puffer/core';
 import type { HookManager } from '@puffer/hooks';
+import { agentsActive } from '@puffer/observability';
 
 /**
  * Resolve the actual protection status for a discovered agent.
@@ -159,6 +160,17 @@ export class DiscoveryEngine {
         `${result.providers.length} provider(s), ` +
         `${newSinceLastScan.length} new, ${removedSinceLastScan.length} removed`,
     );
+
+    // Update the agents_active gauge so /metrics scrapers see the
+    // current discovery snapshot bucketed by protection status. We set
+    // every status to 0 first to avoid stale labels lingering after an
+    // agent disappears.
+    agentsActive.labels('protected').set(0);
+    agentsActive.labels('partial').set(0);
+    agentsActive.labels('unprotected').set(0);
+    for (const agent of result.agents) {
+      agentsActive.labels(agent.protectionStatus).inc();
+    }
 
     // Notify listener
     if (this.onUpdate) {
