@@ -238,6 +238,10 @@ export interface NetworkConfig {
   blockPrivateIps: boolean;
   maxPayloadSizeMb: number;
   scanPayloadForPii: boolean;
+  /** Pattern set used by the PII payload scan. Injected by the pipeline
+   * factory so the network layer doesn't import the PII layer directly —
+   * keeps the L4↔L1 boundary clean. Empty/missing means "no scanning". */
+  piiPatterns?: PIIPattern[] | undefined;
 }
 
 export interface FilesystemConfig {

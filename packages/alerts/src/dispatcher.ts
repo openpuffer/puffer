@@ -1,5 +1,5 @@
 import type { PufferEvent } from '@puffer/core';
-import { logger } from '@puffer/core';
+import { logger, SEVERITY_ASC } from '@puffer/core';
 
 export interface AlertChannel {
   name: string;
@@ -25,7 +25,7 @@ export class AlertDispatcher {
   private channels: AlertChannel[] = [];
   private minSeverity: 'critical' | 'high' | 'medium' | 'low' = 'high';
 
-  private static readonly SEVERITY_ORDER = ['low', 'medium', 'high', 'critical'] as const;
+  private static readonly SEVERITY_ORDER = SEVERITY_ASC;
 
   addChannel(channel: AlertChannel): void {
     this.channels.push(channel);

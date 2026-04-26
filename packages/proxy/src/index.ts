@@ -9,9 +9,11 @@ import { logger } from '@puffer/core';
 import type { ProxyDependencies } from './handler.js';
 import { handleRequest } from './handler.js';
 import { initTLS } from './tls.js';
+import { isStreamingContentType, parseSSEStream } from './sse.js';
 
 export * from './handler.js';
 export * from './providers.js';
+export * from './sse.js';
 
 export interface ProxyServer {
   server: http.Server;
@@ -110,16 +112,32 @@ export function createProxyServer(options: ProxyOptions): ProxyServer {
 
       proxy.once('proxyRes', (proxyRes) => {
         responded = true;
+        const streaming = isStreamingContentType(proxyRes.headers);
         let responseData = '';
         proxyRes.on('data', (chunk: Buffer) => {
           responseData += chunk.toString();
         });
         proxyRes.on('end', () => {
           let responseBody: unknown;
-          try {
-            responseBody = JSON.parse(responseData);
-          } catch {
-            responseBody = responseData;
+          if (streaming) {
+            // Streaming responses (Anthropic / OpenAI SSE) reach the
+            // client in real time via http-proxy's auto-pipe; here we
+            // only run the post-hoc audit. Parse the accumulated SSE
+            // envelope into clean text so the pipeline scans the
+            // content and not the framing noise.
+            const parsed = parseSSEStream(responseData);
+            responseBody = {
+              _puffer_streaming: true,
+              choices: [{ message: { content: parsed.text } }],
+              _puffer_event_count: parsed.eventCount,
+              _puffer_stream_completed: parsed.completed,
+            };
+          } else {
+            try {
+              responseBody = JSON.parse(responseData);
+            } catch {
+              responseBody = responseData;
+            }
           }
           onResponse(proxyRes.statusCode ?? 500, responseBody, proxyRes.headers);
         });

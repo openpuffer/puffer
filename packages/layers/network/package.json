@@ -10,7 +10,6 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
-    "@puffer/core": "*",
-    "@puffer/layer-pii": "*"
+    "@puffer/core": "*"
   }
 }

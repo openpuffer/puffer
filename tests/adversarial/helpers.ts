@@ -1,4 +1,5 @@
 import { PufferEvent } from '@puffer/core';
+import { PII_PATTERNS } from '@puffer/layer-pii';
 
 export function makeLLMRequestEvent(body: unknown, sessionId = 'adv-sess-1'): PufferEvent {
   const resolvedBody =
@@ -145,6 +146,10 @@ export const DEFAULT_NETWORK_CONFIG = {
   blockPrivateIps: true,
   maxPayloadSizeMb: 50,
   scanPayloadForPii: true,
+  // Patterns are injected by the pipeline factory in production; tests
+  // pass them in directly so the network layer can scan payloads
+  // without reaching back into the PII layer.
+  piiPatterns: PII_PATTERNS,
 };
 
 export const DEFAULT_FILESYSTEM_CONFIG = {

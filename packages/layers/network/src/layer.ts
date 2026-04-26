@@ -1,6 +1,5 @@
 import type { PufferEvent, LayerResult, Finding, NetworkConfig } from '@puffer/core';
 import { allowResult } from '@puffer/core';
-import { PII_PATTERNS } from '@puffer/layer-pii';
 
 const PRIVATE_IP_RANGES: RegExp[] = [
   /^10\.\d{1,3}\.\d{1,3}\.\d{1,3}$/,
@@ -248,11 +247,19 @@ export async function networkEgressGuard(
     }
   }
 
-  // PII scan on network payloads
-  if (config.scanPayloadForPii && event.action.type === 'network_request' && event.action.body) {
+  // PII scan on network payloads. Patterns come from config (the
+  // pipeline factory pulls them from @puffer/layer-pii at wiring time)
+  // so this layer has no direct code dependency on the PII layer.
+  const piiPatterns = config.piiPatterns ?? [];
+  if (
+    config.scanPayloadForPii &&
+    piiPatterns.length > 0 &&
+    event.action.type === 'network_request' &&
+    event.action.body
+  ) {
     const bodyStr =
       typeof event.action.body === 'string' ? event.action.body : JSON.stringify(event.action.body);
-    for (const piiPattern of PII_PATTERNS) {
+    for (const piiPattern of piiPatterns) {
       const regex = new RegExp(piiPattern.pattern.source, piiPattern.pattern.flags);
       const match = regex.exec(bodyStr);
       if (match) {

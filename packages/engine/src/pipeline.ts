@@ -1,6 +1,6 @@
 import type { PufferEvent, PufferConfig, LayerFunction, LayerResult } from '@puffer/core';
-import { logger } from '@puffer/core';
-import { piiScanner } from '@puffer/layer-pii';
+import { logger, DEFAULT_LAYER_TIMEOUT_MS, SEVERITY_DESC } from '@puffer/core';
+import { PII_PATTERNS, piiScanner } from '@puffer/layer-pii';
 import { injectionDetector } from '@puffer/layer-injection';
 import { commandAnalyzer } from '@puffer/layer-commands';
 import { networkEgressGuard } from '@puffer/layer-network';
@@ -18,16 +18,10 @@ import {
   withSpan,
 } from '@puffer/observability';
 
-// Severity ranking used to label aggregate block/audit counters with the
-// worst severity that actually triggered the verdict on a layer.
+// Label aggregate block/audit counters with the worst severity that
+// actually triggered the layer's verdict.
 function maxSeverity(result: LayerResult): string {
-  const order: Array<'critical' | 'high' | 'medium' | 'low'> = [
-    'critical',
-    'high',
-    'medium',
-    'low',
-  ];
-  for (const s of order) {
+  for (const s of SEVERITY_DESC) {
     if (result.findings.some((f) => f.severity === s)) return s;
   }
   return 'low';
@@ -42,7 +36,8 @@ interface RegisteredLayer {
 export interface PipelineOptions {
   /** If true, layer errors cause BLOCK instead of ALLOW (fail-closed). Default: false */
   failClosed?: boolean;
-  /** Timeout per layer in ms. Layers exceeding this are treated as errors. Default: 5000 */
+  /** Timeout per layer in ms. Layers exceeding this are treated as errors.
+   *  Default: `DEFAULT_LAYER_TIMEOUT_MS` (5000). */
   layerTimeoutMs?: number;
 }
 
@@ -53,7 +48,7 @@ export class DefensePipeline {
   constructor(options: PipelineOptions = {}) {
     this.options = {
       failClosed: options.failClosed ?? false,
-      layerTimeoutMs: options.layerTimeoutMs ?? 5000,
+      layerTimeoutMs: options.layerTimeoutMs ?? DEFAULT_LAYER_TIMEOUT_MS,
     };
   }
 
@@ -196,7 +191,7 @@ export function createDefaultPipeline(config: PufferConfig): DefensePipeline {
   // Use fail-closed in paranoid mode, fail-open otherwise
   const options: PipelineOptions = {
     failClosed: config.mode === 'paranoid',
-    layerTimeoutMs: 5000,
+    layerTimeoutMs: DEFAULT_LAYER_TIMEOUT_MS,
   };
   const pipeline = new DefensePipeline(options);
 
@@ -211,11 +206,13 @@ export function createDefaultPipeline(config: PufferConfig): DefensePipeline {
     commandAnalyzer as LayerFunction,
     config.layers.commands,
   );
-  pipeline.registerLayer(
-    'network_egress',
-    networkEgressGuard as LayerFunction,
-    config.layers.network,
-  );
+  // Inject the PII patterns into the network layer config so layer-network
+  // can scan payloads without importing layer-pii. The L4↔L1 boundary
+  // is now a pure data flow, not a code coupling.
+  pipeline.registerLayer('network_egress', networkEgressGuard as LayerFunction, {
+    ...config.layers.network,
+    piiPatterns: PII_PATTERNS,
+  });
   pipeline.registerLayer(
     'filesystem_sentinel',
     filesystemSentinel as LayerFunction,

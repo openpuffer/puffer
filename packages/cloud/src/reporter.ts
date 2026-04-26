@@ -2,8 +2,15 @@
 // 100% optional. Only activates if config.cloud.enabled is true.
 
 import type { PufferEvent } from '@puffer/core';
-import { logger } from '@puffer/core';
-import { VERSION } from '@puffer/core';
+import {
+  logger,
+  VERSION,
+  CLOUD_DEFAULT_BATCH_SIZE,
+  CLOUD_DEFAULT_FLUSH_INTERVAL_MS,
+  CLOUD_HEARTBEAT_TIMEOUT_MS,
+  CLOUD_INGEST_TIMEOUT_MS,
+  CLOUD_MAX_OFFLINE_QUEUE,
+} from '@puffer/core';
 import os from 'node:os';
 
 export interface CloudConfig {
@@ -27,7 +34,7 @@ export class CloudReporter {
   start(): void {
     if (!this.config.enabled) return;
 
-    const interval = this.config.flushIntervalMs ?? 60_000;
+    const interval = this.config.flushIntervalMs ?? CLOUD_DEFAULT_FLUSH_INTERVAL_MS;
     this.flushTimer = setInterval(() => this.flush(), interval);
 
     // Send initial heartbeat. Failures here are non-fatal — the heartbeat
@@ -77,7 +84,7 @@ export class CloudReporter {
     // Auto-flush if batch is full. flush() already handles network errors
     // by re-queuing and toggling the offline flag, so an unhandled rejection
     // here would only happen for a genuine bug — surface it loudly.
-    const batchSize = this.config.batchSize ?? 50;
+    const batchSize = this.config.batchSize ?? CLOUD_DEFAULT_BATCH_SIZE;
     if (this.queue.length >= batchSize) {
       this.flush().catch((err: unknown) => {
         logger.error(`Cloud reporter: auto-flush bug: ${(err as Error).message}`);
@@ -88,7 +95,7 @@ export class CloudReporter {
   async flush(): Promise<void> {
     if (this.queue.length === 0) return;
 
-    const batch = this.queue.splice(0, this.config.batchSize ?? 50);
+    const batch = this.queue.splice(0, this.config.batchSize ?? CLOUD_DEFAULT_BATCH_SIZE);
 
     try {
       const resp = await fetch(`${this.config.url}/api/ingest`, {
@@ -98,7 +105,7 @@ export class CloudReporter {
           'x-puffer-api-key': this.config.apiKey,
         },
         body: JSON.stringify({ events: batch }),
-        signal: AbortSignal.timeout(10_000),
+        signal: AbortSignal.timeout(CLOUD_INGEST_TIMEOUT_MS),
       });
 
       if (!resp.ok) {
@@ -127,9 +134,8 @@ export class CloudReporter {
       }
     }
 
-    // Cap offline queue at 10,000 events
-    if (this.queue.length > 10_000) {
-      this.queue = this.queue.slice(-10_000);
+    if (this.queue.length > CLOUD_MAX_OFFLINE_QUEUE) {
+      this.queue = this.queue.slice(-CLOUD_MAX_OFFLINE_QUEUE);
     }
   }
 
@@ -158,7 +164,7 @@ export class CloudReporter {
           hostname: os.hostname(),
           version: VERSION,
         }),
-        signal: AbortSignal.timeout(5_000),
+        signal: AbortSignal.timeout(CLOUD_HEARTBEAT_TIMEOUT_MS),
       });
     } catch (err) {
       // Heartbeats are best-effort — they re-fire on every interval, so a

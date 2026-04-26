@@ -23,6 +23,34 @@ export const DEFAULT_SCAN_INTERVAL_MS = 30_000;
 // Maximum request body size for proxy (50 MB)
 export const MAX_REQUEST_BODY_BYTES = 50 * 1024 * 1024;
 
+// Pipeline defaults — used by DefensePipeline and createDefaultPipeline.
+export const DEFAULT_LAYER_TIMEOUT_MS = 5_000;
+
+// Daemon-fork readiness timeout (CLI waits this long for the IPC `ready`).
+export const DAEMON_READY_TIMEOUT_MS = 10_000;
+
+// Severity ordering — single source of truth used by alerts (ranking),
+// reports (sorting), scoring, and the metrics layer label.
+//
+// `SEVERITY_ASC` indexes ascending so `indexOf(sev)` returns higher
+// numbers for higher severities (use for comparisons / max).
+// `SEVERITY_DESC` mirrors it for code that scans "find first match
+// starting from the most severe" (e.g. layer-helpers.getMaxSeverity).
+export const SEVERITY_ASC = ['low', 'medium', 'high', 'critical'] as const;
+export const SEVERITY_DESC = ['critical', 'high', 'medium', 'low'] as const;
+export type Severity = (typeof SEVERITY_ASC)[number];
+
+// Audit log size guards.
+export const AUDIT_TRUNCATE_VALUE_LENGTH = 200;
+export const AUDIT_DEFAULT_RETENTION_DAYS = 30;
+
+// Cloud reporter knobs (overridable via config.cloud).
+export const CLOUD_DEFAULT_BATCH_SIZE = 50;
+export const CLOUD_DEFAULT_FLUSH_INTERVAL_MS = 60_000;
+export const CLOUD_HEARTBEAT_TIMEOUT_MS = 5_000;
+export const CLOUD_INGEST_TIMEOUT_MS = 10_000;
+export const CLOUD_MAX_OFFLINE_QUEUE = 10_000;
+
 // Cost table (USD per 1M tokens, input/output)
 export const COST_TABLE: Record<string, { input: number; output: number }> = {
   'gpt-4o': { input: 2.5, output: 10.0 },
