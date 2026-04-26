@@ -271,3 +271,75 @@ puffer/
 
 - **QW#X mergeado** (`<commit-hash>`): qué cambió, archivos tocados, qué se aprendió.
 -->
+
+---
+
+## Estado final del refactor (5 sesiones, 22 commits)
+
+| Métrica                  | Inicio                                                    | Final                                                                   |
+| ------------------------ | --------------------------------------------------------- | ----------------------------------------------------------------------- |
+| Tests                    | 218 (no se ejecutaban en CI)                              | **249 en CI matrix Node 18/20/22**                                      |
+| `tsc --noEmit`           | 4 errores latentes                                        | **clean en 24 packages**                                                |
+| ESLint                   | sin configurar                                            | **0/0**                                                                 |
+| `npm audit`              | 11 vulns (1 high)                                         | **6 vulns no-aplicables al runtime, documentadas**                      |
+| Workspace packages       | 1 monolito                                                | **24** (3 apps + 21 packages)                                           |
+| Production build         | imposible (no había dist real)                            | **`tsc -b` shippable a npm**                                            |
+| `dist/` raíz huérfano    | 1.4 MB de basura del monolito                             | borrado                                                                 |
+| Endpoints observabilidad | nada                                                      | **Prometheus `/metrics` + JSON logs + OTel traces**                     |
+| `SECURITY.md`            | ❌                                                        | ✅ política de disclosure completa                                      |
+| `README.md`              | desactualizado (monolito)                                 | refleja workspaces + observability + getting-started                    |
+| Bugs críticos arreglados | —                                                         | **3** (anti-SSRF off, rule bypass por regex inválida, alertas tragadas) |
+| Architectural coupling   | L4 → L1 directo, helpers godfile, magic numbers dispersos | **DI via config, helpers en core, constants centralizados**             |
+| SSE handling             | rompía silenciosamente                                    | **parseado y auditeado correctamente**                                  |
+| Documentación            | 1 archivo monolítico (78 KB mezclado con README)          | **9 docs topical + getting-started + observability + SECURITY**         |
+
+## Commits del refactor (en orden)
+
+```
+a4f17b7  chore: bootstrap professional tooling and harden security boundaries
+fa185ac  chore(types): enable noUncheckedIndexedAccess and add guards
+e455e51  fix(providers): align extractModel signature with ProviderAdapter interface
+ea87783  chore(types): enable exactOptionalPropertyTypes and align contracts
+513b520  chore(deps): apply non-breaking npm audit fixes
+ec763e6  docs(progress): record M1-M4 outcomes and update pending list
+00b33ce  chore: scaffold npm workspaces and tsconfig base
+630eb6b  refactor: extract @puffer/core workspace package
+686d82b  refactor: extract @puffer/rules and move logger to @puffer/core
+33f1f8e  refactor: extract 7 layer detectors as @puffer/layer-* packages
+e809280  refactor: extract @puffer/engine and consolidate runtime helpers
+822dd9c  refactor: extract 9 supporting packages into the workspace
+a4a4baa  refactor: move daemon, cli, and dashboard out of src/ into apps/
+54cc4c1  docs(progress): record M5 outcomes and final workspace layout
+8ba7504  feat(observability): add Prometheus metrics endpoint
+88d8321  feat(observability): structured JSON logging with trace correlation
+9c49b7c  feat(observability): wire score_total and agents_active gauges + integration docs
+840d248  docs(progress): record M7 outcomes and final observability surface
+3fd9c94  feat(observability): OpenTelemetry trace exporter
+fb317f9  feat(devx): tsx dev runner, observability docker stack, getting-started runbook
+8941450  feat(m6): decouple network from pii layer, centralize constants, parse SSE
+5ac2f1c  feat(build): wire TypeScript project references for shippable production build
++ docs/security closing commit
+```
+
+## Pendiente — backlog priorizado
+
+**MEDIUM (no blocking, valor real cuando lo necesites):**
+
+- Tests para `@puffer/rules` updater (`checkForUpdates`, `applyUpdates`).
+- Audit log con redacción automática de PII (eat your own dog food).
+- `CONTRIBUTING.md` + `CODE_OF_CONDUCT.md`.
+- CHANGELOG automatizado vía `release-please` o `changesets` cuando vayas a publicar.
+
+**LOW (refactor / nice-to-have):**
+
+- Per-layer tests aislados — mover de `tests/layers/` a cada `packages/layers/*/tests/` para que `npm test -w @puffer/layer-pii` corra solo los tests de PII.
+- Dashboard frontend tests (Vite + React, hoy cero coverage).
+- M6.4 — split `dashboard/server.ts` (1213 LOC). Refactor mecánico sin cambio de comportamiento.
+- Mid-stream SSE abort — interceptar y abortar streaming response cuando se detecta PII en chunks parciales.
+- Benchmarks regression gate en CI — comparar contra baseline JSON, fallar PR con regresión > 10%.
+- W3C `traceparent` propagation upstream — para correlación con APM externo del provider LLM.
+
+**Diferido con justificación documentada (no se toca):**
+
+- 6 `npm audit` vulnerabilities — todas no-aplicables al runtime de Puffer (`esbuild` solo dev server, `uuid` v3/v5/v6 sin uso de `buf` argument).
+- OTel parent-child wiring en tests — limitación de `BasicTracerProvider` sin AsyncLocalStorage; en producción con NodeSDK funciona correctamente.

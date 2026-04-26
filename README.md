@@ -163,43 +163,104 @@ Like the human immune system:
 └─────────────────────────────────────────────────────────────┘
 ```
 
+## Repository Layout
+
+Puffer is an npm-workspaces monorepo. The source ships as 24 private
+packages plus three apps:
+
+```
+apps/
+  cli/         @puffer/cli         — thin commander wrapper
+  daemon/      @puffer/daemon      — orchestration (proxy + pipeline + hooks)
+  dashboard/   Vite + React frontend (localhost:8788 UI)
+packages/
+  core/        types, schemas, logger, constants, config loader
+  engine/      DefensePipeline + DecisionEngine + PolicyEngine
+  rules/       YAML community rule loader + remote registry updater
+  layers/{pii,injection,commands,network,filesystem,behavior,mcp}
+  proxy/       HTTP proxy + provider adapters + SSE parser
+  discovery/   process / port / network scanners
+  hooks/       agent integrations (Claude Code, Cursor, Aider, …)
+  alerts/      dispatcher + webhook / desktop channels
+  audit/       JSONL audit log + reporter
+  cloud/       optional cloud reporter
+  dashboard/   Express + WebSocket backend
+  observability/ Prometheus metrics, structured logs, OpenTelemetry
+  reports/     weekly threat report
+  redteam/     simulation runner
+  score/       posture score calculator
+```
+
 ## Development
 
 ```bash
-# Clone and install
+# Clone and install — npm workspaces wires every package as symlinks
 git clone <repo-url>
 cd puffer
 npm install
 
-# Build
-npm run build
+# Smoke-check the gates
+npm run typecheck    # strict TS + project references across all 24 packages
+npm run lint         # ESLint (custom rules block empty catches and silent .catch)
+npm run format:check # Prettier
+npm test             # Vitest — should report 249+ tests
 
-# Run tests
-npm test
+# Run from TS source while iterating (no build step needed)
+npm run puffer -- --help
+npm run puffer -- score
+npm run puffer:daemon
 
-# Type check + lint + format check
-npm run typecheck
-npm run lint
-npm run format:check
+# Compile every package to dist/ and run the production binary
+npm run build        # tsc -b apps/cli apps/daemon
+npm run puffer:prod -- score
+node apps/daemon/dist/index.js  # equivalent of `npm run start`
 
-# Auto-fix
+# Auto-fix lint / format issues
 npm run lint:fix
 npm run format
-
-# Build dashboard
-cd dashboard
-npm install
-npm run build
 ```
+
+For a full end-to-end walkthrough — including the optional Docker
+Compose observability stack with Prometheus, Grafana, Loki, and
+Jaeger — see **[docs/architecture/getting-started.md](docs/architecture/getting-started.md)**.
+
+## Observability
+
+Puffer ships first-class Prometheus metrics, structured JSON logs, and
+OpenTelemetry traces:
+
+```bash
+# Live metrics (Prometheus text exposition format)
+curl -s http://localhost:8788/metrics | head -20
+
+# JSON-line logs for Loki / Datadog / CloudWatch
+PUFFER_LOG_FORMAT=json npm run puffer:daemon
+
+# OTel traces to a collector (Jaeger, Honeycomb, Tempo, ...)
+PUFFER_OTEL_EXPORTER_ENDPOINT=http://localhost:4318/v1/traces \
+  npm run puffer:daemon
+```
+
+The full metric catalog, PromQL examples, and integration recipes live
+in [docs/architecture/observability.md](docs/architecture/observability.md).
+
+## Security
+
+Puffer is a security project — vulnerabilities have outsized impact on
+everything Puffer protects. **Do not file public GitHub issues for
+security problems.** See [SECURITY.md](SECURITY.md) for the disclosure
+process and contact details.
 
 ## Documentation
 
+- [Getting started](docs/architecture/getting-started.md) — local hacking runbook (install → tests → docker stack → smoke request)
+- [Observability](docs/architecture/observability.md) — metrics catalog, PromQL, integration recipes
 - [Architecture overview](docs/architecture/overview.md) — project identity, high-level architecture, repo structure
 - [Implementation phases](docs/architecture/implementation-phases.md) — the 6 build phases (proxy, discovery, 7-layer pipeline, CLI, dashboard, hooks)
 - [Configuration & audit](docs/architecture/operations.md) — config schema and audit logging
 - [Testing strategy](docs/architecture/testing.md) — adversarial + unit test approach
 - [Packaging & release](docs/architecture/packaging-and-release.md) — npm distribution, build order
-- [Refactor progress log](docs/PROGRESS.md) — current modernization effort
+- [Refactor progress log](docs/PROGRESS.md) — five-session modernization log
 
 ## License
 
