@@ -15,6 +15,7 @@ import {
   layerDurationSeconds,
   layerErrorsTotal,
   pipelineDurationSeconds,
+  withSpan,
 } from '@puffer/observability';
 
 // Severity ranking used to label aggregate block/audit counters with the
@@ -61,6 +62,24 @@ export class DefensePipeline {
   }
 
   async evaluate(event: PufferEvent): Promise<PufferEvent> {
+    return withSpan(
+      'puffer.pipeline.evaluate',
+      {
+        'puffer.event.id': event.id,
+        'puffer.event.action_type': event.action.type,
+        'puffer.agent': event.source.agent,
+        'puffer.provider': event.source.provider,
+      },
+      async (pipelineSpan) => {
+        const result = await this.runPipeline(event);
+        pipelineSpan.setAttribute('puffer.decision', result.decision ?? 'UNKNOWN');
+        pipelineSpan.setAttribute('puffer.layers_run', result.layers.length);
+        return result;
+      },
+    );
+  }
+
+  private async runPipeline(event: PufferEvent): Promise<PufferEvent> {
     const pipelineStart = Date.now();
     const agent = event.source.agent;
 
@@ -72,15 +91,25 @@ export class DefensePipeline {
       try {
         // Run layer with timeout to prevent ReDoS and hangs
         const timeoutMs = this.options.layerTimeoutMs!;
-        const result = await Promise.race([
-          layer.fn(event, layer.config),
-          new Promise<never>((_, reject) =>
-            setTimeout(
-              () => reject(new Error(`Layer ${layer.name} timed out after ${timeoutMs}ms`)),
-              timeoutMs,
-            ),
-          ),
-        ]);
+        const result = await withSpan(
+          `puffer.layer.${layer.name}`,
+          { 'puffer.layer.name': layer.name },
+          async (span) => {
+            const layerResult = await Promise.race([
+              layer.fn(event, layer.config),
+              new Promise<never>((_, reject) =>
+                setTimeout(
+                  () => reject(new Error(`Layer ${layer.name} timed out after ${timeoutMs}ms`)),
+                  timeoutMs,
+                ),
+              ),
+            ]);
+            span.setAttribute('puffer.layer.verdict', layerResult.verdict);
+            span.setAttribute('puffer.layer.confidence', layerResult.confidence);
+            span.setAttribute('puffer.layer.findings_count', layerResult.findings.length);
+            return layerResult;
+          },
+        );
         result.durationMs = Date.now() - start;
         event.layers.push(result);
 

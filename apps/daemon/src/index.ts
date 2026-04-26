@@ -4,8 +4,9 @@ import { v4 as uuidv4 } from 'uuid';
 import type { PufferConfig, PufferEvent, Decision } from '@puffer/core';
 import type { DaemonReadyMessage } from '@puffer/core';
 import { loadConfig, ensurePufferDir } from '@puffer/core';
-import { DEFAULT_PROXY_PORT, PID_FILE_PATH } from '@puffer/core';
+import { DEFAULT_PROXY_PORT, PID_FILE_PATH, VERSION } from '@puffer/core';
 import { logger } from '@puffer/core';
+import { initTracing, shutdownTracing } from '@puffer/observability';
 import type { ProxyServer } from '@puffer/proxy';
 import { createProxyServer } from '@puffer/proxy';
 import type { DefensePipeline } from '@puffer/engine';
@@ -129,6 +130,12 @@ export async function startDaemon(configOverride?: PufferConfig): Promise<Puffer
   await cleanupStaleConfig();
 
   const config = configOverride ?? loadConfig();
+
+  // OTel SDK boot — no-op when PUFFER_OTEL_EXPORTER_ENDPOINT is unset.
+  // Done before anything that emits spans so we don't drop early traces.
+  if (initTracing('puffer-daemon', VERSION)) {
+    logger.info(`OpenTelemetry tracing enabled → ${process.env.PUFFER_OTEL_EXPORTER_ENDPOINT}`);
+  }
 
   logger.info(`Starting Puffer daemon in ${config.mode} mode`);
 
@@ -295,6 +302,7 @@ export async function startDaemon(configOverride?: PufferConfig): Promise<Puffer
     if (dashboard) await dashboard.stop();
     await proxy.stop();
     await auditLogger.flush();
+    await shutdownTracing();
 
     // Remove PID file
     try {
