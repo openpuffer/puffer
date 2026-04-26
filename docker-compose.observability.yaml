@@ -1,0 +1,79 @@
+# Local observability stack for hacking on Puffer.
+#
+# Brings up Prometheus (scraping the daemon at localhost:8788/metrics),
+# Grafana (with Prometheus + Loki preloaded), Loki (collecting JSON
+# logs piped via Vector), and Jaeger (receiving OTLP traces). Run the
+# Puffer daemon natively on the host — Docker only hosts the
+# observability backends so you can swap them out without touching
+# Puffer.
+#
+# Usage:
+#   docker compose -f docker-compose.observability.yaml up -d
+#   PUFFER_OTEL_EXPORTER_ENDPOINT=http://localhost:4318/v1/traces \
+#     PUFFER_LOG_FORMAT=json \
+#     npm run puffer:daemon | vector --config=etc/vector.toml
+#
+# Then open:
+#   - Grafana:    http://localhost:3001  (admin / admin)
+#   - Prometheus: http://localhost:9090
+#   - Jaeger:     http://localhost:16686
+
+version: "3.8"
+
+networks:
+  puffer-obs:
+    driver: bridge
+
+services:
+  prometheus:
+    image: prom/prometheus:v2.55.0
+    container_name: puffer-prometheus
+    restart: unless-stopped
+    networks: [puffer-obs]
+    extra_hosts:
+      # Lets the container scrape the daemon running on the host.
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "9090:9090"
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.retention.time=24h"
+    volumes:
+      - ./etc/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+
+  grafana:
+    image: grafana/grafana:11.3.0
+    container_name: puffer-grafana
+    restart: unless-stopped
+    networks: [puffer-obs]
+    ports:
+      - "3001:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Editor
+    volumes:
+      - ./etc/grafana-datasources.yaml:/etc/grafana/provisioning/datasources/datasources.yaml:ro
+
+  loki:
+    image: grafana/loki:3.2.0
+    container_name: puffer-loki
+    restart: unless-stopped
+    networks: [puffer-obs]
+    ports:
+      - "3100:3100"
+    command: -config.file=/etc/loki/local-config.yaml
+
+  jaeger:
+    image: jaegertracing/all-in-one:1.62.0
+    container_name: puffer-jaeger
+    restart: unless-stopped
+    networks: [puffer-obs]
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+    ports:
+      # OTLP HTTP receiver — the endpoint Puffer ships spans to.
+      - "4318:4318"
+      # Jaeger UI
+      - "16686:16686"

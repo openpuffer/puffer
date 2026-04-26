@@ -132,7 +132,7 @@ Este documento es el **estado vivo** del refactor de profesionalización de Puff
 - ~~`src/discovery/index.ts:121`~~ ✅ verificado — los catches en discovery son recoveries intencionales documentados, no swallows
 - ~~Fase 3 — npm workspaces~~ ✅ **completo** en 7 commits (`00b33ce` → `a4a4baa`). 22 workspace packages, src/ vacío, 230 tests verde.
 - Fase 4 — streaming SSE + decoupling — **diferido**. Refactor interno sin valor visible al usuario; se hace cuando haya un caso de uso concreto que lo justifique (LLMs con SSE).
-- ~~Fase 5 — observabilidad~~ ✅ **niveles 1+2 completos** en 3 commits (`8ba7504`, `88d8321`, `9c49b7c`). Nivel 3 (OTel) sigue como opcional.
+- ~~Fase 5 — observabilidad~~ ✅ **completa los 3 niveles** en 5 commits (`8ba7504`, `88d8321`, `9c49b7c`, `3fd9c94`, M7.4). Prometheus, structured JSON logs y OpenTelemetry traces todos cableados al runtime.
 
 ### Sesión 4 — Fase 5 / M7 cerrada (2026-04-25 noche)
 
