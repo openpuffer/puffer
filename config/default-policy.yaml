@@ -2,7 +2,7 @@
 # The autonomous immune system for AI agents
 
 version: "0.1.0"
-mode: monitor  # monitor | enforce | paranoid | interactive
+mode: monitor # monitor | enforce | paranoid | interactive
 
 auto_discovery:
   enabled: true
@@ -121,6 +121,13 @@ layers:
     authorized_servers: []
     block_unauthorized: false
     scan_tool_results: true
+
+  skills:
+    enabled: true
+    policy: monitor
+    allowlist: []
+    denylist: []
+    scan_interval_ms: 30000
 
 dashboard:
   enabled: true

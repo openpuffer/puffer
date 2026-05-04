@@ -3,15 +3,151 @@ import cors from 'cors';
 import http from 'node:http';
 import net from 'node:net';
 import path from 'node:path';
+import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { WebSocketServer, WebSocket } from 'ws';
 import { v4 as uuidv4 } from 'uuid';
-import type { PufferEvent, PufferConfig, AuditLogEntry } from '@puffer/core';
+import type { PufferEvent, PufferConfig, AuditLogEntry, SkillInventory } from '@puffer/core';
 import type { AuditLogger } from '@puffer/audit';
 import type { DiscoveryEngine } from '@puffer/discovery';
 import { makeDecision } from '@puffer/engine';
 import { logger } from '@puffer/core';
 import { saveConfig } from '@puffer/core';
+
+// === Skill tool action helper (exported for testing) ===
+
+/**
+ * Convert a `Skill` tool call from Claude Code PreToolUse into a `skill_invoke` action.
+ *
+ * Called with the raw tool name, tool input args, and an optional inventory provider
+ * that can fill in `contentHash` when a matching manifest is found.
+ *
+ * For non-Skill tools this falls through to the standard toolNameToAction logic and
+ * returns whatever that would return — callers should check the returned `type`.
+ *
+ * NOTE (limitation): project-local skills look identical to global skills from the
+ * hook payload perspective. We default `source` to `claude-code-global` and derive
+ * `id` as `"claude-code-global/<name>"`. A future improvement could inspect the
+ * inventory to find the matching manifest's actual source and id.
+ *
+ * TODO: OpenClaw per-invocation skill tracking would require hooking OpenClaw's
+ * plugin API (in-process), which is out of scope for this batch.
+ */
+export function skillToolToAction(
+  toolName: string,
+  toolInput: Record<string, unknown>,
+  inventoryProvider: () => SkillInventory | null,
+): PufferEvent['action'] {
+  if (toolName !== 'Skill') {
+    // Fall through — not a skill invocation. Return a generic fallback so the
+    // test can check `action.type !== 'skill_invoke'`.
+    return { type: 'llm_request', method: 'TOOL', endpoint: toolName, body: toolInput };
+  }
+
+  const skillName = String(toolInput.skill ?? toolInput.name ?? '');
+  const derivedId = `claude-code-global/${skillName}`;
+
+  // Best-effort content hash: look up the inventory for a matching manifest.
+  let contentHash: string | undefined;
+  const inventory = inventoryProvider();
+  if (inventory) {
+    const manifest = inventory.skills.find((s) => s.name === skillName || s.id === derivedId);
+    if (manifest) {
+      contentHash = manifest.contentHash;
+    }
+  }
+
+  const args = { ...toolInput };
+  delete args['skill'];
+  delete args['name'];
+
+  return {
+    type: 'skill_invoke',
+    skill: {
+      id: derivedId,
+      name: skillName,
+      ...(contentHash !== undefined ? { contentHash } : {}),
+    },
+    args: Object.keys(args).length > 0 ? args : undefined,
+  };
+}
+
+// === Skills API route registration (exported for testing) ===
+
+/**
+ * Register `GET /api/skills` and `GET /api/skills/:id` on the given Express app.
+ * The `inventoryProvider` is a function so that the latest inventory is always used.
+ */
+export function registerSkillsApiRoutes(
+  app: ReturnType<typeof express>,
+  inventoryProvider: () => SkillInventory | null,
+): void {
+  app.get('/api/skills', (_req, res) => {
+    const inventory = inventoryProvider();
+    res.json(inventory?.skills ?? []);
+  });
+
+  app.get('/api/skills/:id', (req, res) => {
+    const inventory = inventoryProvider();
+    if (!inventory) {
+      res.status(404).json({ error: 'Skill inventory not available' });
+      return;
+    }
+    const id = decodeURIComponent(req.params.id ?? '');
+    const manifest = inventory.skills.find((s) => s.id === id);
+    if (!manifest) {
+      res.status(404).json({ error: 'Skill not found' });
+      return;
+    }
+    res.json(manifest);
+  });
+
+  app.get('/api/skills/:id/manifest', (req, res) => {
+    const inventory = inventoryProvider();
+    if (!inventory) {
+      res.status(404).json({ error: 'Skill inventory not available' });
+      return;
+    }
+
+    const id = decodeURIComponent(req.params.id ?? '');
+    const manifest = inventory.skills.find((s) => s.id === id);
+
+    if (!manifest) {
+      res.status(404).json({ error: 'Skill not found' });
+      return;
+    }
+
+    if (!manifest.manifestPath) {
+      res.status(404).json({ error: 'Skill has no manifest file' });
+      return;
+    }
+
+    // Path-safety: resolve the manifest path and confirm it lives under a
+    // known skill root. This prevents a maliciously crafted id from reading
+    // files outside the skill directories.
+    const resolvedManifestPath = path.resolve(manifest.manifestPath);
+    const knownRoots = [
+      ...inventory.roots.map((r) => path.resolve(r.path)),
+      path.resolve(manifest.rootPath),
+    ];
+
+    const isUnderKnownRoot = knownRoots.some(
+      (root) => resolvedManifestPath.startsWith(root + path.sep) || resolvedManifestPath === root,
+    );
+
+    if (!isUnderKnownRoot) {
+      res.status(404).json({ error: 'Manifest path outside skill roots' });
+      return;
+    }
+
+    try {
+      const content = fs.readFileSync(resolvedManifestPath, 'utf-8');
+      res.type('text/plain').send(content);
+    } catch {
+      res.status(404).json({ error: 'Manifest file not found on disk' });
+    }
+  });
+}
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -39,6 +175,8 @@ export interface DashboardDependencies {
   discovery: DiscoveryEngine;
   config: PufferConfig;
   evaluatePipeline: (event: PufferEvent) => Promise<PufferEvent>;
+  /** Optional: provides the latest skill inventory for hook-based `skill_invoke` enrichment. */
+  getSkillInventory?: () => SkillInventory | null;
 }
 
 export interface DashboardServer {
@@ -337,6 +475,9 @@ export function createDashboardServer(
     }
   });
 
+  // === Skills API ===
+  registerSkillsApiRoutes(app, deps.getSkillInventory ?? (() => null));
+
   // === Hook endpoints for AI agent tool call interception ===
 
   /**
@@ -347,6 +488,9 @@ export function createDashboardServer(
     toolInput: Record<string, unknown>,
   ): PufferEvent['action'] {
     switch (toolName) {
+      case 'Skill':
+        // Skill tool invocation — emit skill_invoke with best-effort hash from inventory.
+        return skillToolToAction(toolName, toolInput, deps.getSkillInventory ?? (() => null));
       case 'Bash':
       case 'bash':
         return {

@@ -229,6 +229,13 @@ function getBuiltinDefaults(): PufferConfig {
         blockUnauthorized: false,
         scanToolResults: true,
       },
+      skills: {
+        enabled: true,
+        policy: 'monitor',
+        allowlist: [],
+        denylist: [],
+        scan_interval_ms: 30000,
+      },
     },
     dashboard: { enabled: true, port: 8788 },
     audit: { logPath: '~/.puffer/audit.jsonl', retentionDays: 30 },

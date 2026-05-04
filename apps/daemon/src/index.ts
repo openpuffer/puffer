@@ -1,6 +1,9 @@
 import fs from 'node:fs';
 import http from 'node:http';
 import { v4 as uuidv4 } from 'uuid';
+import { SkillInventoryService } from './skill-inventory-service.js';
+export { SkillInventoryService } from './skill-inventory-service.js';
+export type { SkillInventoryServiceOptions } from './skill-inventory-service.js';
 import type { PufferConfig, PufferEvent, Decision } from '@puffer/core';
 import type { DaemonReadyMessage } from '@puffer/core';
 import { loadConfig, ensurePufferDir } from '@puffer/core';
@@ -164,6 +167,36 @@ export async function startDaemon(configOverride?: PufferConfig): Promise<Puffer
     discovery.start(config.autoDiscovery.scanIntervalMs);
   }
 
+  // Initialize skill inventory service
+  const skillService = new SkillInventoryService({
+    emitEvent: (changeEvent) => {
+      // Build a PufferEvent for the inventory change so it flows through the
+      // audit logger and dashboard broadcast like any other event.
+      const event: PufferEvent = {
+        id: uuidv4(),
+        timestamp: new Date().toISOString(),
+        source: { type: 'manual', agent: 'puffer-daemon', provider: 'puffer' },
+        action: {
+          type: changeEvent.type,
+          skill: changeEvent.skill,
+          ...(changeEvent.type === 'skill_modified'
+            ? { previousHash: changeEvent.previousHash }
+            : {}),
+        } as PufferEvent['action'],
+        payload: changeEvent,
+        metadata: { sessionId: 'skill-inventory', sequenceNumber: 0 },
+        layers: [],
+        decision: 'ALLOW' as Decision,
+      };
+
+      auditLogger.log(event);
+      if (dashboard) dashboard.broadcast(event);
+    },
+    scanIntervalMs: config.layers.skills.scan_interval_ms,
+  });
+
+  await skillService.start();
+
   // Start dashboard first so we know the resolved port for hooks
   let dashboard: DashboardServer | null = null;
   if (config.dashboard.enabled) {
@@ -177,6 +210,7 @@ export async function startDaemon(configOverride?: PufferConfig): Promise<Puffer
           evaluated.decision = makeDecision(evaluated, { mode: config.mode });
           return evaluated;
         },
+        getSkillInventory: () => skillService.getInventory(),
       },
       config.dashboard.port,
     );
@@ -297,6 +331,7 @@ export async function startDaemon(configOverride?: PufferConfig): Promise<Puffer
   // Handle graceful shutdown
   const shutdown = async () => {
     logger.info('Shutting down...');
+    skillService.stop();
     await hookManager.uninstallAll();
     discovery.stop();
     if (dashboard) await dashboard.stop();

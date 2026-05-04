@@ -26,6 +26,9 @@
       "path": "../../packages/layers/mcp"
     },
     {
+      "path": "../../packages/layers/skills"
+    },
+    {
       "path": "../../packages/layers/network"
     },
     {

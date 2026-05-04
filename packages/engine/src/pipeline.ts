@@ -7,6 +7,7 @@ import { networkEgressGuard } from '@puffer/layer-network';
 import { filesystemSentinel } from '@puffer/layer-filesystem';
 import { behaviorAnalyzer } from '@puffer/layer-behavior';
 import { mcpPoisoningDetector } from '@puffer/layer-mcp';
+import { skillGovernanceLayer } from '@puffer/layer-skills';
 import {
   auditsTotal,
   blocksTotal,
@@ -224,6 +225,11 @@ export function createDefaultPipeline(config: PufferConfig): DefensePipeline {
     config.layers.behavior,
   );
   pipeline.registerLayer('mcp_detector', mcpPoisoningDetector as LayerFunction, config.layers.mcp);
+  pipeline.registerLayer(
+    'skill_governance',
+    skillGovernanceLayer as LayerFunction,
+    config.layers.skills,
+  );
 
   return pipeline;
 }

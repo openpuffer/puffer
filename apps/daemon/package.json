@@ -23,6 +23,7 @@
     "@puffer/hooks": "*",
     "@puffer/observability": "*",
     "@puffer/proxy": "*",
+    "@puffer/skills": "*",
     "uuid": "^10.0.0"
   }
 }

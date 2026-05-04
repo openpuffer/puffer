@@ -80,6 +80,13 @@ function makeDefaultConfig(overrides?: Partial<PufferConfig>): PufferConfig {
         blockUnauthorized: true,
         scanToolResults: true,
       },
+      skills: {
+        enabled: true,
+        policy: 'monitor',
+        allowlist: [],
+        denylist: [],
+        scan_interval_ms: 30000,
+      },
     },
     dashboard: { enabled: false, port: 8788 },
     audit: { logPath: '/tmp/puffer-test-audit.jsonl', retentionDays: 30 },
@@ -154,8 +161,8 @@ describe('Defense Pipeline Integration', () => {
     pipeline = createDefaultPipeline(config);
   });
 
-  it('should have all 7 layers registered', () => {
-    expect(pipeline.getLayerCount()).toBe(7);
+  it('should have all 8 layers registered', () => {
+    expect(pipeline.getLayerCount()).toBe(8);
   });
 
   it('should allow a clean LLM request through all layers', async () => {

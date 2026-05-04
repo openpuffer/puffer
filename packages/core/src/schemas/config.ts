@@ -127,6 +127,14 @@ export const MCPConfigSchema = z.object({
   scanToolResults: z.boolean(),
 });
 
+export const SkillsConfigSchema = z.object({
+  enabled: z.boolean(),
+  policy: z.enum(['monitor', 'enforce']).default('monitor'),
+  allowlist: z.array(z.string()).default([]),
+  denylist: z.array(z.string()).default([]),
+  scan_interval_ms: z.number().int().positive().default(30000),
+});
+
 // -- Top-level config -------------------------------------------------------
 
 export const PufferConfigSchema = z.object({
@@ -142,6 +150,13 @@ export const PufferConfigSchema = z.object({
     filesystem: FilesystemConfigSchema,
     behavior: BehaviorConfigSchema,
     mcp: MCPConfigSchema,
+    skills: SkillsConfigSchema.default({
+      enabled: true,
+      policy: 'monitor',
+      allowlist: [],
+      denylist: [],
+      scan_interval_ms: 30000,
+    }),
   }),
   dashboard: z.object({
     enabled: z.boolean(),
