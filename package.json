@@ -58,7 +58,7 @@
     "uuid": "^10.0.0",
     "ws": "^8.18.0",
     "yaml": "^2.5.0",
-    "zod": "^4.3.6",
+    "zod": "^4.4.2",
     "zod-validation-error": "^5.0.0"
   },
   "devDependencies": {
