@@ -2,9 +2,9 @@
   "name": "openpuffer",
   "version": "0.1.0",
   "description": "The autonomous immune system for AI agents",
-  "main": "./dist/index.js",
+  "main": "dist/index.js",
   "bin": {
-    "puffer": "./dist/index.js"
+    "puffer": "dist/index.js"
   },
   "files": [
     "dist/**",
