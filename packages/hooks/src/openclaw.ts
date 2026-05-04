@@ -1,101 +1,120 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import os from 'node:os';
 import type { HookHandler } from './index.js';
 import { logger } from '@puffer/core';
-import { DEFAULT_DASHBOARD_PORT } from '@puffer/core';
+import { DEFAULT_PROXY_PORT } from '@puffer/core';
 
 const OPENCLAW_GATEWAY = 'http://127.0.0.1:18789';
+const OPENCLAW_CONFIG_PATH = path.join(os.homedir(), '.openclaw', 'openclaw.json');
 
 /**
- * OpenClaw hook integration.
- * Registers as a security middleware skill on the OpenClaw gateway,
- * intercepting all actions before and after execution.
+ * OpenClaw integration.
+ *
+ * OpenClaw does NOT support outbound webhooks or pre-action interceptors via
+ * HTTP — verified against the upstream gateway and docs at openclaw/openclaw.
+ * Plugins exist but only load in-process via filesystem (not via HTTP register).
+ *
+ * The supported observability path is: configure OpenClaw's provider `baseUrl`
+ * to point at Puffer's reverse-proxy (`http://127.0.0.1:<proxyPort>`). All LLM
+ * traffic then flows through Puffer with full request / response / token / cost
+ * capture and blocking capability — same path the proxy uses for any other
+ * agent.
+ *
+ * On install we don't mutate OpenClaw's config (would clobber user settings).
+ * Instead we detect the gateway, inspect its config, and surface a clear
+ * actionable warning if the user has not yet routed through Puffer.
  */
 export class OpenClawHook implements HookHandler {
   name = 'openclaw';
   private installed = false;
-  private dashboardPort: number;
+  private proxyPort: number;
 
-  constructor(dashboardPort: number = DEFAULT_DASHBOARD_PORT) {
-    this.dashboardPort = dashboardPort;
+  constructor(_dashboardPort?: number, proxyPort: number = DEFAULT_PROXY_PORT) {
+    this.proxyPort = proxyPort;
   }
 
-  async install(): Promise<void> {
+  private async isGatewayAlive(): Promise<boolean> {
     try {
-      // Check if OpenClaw gateway is reachable
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 3000);
-
-      let health: Response;
+      const timeout = setTimeout(() => controller.abort(), 2000);
       try {
-        health = await fetch(`${OPENCLAW_GATEWAY}/health`, { signal: controller.signal });
-      } catch {
-        logger.warn('OpenClaw gateway not reachable at port 18789, skipping skill registration');
-        return;
+        const res = await fetch(`${OPENCLAW_GATEWAY}/health`, { signal: controller.signal });
+        return res.ok;
       } finally {
         clearTimeout(timeout);
       }
-
-      if (!health.ok) {
-        logger.warn(`OpenClaw gateway returned ${health.status}, skipping skill registration`);
-        return;
-      }
-
-      // Register as security middleware skill
-      const registration = await fetch(`${OPENCLAW_GATEWAY}/api/skills/register`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: 'puffer-security',
-          type: 'middleware',
-          priority: 0, // Run before other skills
-          hooks: {
-            preAction: `http://127.0.0.1:${this.dashboardPort}/hooks/openclaw`,
-            postAction: `http://127.0.0.1:${this.dashboardPort}/hooks/openclaw-response`,
-          },
-          description:
-            'Puffer AI security middleware - monitors and blocks dangerous agent actions',
-          version: '0.1.0',
-        }),
-      });
-
-      if (registration.ok) {
-        this.installed = true;
-        logger.info('OpenClaw skill registered as security middleware');
-      } else {
-        const body = await registration.text().catch(() => '');
-        logger.warn(`OpenClaw skill registration failed: ${registration.status} ${body}`);
-      }
-    } catch (err) {
-      logger.error(`Failed to install OpenClaw hook: ${(err as Error).message}`);
+    } catch {
+      return false;
     }
   }
 
-  async uninstall(): Promise<void> {
-    if (!this.installed) return;
-
-    try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 3000);
-
-      await fetch(`${OPENCLAW_GATEWAY}/api/skills/unregister`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: 'puffer-security' }),
-        signal: controller.signal,
-      }).catch((err: unknown) => {
-        // Gateway may be down on uninstall — that's fine, the skill is
-        // effectively gone. Log so an operator running `puffer stop` knows
-        // why the unregister silently no-op'd.
-        logger.warn(
-          `OpenClaw unregister: gateway unreachable: ${(err as Error).message}. Skipping.`,
-        );
-      });
-
-      clearTimeout(timeout);
-      this.installed = false;
-      logger.info('OpenClaw skill unregistered');
-    } catch {
-      // Ignore errors during uninstall — gateway may be down
+  /**
+   * Look at ~/.openclaw/openclaw.json and decide whether OpenClaw is already
+   * routing LLM traffic through Puffer's proxy. We only check Anthropic and
+   * OpenAI provider overrides — those are the two providers Puffer's proxy
+   * resolves natively today.
+   */
+  private isRoutedThroughPuffer(): { routed: boolean; configExists: boolean } {
+    if (!fs.existsSync(OPENCLAW_CONFIG_PATH)) {
+      return { routed: false, configExists: false };
     }
+    try {
+      const raw = fs.readFileSync(OPENCLAW_CONFIG_PATH, 'utf-8');
+      const cfg = JSON.parse(raw) as {
+        models?: { providers?: Record<string, { baseUrl?: string }> };
+      };
+      const providers = cfg.models?.providers ?? {};
+      const expectedHost = `127.0.0.1:${this.proxyPort}`;
+      // Routed if at least one of anthropic/openai points at our proxy.
+      const matches = (id: string): boolean => {
+        const url = providers[id]?.baseUrl;
+        return !!url && url.includes(expectedHost);
+      };
+      return { routed: matches('anthropic') || matches('openai'), configExists: true };
+    } catch (err) {
+      logger.warn(
+        `OpenClaw config unreadable at ${OPENCLAW_CONFIG_PATH}: ${(err as Error).message}`,
+      );
+      return { routed: false, configExists: true };
+    }
+  }
+
+  async install(): Promise<void> {
+    const alive = await this.isGatewayAlive();
+    if (!alive) {
+      // Not a hard error — discovery may detect OpenClaw later. We'll re-check on next start.
+      return;
+    }
+
+    const { routed, configExists } = this.isRoutedThroughPuffer();
+    if (routed) {
+      logger.info('OpenClaw is routed through Puffer proxy — full observability active');
+      this.installed = true;
+      return;
+    }
+
+    // Gateway is up but config does not point at Puffer. Emit a single,
+    // actionable warning. We do NOT modify the user's config automatically.
+    if (!configExists) {
+      logger.warn(
+        `OpenClaw gateway detected at ${OPENCLAW_GATEWAY} but no config found at ${OPENCLAW_CONFIG_PATH}. ` +
+          'Run `openclaw onboard` first, then point its providers at Puffer (see docs/architecture/openclaw.md).',
+      );
+    } else {
+      logger.warn(
+        `OpenClaw is running but its providers are not routed through Puffer. ` +
+          `Add to ${OPENCLAW_CONFIG_PATH}: models.providers.anthropic.baseUrl="http://127.0.0.1:${this.proxyPort}" ` +
+          '(see docs/architecture/openclaw.md for full snippet).',
+      );
+    }
+
+    this.installed = false;
+  }
+
+  async uninstall(): Promise<void> {
+    // Nothing to undo — we never mutated OpenClaw's config.
+    this.installed = false;
   }
 
   isInstalled(): boolean {
