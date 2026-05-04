@@ -14,15 +14,8 @@ import {
   Wifi,
   WifiOff,
   AlertTriangle,
-  List,
-  Bot,
-  Settings,
-  ChevronRight,
-  Sun,
-  Moon,
 } from 'lucide-react';
 import type { LiveEvent, AgentInfo } from '../App';
-import { useTheme } from '../hooks/useTheme';
 
 interface HUDOverlayProps {
   stats: {
@@ -42,7 +35,6 @@ interface HUDOverlayProps {
   liveEvents: LiveEvent[];
   agents: AgentInfo[];
   connected: boolean;
-  onOpenPanel: (panel: string) => void;
   panelOpen?: boolean;
   sparkEvents?: { v: number }[];
   sparkBlocked?: { v: number }[];
@@ -60,14 +52,12 @@ const HUDOverlay: React.FC<HUDOverlayProps> = ({
   stats,
   liveEvents,
   connected,
-  onOpenPanel,
   panelOpen,
   sparkEvents,
   sparkBlocked,
   sparkAllowed,
 }) => {
   const feedRef = useRef<HTMLDivElement>(null);
-  const { theme, toggleTheme } = useTheme();
 
   useEffect(() => {
     if (feedRef.current) feedRef.current.scrollTop = 0;
@@ -132,39 +122,6 @@ const HUDOverlay: React.FC<HUDOverlayProps> = ({
             </span>
           )}
         </div>
-
-        {/* Theme toggle */}
-        <button
-          onClick={toggleTheme}
-          className="hud-panel flex items-center gap-2 px-3 py-1.5 transition-all hover:bg-black/[0.04] dark:hover:bg-white/[0.06] group"
-        >
-          {theme === 'dark' ? (
-            <Sun className="h-3 w-3 text-slate-500 dark:text-white/30 group-hover:text-slate-700 dark:group-hover:text-white/60 transition-colors" />
-          ) : (
-            <Moon className="h-3 w-3 text-slate-500 dark:text-white/30 group-hover:text-slate-700 dark:group-hover:text-white/60 transition-colors" />
-          )}
-          <span className="text-[10px] text-slate-500 dark:text-white/30 group-hover:text-slate-700 dark:group-hover:text-white/60 tracking-wider transition-colors">
-            {theme === 'dark' ? 'LIGHT' : 'DARK'}
-          </span>
-        </button>
-
-        {[
-          { id: 'events', icon: List, label: 'Events' },
-          { id: 'agents', icon: Bot, label: 'Agents' },
-          { id: 'config', icon: Settings, label: 'Config' },
-        ].map((item) => (
-          <button
-            key={item.id}
-            onClick={() => onOpenPanel(item.id)}
-            className="hud-panel flex items-center gap-2 px-3 py-1.5 transition-all hover:bg-black/[0.04] dark:hover:bg-white/[0.06] group"
-          >
-            <item.icon className="h-3 w-3 text-slate-500 dark:text-white/30 group-hover:text-slate-700 dark:group-hover:text-white/60 transition-colors" />
-            <span className="text-[10px] text-slate-500 dark:text-white/30 group-hover:text-slate-700 dark:group-hover:text-white/60 tracking-wider transition-colors">
-              {item.label.toUpperCase()}
-            </span>
-            <ChevronRight className="h-2.5 w-2.5 text-slate-300 dark:text-white/15 group-hover:text-slate-500 dark:group-hover:text-white/40 transition-colors" />
-          </button>
-        ))}
       </motion.div>
 
       {/* ── Bottom-left: Live feed ── */}
