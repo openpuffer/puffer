@@ -478,6 +478,7 @@ export function createDashboardServer(
               name: l.name,
               verdict: l.verdict,
             })),
+            metadata: metadataForBroadcast(evaluated.metadata),
           },
         }),
       );
@@ -572,6 +573,7 @@ export function createDashboardServer(
               name: l.name,
               verdict: l.verdict,
             })),
+            metadata: metadataForBroadcast(evaluated.metadata),
           },
         }),
       );
@@ -637,6 +639,7 @@ export function createDashboardServer(
             action: { type: 'notification', category } as Record<string, unknown>,
             decision: 'ALLOW',
             layers: [],
+            metadata: metadataForBroadcast(event.metadata),
           },
         }),
       );
@@ -728,6 +731,7 @@ export function createDashboardServer(
               name: l.name,
               verdict: l.verdict,
             })),
+            metadata: metadataForBroadcast(evaluated.metadata),
           },
         }),
       );
@@ -856,6 +860,7 @@ export function createDashboardServer(
               name: l.name,
               verdict: l.verdict,
             })),
+            metadata: metadataForBroadcast(evaluated.metadata),
           },
         }),
       );
@@ -917,6 +922,7 @@ export function createDashboardServer(
               name: l.name,
               verdict: l.verdict,
             })),
+            metadata: metadataForBroadcast(evaluated.metadata),
           },
         }),
       );
@@ -994,6 +1000,7 @@ export function createDashboardServer(
               name: l.name,
               verdict: l.verdict,
             })),
+            metadata: metadataForBroadcast(evaluated.metadata),
           },
         }),
       );
@@ -1022,20 +1029,25 @@ export function createDashboardServer(
   });
 
   /**
-   * Extract broadcast-safe metadata (tokens, cost, model, rate limits).
+   * Strip credential-bearing fields (debugInfo carries raw request headers,
+   * which may include Authorization / x-api-key) from EventMetadata before
+   * shipping it over the WebSocket. Token usage, cost, model and rate limits
+   * are safe and required by the live dashboard.
    */
   function metadataForBroadcast(
     meta: PufferEvent['metadata'],
   ): Record<string, unknown> | undefined {
-    const data: Record<string, unknown> = {};
-    if (meta.inputTokens) data.inputTokens = meta.inputTokens;
-    if (meta.outputTokens) data.outputTokens = meta.outputTokens;
-    if (meta.totalTokens) data.totalTokens = meta.totalTokens;
-    if (meta.costEstimate) data.costEstimate = meta.costEstimate;
-    if (meta.model) data.model = meta.model;
-    if (meta.rateLimits) data.rateLimits = meta.rateLimits;
-    if (meta.debugInfo) data.debugInfo = meta.debugInfo;
-    return Object.keys(data).length > 0 ? data : undefined;
+    if (!meta) return undefined;
+    const safe: Record<string, unknown> = { sessionId: meta.sessionId };
+    if (meta.tokenEstimate !== undefined) safe.tokenEstimate = meta.tokenEstimate;
+    if (meta.costEstimate !== undefined) safe.costEstimate = meta.costEstimate;
+    if (meta.inputTokens !== undefined) safe.inputTokens = meta.inputTokens;
+    if (meta.outputTokens !== undefined) safe.outputTokens = meta.outputTokens;
+    if (meta.totalTokens !== undefined) safe.totalTokens = meta.totalTokens;
+    if (meta.model !== undefined) safe.model = meta.model;
+    if (meta.rateLimits !== undefined) safe.rateLimits = meta.rateLimits;
+    if (meta.snippet !== undefined) safe.snippet = meta.snippet;
+    return safe;
   }
 
   /**
