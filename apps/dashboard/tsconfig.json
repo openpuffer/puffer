@@ -17,7 +17,8 @@
     "noFallthroughCasesInSwitch": true,
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@puffer/core": ["../../packages/core/src/index.ts"]
     }
   },
   "include": ["src"]

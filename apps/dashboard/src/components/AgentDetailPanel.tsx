@@ -1,14 +1,25 @@
 import React, { useMemo, useState } from 'react';
+import { ArrowUp, ArrowDown } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import type { LiveEvent, AgentInfo } from '../App';
-import type { GraphNode } from '../hooks/useGraphData';
+import type { SkillManifest } from '@puffer/core';
+import { agentSourceFilter } from '../lib/skillHelpers';
 
-interface AgentDetailPanelProps {
-  node: GraphNode | null;
-  agents: AgentInfo[];
-  liveEvents: LiveEvent[];
+export interface SelectedEntity {
+  id: string;
+  name: string;
+  type: string;
+  color: string;
 }
 
-const AgentDetailPanel: React.FC<AgentDetailPanelProps> = ({ node, agents, liveEvents }) => {
+interface AgentDetailPanelProps {
+  node: SelectedEntity | null;
+  agents: AgentInfo[];
+  liveEvents: LiveEvent[];
+  skillInventory?: SkillManifest[];
+}
+
+const AgentDetailPanel: React.FC<AgentDetailPanelProps> = ({ node, agents, liveEvents, skillInventory = [] }) => {
   const agentInfo = useMemo(() => {
     if (!node) return undefined;
     return agents.find(
@@ -105,6 +116,56 @@ const AgentDetailPanel: React.FC<AgentDetailPanelProps> = ({ node, agents, liveE
   }, [node, agentEvents]);
 
   const [debugExpanded, setDebugExpanded] = useState(false);
+
+  // Pair llm_request + llm_response events by sessionId + time adjacency.
+  // Walk events newest-first; for each request find the next response in the
+  // same session. Cap at 5 pairs.
+  const recentPairs = useMemo(() => {
+    const llmEvents = agentEvents
+      .filter(
+        (e) => e.action.type === 'llm_request' || e.action.type === 'llm_response',
+      )
+      .slice() // shallow copy so sort doesn't mutate
+      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+
+    const pairs: Array<{
+      request?: LiveEvent;
+      response?: LiveEvent;
+    }> = [];
+    const usedIds = new Set<string>();
+
+    for (const ev of llmEvents) {
+      if (usedIds.has(ev.id)) continue;
+      if (ev.action.type !== 'llm_request') continue;
+
+      usedIds.add(ev.id);
+      const sessionId = ev.metadata?.sessionId;
+
+      // Find the nearest response in the same session (could be before or after in time)
+      const response = llmEvents.find(
+        (r) =>
+          !usedIds.has(r.id) &&
+          r.action.type === 'llm_response' &&
+          r.metadata?.sessionId === sessionId,
+      );
+
+      if (response) usedIds.add(response.id);
+      pairs.push({ request: ev, response });
+
+      if (pairs.length >= 5) break;
+    }
+
+    // Also capture unpaired responses (stream-cutoff case)
+    for (const ev of llmEvents) {
+      if (usedIds.has(ev.id)) continue;
+      if (ev.action.type !== 'llm_response') continue;
+      usedIds.add(ev.id);
+      pairs.push({ response: ev });
+      if (pairs.length >= 5) break;
+    }
+
+    return pairs.slice(0, 5);
+  }, [agentEvents]);
 
   if (!node) {
     return <p className="text-sm text-muted-foreground">Select a node to view details</p>;
@@ -327,9 +388,151 @@ const AgentDetailPanel: React.FC<AgentDetailPanelProps> = ({ node, agents, liveE
           </div>
         ))}
       </div>
+
+      {/* Recent Activity */}
+      <div className="space-y-2">
+        <h4 className="font-mono text-xs font-bold text-violet-600 dark:text-violet-400 tracking-wider">
+          RECENT ACTIVITY
+        </h4>
+        {recentPairs.length === 0 ? (
+          <p className="text-xs text-muted-foreground">No recent activity yet.</p>
+        ) : (
+          recentPairs.map((pair, i) => (
+            <ActivityPairCard key={i} pair={pair} />
+          ))
+        )}
+      </div>
+
+      {/* Installed Skills */}
+      <InstalledSkillsSection
+        node={node}
+        liveEvents={agentEvents}
+        skillInventory={skillInventory}
+      />
     </div>
   );
 };
+
+interface ActivityPair {
+  request?: LiveEvent;
+  response?: LiveEvent;
+}
+
+const ActivityPairCard: React.FC<{ pair: ActivityPair }> = ({ pair }) => {
+  const { request, response } = pair;
+  const anchor = request ?? response;
+  if (!anchor) return null;
+
+  const ts = anchor.timestamp;
+  const model = anchor.metadata?.model;
+  const decision = anchor.decision;
+
+  const reqSnippet = request?.metadata?.snippet;
+  const resSnippet = response?.metadata?.snippet;
+
+  const inputTokens =
+    (request?.metadata?.inputTokens ?? 0) + (response?.metadata?.inputTokens ?? 0);
+  const outputTokens =
+    (request?.metadata?.outputTokens ?? 0) + (response?.metadata?.outputTokens ?? 0);
+
+  return (
+    <div className="rounded-lg border border-violet-500/20 bg-violet-500/[0.04] p-3 space-y-2 text-xs">
+      {/* Top row: timestamp · model · decision */}
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-muted-foreground/70 text-[10px]">{formatRelativeTime(ts)}</span>
+        <div className="flex items-center gap-1.5">
+          {model && (
+            <span className="font-mono text-[10px] text-violet-700 dark:text-violet-300 truncate max-w-[120px]">
+              {model}
+            </span>
+          )}
+          <DecisionBadge decision={decision} />
+        </div>
+      </div>
+
+      {/* Request snippet */}
+      {request && (
+        <div className="flex items-start gap-1.5">
+          <ArrowUp className="h-3 w-3 text-sky-500 mt-0.5 flex-shrink-0" />
+          <span className="text-foreground/70 leading-relaxed break-words min-w-0">
+            {reqSnippet?.text
+              ? <>
+                  {reqSnippet.text}
+                  {reqSnippet.originalLength > 150 && (
+                    <span className="text-muted-foreground/50"> ({reqSnippet.originalLength} chars)</span>
+                  )}
+                </>
+              : <span className="text-muted-foreground/40 italic">no snippet</span>
+            }
+          </span>
+        </div>
+      )}
+
+      {/* Response snippet */}
+      {response && (
+        <div className="flex items-start gap-1.5">
+          <ArrowDown className="h-3 w-3 text-emerald-500 mt-0.5 flex-shrink-0" />
+          <span className="text-foreground/70 leading-relaxed break-words min-w-0">
+            {resSnippet?.text
+              ? <>
+                  {resSnippet.text}
+                  {resSnippet.originalLength > 150 && (
+                    <span className="text-muted-foreground/50"> ({resSnippet.originalLength} chars)</span>
+                  )}
+                </>
+              : <span className="text-muted-foreground/40 italic">no snippet</span>
+            }
+          </span>
+        </div>
+      )}
+
+      {/* Token counts */}
+      {(inputTokens > 0 || outputTokens > 0) && (
+        <div className="flex gap-3 pt-1 border-t border-border/50">
+          {inputTokens > 0 && (
+            <span className="text-[10px] text-muted-foreground">
+              in: <span className="font-mono">{inputTokens.toLocaleString()}</span>
+            </span>
+          )}
+          {outputTokens > 0 && (
+            <span className="text-[10px] text-muted-foreground">
+              out: <span className="font-mono">{outputTokens.toLocaleString()}</span>
+            </span>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
+const DECISION_BADGE_STYLES: Record<string, string> = {
+  ALLOW: 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400',
+  BLOCK: 'bg-red-500/20 text-red-600 dark:text-red-400',
+  AUDIT: 'bg-amber-500/20 text-amber-600 dark:text-amber-400',
+  ESCALATE: 'bg-purple-500/20 text-purple-600 dark:text-purple-400',
+};
+
+const DecisionBadge: React.FC<{ decision: string | null }> = ({ decision }) => {
+  if (!decision) return null;
+  const style = DECISION_BADGE_STYLES[decision] ?? 'bg-muted text-muted-foreground';
+  return (
+    <span className={`inline-block rounded px-1 py-px font-mono text-[9px] uppercase tracking-wider ${style}`}>
+      {decision}
+    </span>
+  );
+};
+
+function formatRelativeTime(ts: string): string {
+  try {
+    const diff = Date.now() - new Date(ts).getTime();
+    if (diff < 60_000) return 'just now';
+    if (diff < 3_600_000) return `${Math.floor(diff / 60_000)}m ago`;
+    if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)}h ago`;
+    return `${Math.floor(diff / 86_400_000)}d ago`;
+  } catch {
+    return ts;
+  }
+}
 
 const InfoRow: React.FC<{ label: string; value: string }> = ({ label, value }) => (
   <div className="flex justify-between text-xs">
@@ -365,5 +568,111 @@ function formatTime(ts: string): string {
     return ts;
   }
 }
+
+interface InstalledSkillsSectionProps {
+  node: SelectedEntity | null;
+  liveEvents: LiveEvent[];
+  skillInventory: SkillManifest[];
+}
+
+const InstalledSkillsSection: React.FC<InstalledSkillsSectionProps> = ({
+  node,
+  liveEvents,
+  skillInventory,
+}) => {
+  const relevantSources = useMemo(() => {
+    if (!node) return [] as ReturnType<typeof agentSourceFilter>;
+    return agentSourceFilter(node.name);
+  }, [node]);
+
+  const installedSkills = useMemo(() => {
+    if (relevantSources.length === 0) return [];
+    return skillInventory.filter((s) => relevantSources.includes(s.source));
+  }, [skillInventory, relevantSources]);
+
+  // Count skill_invoke events per skill.id for this agent.
+  const invocationCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const ev of liveEvents) {
+      if (ev.action.type !== 'skill_invoke') continue;
+      const skillId = (ev.action as unknown as { skill?: { id?: string } }).skill?.id;
+      if (!skillId) continue;
+      counts.set(skillId, (counts.get(skillId) ?? 0) + 1);
+    }
+    return counts;
+  }, [liveEvents]);
+
+  const totalUsed = useMemo(() => {
+    let count = 0;
+    for (const skill of installedSkills) {
+      if (invocationCounts.has(skill.id)) count++;
+    }
+    return count;
+  }, [installedSkills, invocationCounts]);
+
+  const top5 = useMemo(() => {
+    return installedSkills
+      .map((s) => ({ skill: s, count: invocationCounts.get(s.id) ?? 0 }))
+      .filter((e) => e.count > 0)
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5);
+  }, [installedSkills, invocationCounts]);
+
+  if (!node) return null;
+
+  if (relevantSources.length === 0) {
+    return (
+      <div className="space-y-1">
+        <h4 className="font-mono text-xs font-bold text-emerald-600 dark:text-emerald-400 tracking-wider">
+          INSTALLED SKILLS
+        </h4>
+        <p className="text-xs text-muted-foreground italic">
+          Skills tracking not available for this agent type.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-2 rounded-lg border border-emerald-500/20 bg-emerald-500/[0.04] p-3">
+      <div className="flex items-center justify-between">
+        <h4 className="font-mono text-xs font-bold text-emerald-600 dark:text-emerald-400 tracking-wider">
+          INSTALLED SKILLS
+        </h4>
+        <Link
+          to="/skills"
+          className="font-mono text-[10px] text-emerald-500 hover:text-emerald-300 transition-colors"
+        >
+          View all /skills →
+        </Link>
+      </div>
+
+      <p className="font-mono text-xs text-muted-foreground">
+        <span className="text-foreground/80 font-semibold">{installedSkills.length}</span>
+        {' '}skill{installedSkills.length !== 1 ? 's' : ''} installed
+        {' · '}
+        <span className="text-emerald-400">{totalUsed}</span> used in this session
+      </p>
+
+      {top5.length > 0 && (
+        <div className="space-y-1.5 mt-1">
+          <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+            Top used this session
+          </span>
+          {top5.map(({ skill, count }) => (
+            <div key={skill.id} className="flex items-center justify-between text-xs">
+              <span className="font-mono text-emerald-300 truncate max-w-[180px]">
+                {skill.name}
+              </span>
+              <span className="text-muted-foreground text-[10px] ml-2 shrink-0">
+                {count}×
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
 
 export default AgentDetailPanel;
