@@ -59,6 +59,14 @@ export interface EventMetadata {
         endpoint?: string | undefined;
       }
     | undefined;
+  /** Short human-readable preview of the request/response body. Max 150 chars.
+   *  Extracted at proxy time; safe to broadcast (no auth headers, no debugInfo). */
+  snippet?:
+    | {
+        text: string;
+        originalLength: number;
+      }
+    | undefined;
 }
 
 // === LAYER TYPES ===

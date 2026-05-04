@@ -14,6 +14,7 @@ import { isStreamingContentType, parseSSEStream } from './sse.js';
 export * from './handler.js';
 export * from './providers.js';
 export * from './sse.js';
+export * from './snippet.js';
 
 export interface ProxyServer {
   server: http.Server;

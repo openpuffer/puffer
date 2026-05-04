@@ -5,6 +5,7 @@ import { detectProvider, getAdapter, estimateCostWithOutput } from './providers.
 import { VERSION } from '@puffer/core';
 import { logger } from '@puffer/core';
 import { llmCostUsdTotal, llmRequestDurationSeconds, llmTokensTotal } from '@puffer/observability';
+import { extractRequestSnippet, extractResponseSnippet } from './snippet.js';
 
 export interface ProxyDependencies {
   evaluatePipeline: (event: PufferEvent) => Promise<PufferEvent>;
@@ -183,6 +184,7 @@ export async function handleRequest(
       tokenEstimate: tokens,
       costEstimate: cost,
       debugInfo,
+      snippet: extractRequestSnippet(body),
     },
     layers: [],
     decision: null,
@@ -278,6 +280,7 @@ export async function handleRequest(
           totalTokens: usage.totalTokens || undefined,
           model,
           rateLimits: rateLimits ?? undefined,
+          snippet: extractResponseSnippet(responseBody),
         },
         layers: [],
         decision: null,
