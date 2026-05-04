@@ -11,7 +11,7 @@
 # https://github.com/puffer-fish/puffer
 
 version: '0.1.0'
-mode: enforce # monitor | enforce | paranoid | interactive
+mode: monitor # monitor | enforce | paranoid | interactive
 
 auto_discovery:
   enabled: true
@@ -181,5 +181,24 @@ Every event is logged as a single JSON line (JSONL) in `~/.puffer/audit.jsonl`.
 ```
 
 Note: The actual request/response bodies are NOT logged by default (privacy). Only metadata, decisions, and findings are logged. Bodies can be optionally logged for debugging.
+
+---
+
+## 12. Defense Pipeline Layers
+
+The pipeline evaluates each event through numbered layers in order. All built-in layers:
+
+| Layer | Name                 | Config key          | Description                                                                                     |
+| ----- | -------------------- | ------------------- | ----------------------------------------------------------------------------------------------- |
+| 1     | `pii_scanner`        | `layers.pii`        | Detects PII (SSN, credit cards, emails, API keys) and blocks/redacts by severity                |
+| 2     | `injection_detector` | `layers.injection`  | Heuristic prompt-injection and jailbreak detection                                              |
+| 3     | `command_filter`     | `layers.commands`   | Blocks dangerous shell commands, enforces per-minute rate limits                                |
+| 4     | `network_filter`     | `layers.network`    | Allowlist/blocklist for outbound URLs; blocks SSRF to private IP ranges                         |
+| 5     | `filesystem_guard`   | `layers.filesystem` | Protects credential files, SSH keys, and `.env` paths; detects secret patterns in writes        |
+| 6     | `behavior_monitor`   | `layers.behavior`   | Cost caps, loop detection, anomaly scoring                                                      |
+| 7     | `mcp_guard`          | `layers.mcp`        | Authorizes MCP server connections; scans tool results for injections                            |
+| 8     | `skill_governance`   | `layers.skills`     | Enforces allow/denylist on `skill_invoke` events; blocks or audits unapproved skill invocations |
+
+See `docs/architecture/skills-governance.md` for full documentation on Layer 8.
 
 ---
