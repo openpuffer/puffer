@@ -33,5 +33,5 @@
     }
   },
   "include": ["apps/**/src/**/*.ts", "packages/**/src/**/*.ts", "tests/**/*.ts", "scripts/**/*.ts"],
-  "exclude": ["node_modules", "**/dist", "apps/dashboard/src/**"]
+  "exclude": ["node_modules", "**/dist", "apps/dashboard/src/**", "tests/dashboard/**"]
 }
