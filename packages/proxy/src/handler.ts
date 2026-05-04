@@ -31,6 +31,33 @@ export interface ProxyDependencies {
 }
 
 /**
+ * Agents that route traffic through the OpenAI-compatible SDK.
+ * Listed in attribution priority order: the first match wins.
+ * Add new agents here rather than inline in inferAgent.
+ */
+export const KNOWN_OPENAI_SDK_AGENTS = [
+  'openclaw',
+  'openclaw-gateway',
+  'python-openai',
+  'python-langchain',
+  'python-crewai',
+  'python-autogen',
+  'aurora',
+] as const;
+
+/**
+ * Agents that route traffic through the Anthropic SDK.
+ * Listed in attribution priority order: the first match wins.
+ * Add new agents here rather than inline in inferAgent.
+ */
+export const KNOWN_ANTHROPIC_SDK_AGENTS = [
+  'claude-code',
+  'claude-cli',
+  'anthropic-client',
+  'python-anthropic',
+] as const;
+
+/**
  * Infer the agent identity from request headers and body when
  * the explicit x-puffer-agent header is missing.
  *
@@ -40,11 +67,12 @@ export interface ProxyDependencies {
  *     or presence of anthropic-version header) → attribute to claude-code if
  *     it's among discovered agents, since Claude Code is the agent that sets
  *     ANTHROPIC_BASE_URL to route through the proxy.
- *  3. OpenAI SDK fingerprint ("OpenAI/" in User-Agent) → correlate with
- *     discovered agents that use OpenAI-compatible APIs.
+ *  3. OpenAI SDK fingerprint ("OpenAI/" in User-Agent) → attribute to the
+ *     first discovered agent that appears in KNOWN_OPENAI_SDK_AGENTS (priority
+ *     order). If none match but exactly one agent was discovered, return it.
  *  4. If process discovery found exactly one agent, attribute to it.
  */
-function inferAgent(
+export function inferAgent(
   headers: Record<string, string | string[] | undefined>,
   discoveredAgentNames?: string[],
 ): string {
@@ -60,31 +88,36 @@ function inferAgent(
   if (/windsurf/i.test(ua)) return 'windsurf';
   if (/codeium/i.test(ua)) return 'codeium';
   if (/openclaw|clawdbot/i.test(ua)) return 'openclaw';
-  if (/claude[-_]?code/i.test(ua)) return 'claude-code';
+  if (/claude[-_]?code\b/i.test(ua)) return 'claude-code';
+  if (/claude-cli\b/i.test(ua)) return 'claude-cli';
 
   // 2. Anthropic SDK fingerprint: "Anthropic/JS ...", "anthropic-python/...",
-  //    or the presence of the anthropic-version header.
+  //    "claude-cli/..." UA prefix, or the presence of the anthropic-version header.
   const isAnthropicSDK =
     uaLower.includes('anthropic/') ||
     uaLower.includes('anthropic-') ||
+    /claude-cli\b/i.test(ua) ||
     !!headers['anthropic-version'];
 
-  if (isAnthropicSDK) {
-    // Claude Code is the primary agent that sets ANTHROPIC_BASE_URL to proxy.
-    // If discovery sees it running, attribute the request to it.
-    if (discoveredAgentNames?.includes('claude-code')) return 'claude-code';
-    // Fallback: any other Anthropic-SDK agent found by discovery
-    if (discoveredAgentNames?.includes('python-anthropic')) return 'python-anthropic';
+  if (isAnthropicSDK && discoveredAgentNames) {
+    // Walk the priority list and return the first discovered agent that matches.
+    for (const knownAgent of KNOWN_ANTHROPIC_SDK_AGENTS) {
+      if (discoveredAgentNames.includes(knownAgent)) return knownAgent;
+    }
   }
 
   // 3. OpenAI SDK fingerprint
   const isOpenAISDK = uaLower.includes('openai/');
   if (isOpenAISDK && discoveredAgentNames) {
-    const openaiAgents = discoveredAgentNames.filter((n) =>
-      ['python-openai', 'python-langchain', 'python-crewai', 'python-autogen'].includes(n),
-    );
-    const onlyOpenai = openaiAgents[0];
-    if (openaiAgents.length === 1 && onlyOpenai !== undefined) return onlyOpenai;
+    // Walk the priority list and return the first discovered agent that matches.
+    for (const knownAgent of KNOWN_OPENAI_SDK_AGENTS) {
+      if (discoveredAgentNames.includes(knownAgent)) return knownAgent;
+    }
+    // No known agent matched — if exactly one unknown agent was discovered, attribute to it.
+    if (discoveredAgentNames.length === 1) {
+      const only = discoveredAgentNames[0];
+      if (only !== undefined) return only;
+    }
   }
 
   // 4. Single discovered agent fallback
