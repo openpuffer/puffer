@@ -79,17 +79,16 @@ export function registerInitCommand(program: Command): void {
         }
       }
 
-      // Set recommended mode based on findings
+      config.mode = 'monitor';
+      console.log(
+        chalk.green(
+          `  Mode set to ${chalk.bold('monitor')} (observe-only — no traffic is blocked)`,
+        ),
+      );
       if (result.securityWarnings.length > 0) {
-        config.mode = 'enforce';
         console.log(
-          chalk.yellow(`  Mode set to ${chalk.bold('enforce')} (security warnings detected)`),
-        );
-      } else {
-        config.mode = 'monitor';
-        console.log(
-          chalk.green(
-            `  Mode set to ${chalk.bold('monitor')} (safe default, upgrade to enforce when ready)`,
+          chalk.yellow(
+            `  ${result.securityWarnings.length} warning(s) detected. Review the dashboard, then run ${chalk.bold('puffer mode enforce')} when you're ready to enable blocking.`,
           ),
         );
       }
