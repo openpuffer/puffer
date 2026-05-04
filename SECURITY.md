@@ -11,7 +11,7 @@ those flaws seriously and want them disclosed responsibly.
 **Do not open a public GitHub issue for security problems.** Public
 issues are crawled by attackers and turn into a head start.
 
-Email the maintainers directly at **security@openpuffer.dev**[^1] with:
+Email the maintainers directly at **security@openpuffer.org**[^1] with:
 
 - A short description of the vulnerability and the affected layer
   (`L1-pii`, `L2-injection`, ...) or component (proxy, hooks, daemon,

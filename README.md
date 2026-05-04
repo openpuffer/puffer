@@ -6,6 +6,8 @@
     ─────────────────────────────────────────────
 ```
 
+**Website:** [openpuffer.org](https://openpuffer.org) · **Security contact:** [security@openpuffer.org](mailto:security@openpuffer.org)
+
 **Puffer** is a local-first security daemon that protects AI agents from prompt injection, PII leakage, dangerous commands, and more. It acts like a subconscious immune system — always running, detects threats before they cause harm, and acts on instinct.
 
 > "Assume the agent will be compromised — contain the blast radius."
@@ -95,7 +97,7 @@ puffer deflate     # Switch back to normal mode
 Puffer uses YAML configuration at `~/.puffer/config.yaml`. Edit manually or use the dashboard.
 
 ```yaml
-mode: enforce # monitor | enforce | paranoid | interactive
+mode: monitor # monitor | enforce | paranoid | interactive (default: monitor — observe only)
 
 layers:
   pii:
