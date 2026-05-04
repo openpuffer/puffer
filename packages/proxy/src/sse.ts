@@ -69,6 +69,16 @@ export function parseSSEStream(raw: string): ParsedSSE {
     }
 
     eventCount++;
+
+    // Handle content_block_start: emit a human-readable marker when a
+    // tool-use block opens. input_json_delta events are suppressed in
+    // extractTextFromEventPayload by checking delta.type directly.
+    if (pendingEvent === 'content_block_start' || isContentBlockStart(parsed)) {
+      const marker = extractToolMarker(parsed);
+      if (marker) parts.push(marker);
+      continue;
+    }
+
     const extracted = extractTextFromEventPayload(parsed, pendingEvent);
     if (extracted) parts.push(extracted);
   }
@@ -76,19 +86,53 @@ export function parseSSEStream(raw: string): ParsedSSE {
   return { text: parts.join(''), eventCount, completed };
 }
 
+/** Returns true when the parsed payload is a content_block_start event. */
+function isContentBlockStart(payload: unknown): boolean {
+  if (!payload || typeof payload !== 'object') return false;
+  return (payload as Record<string, unknown>).type === 'content_block_start';
+}
+
+/**
+ * For a content_block_start payload, if the block is a tool_use, return a
+ * human-readable marker like "[tool:Edit] ".
+ * Returns empty string for non-tool-use blocks.
+ */
+function extractToolMarker(payload: unknown): string {
+  if (!payload || typeof payload !== 'object') return '';
+  const p = payload as Record<string, unknown>;
+  const block = p.content_block as Record<string, unknown> | undefined;
+  if (!block || typeof block !== 'object') return '';
+  if (block.type !== 'tool_use') return '';
+  const name = typeof block.name === 'string' ? block.name : 'unknown';
+  return `[tool:${name}] `;
+}
+
 /**
  * Walk a parsed event JSON and return any text content we can find.
  * Conservative: empty string for events that carry no user-visible
- * text (ping, message_start, etc.).
+ * text (ping, message_start, input_json_delta, etc.).
  */
 function extractTextFromEventPayload(payload: unknown, eventTag: string | null): string {
   if (!payload || typeof payload !== 'object') return '';
   const p = payload as Record<string, unknown>;
 
-  // Anthropic content_block_delta { delta: { type: 'text_delta', text } }
+  // Anthropic content_block_delta { delta: { type: 'text_delta' | 'input_json_delta', ... } }
   if (eventTag === 'content_block_delta' || p.type === 'content_block_delta') {
     const delta = p.delta as Record<string, unknown> | undefined;
-    if (delta && typeof delta.text === 'string') return delta.text;
+    if (!delta) return '';
+
+    if (delta.type === 'text_delta' && typeof delta.text === 'string') {
+      return delta.text;
+    }
+
+    if (delta.type === 'input_json_delta') {
+      // Suppress raw JSON fragments — the [tool:Name] marker was already
+      // emitted at content_block_start, so nothing more to add here.
+      return '';
+    }
+
+    // Older shape without explicit delta.type: check for text field directly
+    if (typeof delta.text === 'string') return delta.text;
   }
 
   // OpenAI Chat Completions: choices[].delta.content
