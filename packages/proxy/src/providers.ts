@@ -215,6 +215,38 @@ export function getAdapter(provider: string): ProviderAdapter {
   return adapters[provider] ?? genericAdapter;
 }
 
+/**
+ * Ordered list of [prefix, provider] pairs used for body.model detection.
+ * Evaluated top-to-bottom; first match wins. Comparison is case-insensitive.
+ * Only active when the request path is /v1/chat/completions or /v1/embeddings
+ * AND no x-puffer-original-host header resolved to a known provider.
+ */
+const MODEL_PREFIX_MAP: [string, string][] = [
+  ['deepseek', 'deepseek'],
+  ['gpt-', 'openai'],
+  ['o1-', 'openai'],
+  ['chatgpt-', 'openai'],
+  ['claude-', 'anthropic'],
+  ['gemini-', 'google'],
+  ['models/gemini', 'google'],
+  ['mistral-', 'mistral'],
+  ['open-mixtral-', 'mistral'],
+  ['codestral-', 'mistral'],
+  ['command-', 'cohere'],
+  ['meta-llama', 'together'],
+  ['llama-', 'together'],
+  ['llama3-groq', 'groq'],
+  ['groq-', 'groq'],
+];
+
+function detectProviderFromModel(model: string): string | null {
+  const lower = model.toLowerCase();
+  for (const [prefix, provider] of MODEL_PREFIX_MAP) {
+    if (lower.startsWith(prefix)) return provider;
+  }
+  return null;
+}
+
 export function detectProvider(
   url: string,
   headers: Record<string, string | string[] | undefined>,
@@ -230,6 +262,7 @@ export function detectProvider(
     return 'ollama';
 
   if (url.includes('/v1/chat/completions') || url.includes('/v1/embeddings')) {
+    // 3. x-puffer-original-host header (injected by Puffer's own hooks)
     const originalHost = headers['x-puffer-original-host'];
     if (typeof originalHost === 'string') {
       if (originalHost.includes('anthropic')) return 'anthropic';
@@ -241,10 +274,20 @@ export function detectProvider(
       if (originalHost.includes('mistral')) return 'mistral';
       if (originalHost.includes('cohere')) return 'cohere';
     }
+
+    // 4. body.model prefix matching — lets third-party agents (e.g. OpenClaw)
+    //    be routed correctly without injecting Puffer-specific headers.
+    const b = safeBody(body);
+    const model = b.model;
+    if (typeof model === 'string' && model.length > 0) {
+      const detected = detectProviderFromModel(model);
+      if (detected !== null) return detected;
+    }
+
     return 'openai-compatible';
   }
 
-  // 3. Body heuristics
+  // 5. Body heuristics (non-chat paths)
   const b = safeBody(body);
   if (b.system !== undefined && b.messages !== undefined && !b.tools) return 'anthropic';
 
