@@ -151,6 +151,25 @@ export function registerSkillsApiRoutes(
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
+// Resolve the dashboard static files directory.
+// Works from three layouts:
+//   1. Dev (tsx): packages/dashboard/src/ → ../../../apps/dashboard/dist
+//   2. tsc build: packages/dashboard/dist/ → ../../../apps/dashboard/dist
+//   3. tsup bundle: dist/ → ../apps/dashboard/dist (one level up)
+const _dashboardDistCandidates = [
+  path.join(__dirname, '..', 'apps', 'dashboard', 'dist'), // bundled: dist/ → root/apps/dashboard/dist
+  path.join(__dirname, '..', '..', '..', 'apps', 'dashboard', 'dist'), // dev/tsc: packages/dashboard/src → root/apps/dashboard/dist
+  path.join(__dirname, '..', '..', 'apps', 'dashboard', 'dist'), // tsc build: packages/dashboard/dist → root/apps/dashboard/dist
+];
+const _resolvedDashboardDist = _dashboardDistCandidates.find((p) =>
+  fs.existsSync(path.join(p, 'index.html')),
+);
+if (!_resolvedDashboardDist) {
+  // Not a hard throw at module load time — dashboard may not be built yet.
+  // The express.static call will simply serve nothing, and the fallback HTML
+  // guides the user to build first.
+}
+
 // Common dev ports to avoid
 const DEV_PORTS_TO_AVOID = new Set([
   3000,
@@ -259,10 +278,10 @@ export function createDashboardServer(
   app.use(cors({ origin: /^https?:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/ }));
   app.use(express.json());
 
-  // Serve static dashboard files
-  // From packages/dashboard/src/, three levels up reaches the repo root,
-  // and the frontend builds to apps/dashboard/dist/.
-  const publicDir = path.resolve(__dirname, '../../../apps/dashboard/dist');
+  // Serve static dashboard files — path resolved at module init to support
+  // dev (tsx), tsc build, and tsup bundled layouts.
+  const publicDir =
+    _resolvedDashboardDist ?? path.join(__dirname, '..', 'apps', 'dashboard', 'dist');
   app.use(express.static(publicDir));
 
   // === Event rate & cost tracking ===

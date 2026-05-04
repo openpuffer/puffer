@@ -2,15 +2,31 @@
   "name": "openpuffer",
   "version": "0.1.0",
   "description": "The autonomous immune system for AI agents",
+  "main": "./dist/index.js",
   "bin": {
-    "puffer": "./apps/cli/dist/index.js"
+    "puffer": "./dist/index.js"
   },
-  "main": "./apps/daemon/dist/index.js",
-  "types": "./apps/daemon/dist/index.d.ts",
+  "files": [
+    "dist/**",
+    "apps/dashboard/dist/**",
+    "config/default-policy.yaml",
+    "README.md",
+    "LICENSE",
+    "SECURITY.md"
+  ],
+  "author": "openpuffer (https://openpuffer.org)",
+  "homepage": "https://openpuffer.org",
+  "bugs": "https://github.com/openpuffer/puffer/issues",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/openpuffer/puffer.git"
+  },
   "scripts": {
     "build": "tsc -b apps/cli apps/daemon",
     "build:dashboard": "npm run build --workspace=@puffer/dashboard-frontend",
     "build:all": "npm run build && npm run build:dashboard",
+    "bundle": "tsup",
+    "prepublishOnly": "npm run build && npm run build:dashboard && npm run bundle",
     "clean": "tsc -b --clean apps/cli apps/daemon",
     "dev": "tsc -b apps/cli apps/daemon --watch",
     "start": "node apps/daemon/dist/index.js",
@@ -75,6 +91,7 @@
     "husky": "^9.1.7",
     "lint-staged": "^16.4.0",
     "prettier": "^3.8.3",
+    "tsup": "^8.5.1",
     "tsx": "^4.21.0",
     "typescript": "^5.5.0",
     "typescript-eslint": "^8.59.0",
