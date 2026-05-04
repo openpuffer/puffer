@@ -1,0 +1,75 @@
+schema: spec-driven
+
+context: |
+  Project: openpuffer — local-first security daemon for AI agents (PII, prompt injection, command, network, FS, behavior, MCP layers).
+  Stack: TypeScript ESM, Node ≥18, npm workspaces monorepo (apps/cli, apps/daemon, apps/dashboard, packages/*, packages/layers/*).
+  Architecture: 7-layer defense pipeline; engine + rules + score + audit + observability + proxy + hooks composed by daemon; CLI front + dashboard.
+  Testing: Vitest (run/watch) with v8 coverage; suites under tests/{adversarial,integration,layers,proxy,score,rules,hooks,discovery,observability}.
+  Quality: ESLint 9, Prettier 3, husky + lint-staged, tsc --noEmit typecheck, project references build (tsc -b).
+  Docs: docs/architecture/* (overview, phases, observability, operations, packaging, testing, getting-started); SECURITY.md; PROGRESS.md.
+
+strict_tdd: true
+
+testing:
+  test_runner:
+    framework: vitest
+    command: npm test
+    watch_command: npm run test:watch
+  layers:
+    unit:
+      available: true
+      tool: vitest
+    integration:
+      available: true
+      tool: vitest (tests/integration, tests/adversarial)
+    e2e:
+      available: false
+      tool: null
+  coverage:
+    available: true
+    command: npx vitest run --coverage
+    provider: v8
+  quality:
+    linter:
+      available: true
+      command: npm run lint
+      tool: eslint
+    type_checker:
+      available: true
+      command: npm run typecheck
+      tool: tsc --noEmit
+    formatter:
+      available: true
+      command: npm run format
+      tool: prettier
+
+rules:
+  proposal:
+    - State the threat-model impact for any change touching layers/, rules/, or proxy/
+    - Include rollback plan when changing default operating mode or rule severity
+    - Identify affected packages/layers and downstream consumers (engine, score, audit)
+  specs:
+    - Use Given/When/Then format for scenarios
+    - Use RFC 2119 keywords (MUST, SHALL, SHOULD, MAY)
+    - For detection layers, every rule change MUST have positive AND negative scenarios (true-positive + true-negative)
+  design:
+    - Document architecture decisions with rationale (ADR-style)
+    - Show data flow through the 7-layer pipeline when changes cross layer boundaries
+    - Call out detection-vs-enforcement implications per operating mode (monitor/enforce/paranoid/interactive)
+  tasks:
+    - Group tasks by phase (infra, layer logic, rules, tests, docs)
+    - Use hierarchical numbering (1.1, 1.2, ...)
+    - Keep tasks small enough to complete in one session
+    - Tests come first under Strict TDD Mode
+  apply:
+    - Follow existing layer pattern (see packages/layers/* for the canonical shape)
+    - Keep layers decoupled from PII vocabulary unless they ARE the PII layer
+    - Centralize constants; never hardcode regexes/severities inline
+    - Respect ESM imports and TypeScript project references
+  verify:
+    - Run `npm test` and `npm run typecheck`
+    - For rule/layer changes, run adversarial suite (tests/adversarial)
+    - Compare implementation against every spec scenario
+  archive:
+    - Warn before merging destructive deltas (large rule removals, severity downgrades)
+    - Update docs/architecture/* and PROGRESS.md when relevant
