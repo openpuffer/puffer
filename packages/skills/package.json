@@ -1,0 +1,19 @@
+{
+  "name": "@puffer/skills",
+  "version": "0.0.0",
+  "description": "Puffer skill discovery and governance module",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {},
+  "dependencies": {
+    "@puffer/core": "*"
+  }
+}

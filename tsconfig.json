@@ -27,6 +27,8 @@
       "@puffer/layer-filesystem": ["./packages/layers/filesystem/src/index.ts"],
       "@puffer/layer-behavior": ["./packages/layers/behavior/src/index.ts"],
       "@puffer/layer-mcp": ["./packages/layers/mcp/src/index.ts"],
+      "@puffer/layer-skills": ["./packages/layers/skills/src/index.ts"],
+      "@puffer/skills": ["./packages/skills/src/index.ts"],
       "@puffer/daemon": ["./apps/daemon/src/index.ts"]
     }
   },

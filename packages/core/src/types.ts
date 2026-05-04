@@ -31,7 +31,15 @@ export type EventAction =
   | { type: 'mcp_tool_call'; server: string; tool: string; params: unknown }
   | { type: 'mcp_tool_result'; server: string; tool: string; result: unknown }
   | { type: 'notification'; category: string; message: string }
-  | { type: 'agent_activity_summary'; agent: string; summary: string; connections: number };
+  | { type: 'agent_activity_summary'; agent: string; summary: string; connections: number }
+  | {
+      type: 'skill_invoke';
+      skill: { id: string; name: string; contentHash?: string | undefined };
+      args?: Record<string, unknown> | undefined;
+    }
+  | { type: 'skill_added'; skill: SkillManifest }
+  | { type: 'skill_modified'; skill: SkillManifest; previousHash?: string | undefined }
+  | { type: 'skill_removed'; skill: SkillManifest };
 
 export interface RateLimitInfo {
   limitTokens?: number | undefined;
@@ -178,6 +186,7 @@ export interface PufferConfig {
     filesystem: FilesystemConfig;
     behavior: BehaviorConfig;
     mcp: MCPConfig;
+    skills: SkillsConfig;
   };
   dashboard: {
     enabled: boolean;
@@ -279,6 +288,18 @@ export interface MCPConfig {
   scanToolResults: boolean;
 }
 
+export interface SkillsConfig {
+  enabled: boolean;
+  /** 'monitor' = log but don't block; 'enforce' = block on deny/not-in-allowlist */
+  policy: 'monitor' | 'enforce';
+  /** If non-empty, only these names/ids/hashes are permitted. Others blocked. */
+  allowlist: string[];
+  /** Always denied; checked before allowlist. */
+  denylist: string[];
+  /** How often to re-scan disk for skill changes (ms). Default: 30000. */
+  scan_interval_ms: number;
+}
+
 export interface OllamaConfig {
   blockedModels: string[];
   allowedModels: string[];
@@ -308,4 +329,53 @@ export interface DashboardStats {
   activeAgents: number;
   totalCost: number;
   eventsPerMinute: number;
+}
+
+// === SKILL GOVERNANCE TYPES ===
+
+/** Logical category that identifies where a skill originates. */
+export type SkillSource =
+  | 'claude-code-global'
+  | 'claude-code-project'
+  | 'openclaw-bundled'
+  | 'openclaw-user'
+  | 'unknown';
+
+export interface SkillManifest {
+  /** Stable identifier: "<source>/<name>". Example: "claude-code-global/simplify". */
+  id: string;
+  /** Skill name as derived from directory or frontmatter. */
+  name: string;
+  /** Where this skill lives (logical category). */
+  source: SkillSource;
+  /** Absolute path to the skill's root directory. */
+  rootPath: string;
+  /** Path to the manifest file (SKILL.md) if present. */
+  manifestPath: string | null;
+  /** Free-text description from frontmatter or first paragraph. May be empty string. */
+  description: string;
+  /** sha256 of the concatenated content of all files in the skill directory (sorted by relative path). 64 hex chars. */
+  contentHash: string;
+  /** ISO timestamp of the most recent mtime among the skill's files. */
+  lastModified: string;
+  /** Total size in bytes of all files in the skill (large files excluded). */
+  sizeBytes: number;
+  /** Number of files in the skill directory (recursive), including large files that are skipped from hashing. */
+  fileCount: number;
+}
+
+export interface SkillInventory {
+  /** ISO timestamp the scan was performed. */
+  scannedAt: string;
+  /** All skills discovered in this scan. */
+  skills: SkillManifest[];
+  /** Roots actually scanned (with whether they existed). */
+  roots: { path: string; source: SkillSource; existed: boolean }[];
+}
+
+export interface SkillChangeEvent {
+  type: 'skill_added' | 'skill_modified' | 'skill_removed';
+  skill: SkillManifest;
+  /** For 'skill_modified', the previous content hash. */
+  previousHash?: string | undefined;
 }
